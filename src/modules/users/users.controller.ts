@@ -14,10 +14,12 @@ import {
   ObjectIdParam,
   ResponseMessage,
 } from '../../common/decorators';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
-import { UsersQueryDto } from './dto/users-query.dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UserResponseDto,
+  UsersQueryDto,
+} from './dto';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -26,40 +28,40 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a user' })
+  @ApiOperation({ summary: 'Tạo người dùng' })
   @ApiBaseResponse(UserResponseDto, {
     status: 201,
-    description: 'User created successfully',
+    description: 'Tạo người dùng thành công',
   })
-  @ResponseMessage('User created successfully')
+  @ResponseMessage('Tạo người dùng thành công')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get users' })
-  @ApiPaginatedResponse(UserResponseDto, 'Users fetched successfully')
-  @ResponseMessage('Users fetched successfully')
+  @ApiOperation({ summary: 'Lấy danh sách người dùng' })
+  @ApiPaginatedResponse(UserResponseDto, 'Lấy danh sách người dùng thành công')
+  @ResponseMessage('Lấy danh sách người dùng thành công')
   findAll(@Query() query: UsersQueryDto) {
     return this.usersService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a user by id' })
+  @ApiOperation({ summary: 'Lấy người dùng theo id' })
   @ApiBaseResponse(UserResponseDto, {
-    description: 'User fetched successfully',
+    description: 'Lấy người dùng thành công',
   })
-  @ResponseMessage('User fetched successfully')
+  @ResponseMessage('Lấy người dùng thành công')
   findOne(@ObjectIdParam('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a user by id' })
+  @ApiOperation({ summary: 'Cập nhật người dùng theo id' })
   @ApiBaseResponse(UserResponseDto, {
-    description: 'User updated successfully',
+    description: 'Cập nhật người dùng thành công',
   })
-  @ResponseMessage('User updated successfully')
+  @ResponseMessage('Cập nhật người dùng thành công')
   update(
     @ObjectIdParam('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -68,11 +70,11 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a user by id' })
+  @ApiOperation({ summary: 'Xóa người dùng theo id' })
   @ApiBaseResponse(UserResponseDto, {
-    description: 'User deleted successfully',
+    description: 'Xóa người dùng thành công',
   })
-  @ResponseMessage('User deleted successfully')
+  @ResponseMessage('Xóa người dùng thành công')
   remove(@ObjectIdParam('id') id: string) {
     return this.usersService.remove(id);
   }

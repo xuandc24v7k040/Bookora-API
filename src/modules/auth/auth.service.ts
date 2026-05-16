@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -25,6 +25,11 @@ interface CookieOptionsConfig {
   sameSite: 'lax' | 'none';
   domain?: string;
   path: string;
+}
+
+interface FailedLoginResult {
+  emailBlocked: boolean;
+  ipBlocked: boolean;
 }
 
 @Injectable()
@@ -46,7 +51,6 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.usersService.create({
-      name: dto.fullName,
       fullName: dto.fullName,
       email: dto.email.toLowerCase(),
       passwordHash,
@@ -66,19 +70,21 @@ export class AuthService {
     const user = await this.usersService.findByEmail(dto.email, true);
 
     if (!user || user.provider !== 'local' || !user.passwordHash) {
-      await this.recordFailedLogin(dto.email, ip, user);
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      const failedLogin = await this.recordFailedLogin(dto.email, ip, user);
+      throw this.createLoginFailureException(failedLogin);
     }
 
     if (user.lockUntil && user.lockUntil > new Date()) {
       this.logger.warn(`Account locked for email=${user.email}`);
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException(
+        this.getEmailLockedMessage(user.lockUntil),
+      );
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
-      await this.recordFailedLogin(dto.email, ip, user);
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      const failedLogin = await this.recordFailedLogin(dto.email, ip, user);
+      throw this.createLoginFailureException(failedLogin);
     }
 
     await Promise.all([
@@ -129,7 +135,7 @@ export class AuthService {
   async refresh(refreshToken: string | undefined, response: Response) {
     if (!refreshToken) {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
     let payload: JwtPayload;
@@ -139,16 +145,16 @@ export class AuthService {
       });
     } catch {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
     const user = await this.usersService.findByEmail(payload.email, true);
     if (!user || !user.refreshTokenHash) {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     }
 
-    const tokenMatches = await bcrypt.compare(
+    const tokenMatches = this.matchesStoredRefreshToken(
       refreshToken,
       user.refreshTokenHash,
     );
@@ -158,7 +164,9 @@ export class AuthService {
       });
       this.clearAuthCookies(response);
       this.logger.warn(`Refresh token mismatch for userId=${String(user._id)}`);
-      throw new UnauthorizedException();
+      throw new UnauthorizedException(
+        'Refresh token không hợp lệ hoặc đã được dùng lại',
+      );
     }
 
     await this.issueSession(user, response);
@@ -191,7 +199,9 @@ export class AuthService {
 
   async loginWithGoogle(profile: GoogleProfile, response: Response) {
     if (!profile.email || !profile.emailVerified) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException(
+        'Tài khoản Google chưa được xác minh email',
+      );
     }
 
     let user: UserDocument | null = await this.usersService.findByEmail(
@@ -200,7 +210,6 @@ export class AuthService {
     );
     if (!user) {
       user = await this.usersService.create({
-        name: profile.fullName,
         fullName: profile.fullName,
         email: profile.email.toLowerCase(),
         provider: 'google',
@@ -214,7 +223,7 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Đăng nhập Google thất bại');
     }
 
     await this.issueSession(user, response);
@@ -226,8 +235,7 @@ export class AuthService {
       _id: unknown;
       email: string;
       role: 'user' | 'admin';
-      fullName?: string;
-      name: string;
+      fullName: string;
     },
     response: Response,
   ) {
@@ -249,7 +257,7 @@ export class AuthService {
       }),
     ]);
 
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+    const refreshTokenHash = this.hashRefreshToken(refreshToken);
     await this.usersService.updateAuthFields(String(user._id), {
       refreshTokenHash,
     });
@@ -268,7 +276,7 @@ export class AuthService {
     email: string,
     ip: string,
     user: { _id: unknown; failedLoginAttempts: number } | null,
-  ) {
+  ): Promise<FailedLoginResult> {
     this.logger.warn(`Login failed for email=${email.toLowerCase()} ip=${ip}`);
     const emailAttempt = await this.incrementAttempt('email', email);
     const ipAttempt = await this.incrementAttempt('ip', ip);
@@ -296,6 +304,11 @@ export class AuthService {
         `Auth attempt blocked email=${email.toLowerCase()} ip=${ip}`,
       );
     }
+
+    return {
+      emailBlocked: Boolean(emailAttempt?.blockedUntil),
+      ipBlocked: Boolean(ipAttempt?.blockedUntil),
+    };
   }
 
   private async ensureIpNotBlocked(ip: string) {
@@ -304,7 +317,9 @@ export class AuthService {
       key: ip.toLowerCase(),
     });
     if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException(
+        this.getIpBlockedMessage(attempt.blockedUntil),
+      );
     }
   }
 
@@ -314,7 +329,9 @@ export class AuthService {
       key: email.toLowerCase(),
     });
     if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException(
+        this.getEmailLockedMessage(attempt.blockedUntil),
+      );
     }
   }
 
@@ -372,14 +389,13 @@ export class AuthService {
   private toPublicUser(user: {
     _id: unknown;
     email: string;
-    fullName?: string;
-    name: string;
+    fullName: string;
     role: 'user' | 'admin';
   }): AuthenticatedUser {
     return {
       id: String(user._id),
       email: user.email,
-      fullName: user.fullName ?? user.name,
+      fullName: user.fullName,
       role: user.role,
     };
   }
@@ -445,5 +461,75 @@ export class AuthService {
       this.configService.get<string>('AUTH_LOCK_WINDOW_MINUTES') ?? 1,
     );
     return minutes * 60 * 1000;
+  }
+
+  private createLoginFailureException(result: FailedLoginResult) {
+    if (result.emailBlocked) {
+      return new UnauthorizedException(
+        this.getEmailLockedMessage(this.getWindowEnd()),
+      );
+    }
+
+    if (result.ipBlocked) {
+      return new UnauthorizedException(
+        this.getIpBlockedMessage(this.getWindowEnd()),
+      );
+    }
+
+    return new UnauthorizedException(this.getInvalidCredentialsMessage());
+  }
+
+  private getInvalidCredentialsMessage() {
+    return 'Email hoặc mật khẩu không đúng';
+  }
+
+  private getEmailLockedMessage(lockUntil: Date) {
+    if (!this.isDevelopment()) {
+      return this.getInvalidCredentialsMessage();
+    }
+
+    return `Tài khoản đã bị khóa ${this.getWindowMinutes()} phút, thử lại sau ${this.formatRetryAt(lockUntil)}.`;
+  }
+
+  private getIpBlockedMessage(blockedUntil: Date) {
+    if (!this.isDevelopment()) {
+      return this.getInvalidCredentialsMessage();
+    }
+
+    return `IP đã bị chặn ${this.getWindowMinutes()} phút, thử lại sau ${this.formatRetryAt(blockedUntil)}.`;
+  }
+
+  private isDevelopment() {
+    return this.configService.get<string>('NODE_ENV') !== 'production';
+  }
+
+  private getWindowMinutes() {
+    return Number(
+      this.configService.get<string>('AUTH_LOCK_WINDOW_MINUTES') ?? 1,
+    );
+  }
+
+  private formatRetryAt(date: Date) {
+    return date.toLocaleString('vi-VN', {
+      hour12: false,
+    });
+  }
+
+  // JWT refresh tokens are long and share a common prefix, so bcrypt's
+  // 72-byte truncation rule is unsafe here. Store a full-length digest instead.
+  private hashRefreshToken(refreshToken: string) {
+    return createHash('sha256').update(refreshToken).digest('hex');
+  }
+
+  private matchesStoredRefreshToken(refreshToken: string, storedHash: string) {
+    if (!/^[a-f0-9]{64}$/i.test(storedHash)) {
+      return false;
+    }
+
+    const tokenHash = this.hashRefreshToken(refreshToken);
+    const left = Buffer.from(tokenHash, 'hex');
+    const right = Buffer.from(storedHash, 'hex');
+
+    return left.length === right.length && timingSafeEqual(left, right);
   }
 }

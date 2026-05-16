@@ -8,7 +8,7 @@ export class UserResponseDto {
   email!: string;
 
   @ApiProperty({ example: 'Admin' })
-  name!: string;
+  fullName!: string;
 
   @ApiPropertyOptional({ example: '0900000000' })
   phone?: string;

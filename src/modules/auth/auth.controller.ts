@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Post,
   Query,
   Req,
@@ -10,21 +12,23 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
 import { CsrfGuard } from './guards/csrf.guard';
+import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 import type { GoogleProfile } from './strategies/google.strategy';
+import { ResponseMessage } from '../../common/decorators';
 
 @ApiTags('auth')
 @Controller('auth')
-@UseGuards(ThrottlerGuard)
+@UseGuards(AuthThrottlerGuard)
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -44,6 +48,7 @@ export class AuthController {
     description: 'Sets accessToken and refreshToken as httpOnly cookies.',
   })
   @ApiResponse({ status: 201, description: 'Registered successfully' })
+  @ResponseMessage('Đăng ký thành công')
   register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -52,6 +57,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @Throttle({
     default: {
@@ -64,6 +70,7 @@ export class AuthController {
     description: 'Sets accessToken and refreshToken as httpOnly cookies.',
   })
   @ApiResponse({ status: 200, description: 'Logged in successfully' })
+  @ResponseMessage('Đăng nhập thành công')
   login(
     @Body() dto: LoginDto,
     @Req() req: Request,
@@ -77,11 +84,13 @@ export class AuthController {
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @ApiOperation({
     summary: 'Logout current session',
     description: 'Clears cookie-based JWT session.',
   })
+  @ResponseMessage('Đăng xuất thành công')
   logout(
     @Req() req: Request,
     @CurrentUser() user: AuthenticatedUser | undefined,
@@ -95,6 +104,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @Throttle({
     default: {
@@ -106,6 +116,7 @@ export class AuthController {
     summary: 'Rotate refresh token and issue new cookies',
     description: 'Reads refreshToken from httpOnly cookie.',
   })
+  @ResponseMessage('Làm mới phiên đăng nhập thành công')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.authService.refresh(req.cookies?.refreshToken as string, res);
   }
@@ -115,6 +126,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get current authenticated user from accessToken cookie',
   })
+  @ResponseMessage('Lấy thông tin người dùng thành công')
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;
   }
@@ -129,6 +141,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Issue initial CSRF cookie for cookie-authenticated flows',
   })
+  @ResponseMessage('Tạo CSRF token thành công')
   csrfToken(@Res({ passthrough: true }) res: Response) {
     return this.authService.createCsrfToken(res);
   }

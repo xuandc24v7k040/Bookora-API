@@ -11,6 +11,7 @@ import { AuthAttemptsRepository } from './auth-attempts.repository';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { CsrfGuard } from './guards/csrf.guard';
+import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { GoogleStrategy } from './strategies/google.strategy';
@@ -29,6 +30,7 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
   providers: [
     AuthService,
     AuthAttemptsRepository,
+    AuthThrottlerGuard,
     CsrfGuard,
     JwtAccessGuard,
     GoogleOauthGuard,

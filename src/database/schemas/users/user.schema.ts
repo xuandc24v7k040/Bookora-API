@@ -9,10 +9,7 @@ export type UserDocument = HydratedDocument<User>;
 })
 export class User {
   @Prop({ required: true, trim: true })
-  name!: string;
-
-  @Prop({ trim: true })
-  fullName?: string;
+  fullName!: string;
 
   @Prop({ required: true, lowercase: true, trim: true, unique: true })
   email!: string;

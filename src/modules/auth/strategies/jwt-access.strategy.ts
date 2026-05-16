@@ -29,7 +29,7 @@ export class JwtAccessStrategy extends PassportStrategy(
     return {
       id: String(user._id),
       email: user.email,
-      fullName: user.fullName ?? user.name,
+      fullName: user.fullName,
       role: user.role,
     };
   }

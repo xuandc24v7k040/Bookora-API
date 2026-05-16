@@ -67,7 +67,7 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.usersRepository.findById(id);
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
     }
 
     return user;
@@ -80,7 +80,7 @@ export class UsersService {
     );
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
     }
 
     return user;
@@ -89,7 +89,7 @@ export class UsersService {
   async remove(id: string) {
     const user = await this.usersRepository.findOneAndDelete({ _id: id });
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
     }
 
     return user;
@@ -106,7 +106,7 @@ export class UsersService {
     };
 
     return {
-      $or: [{ email: searchRegex }, { name: searchRegex }],
+      $or: [{ email: searchRegex }, { fullName: searchRegex }],
     };
   }
 }

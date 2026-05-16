@@ -7,7 +7,7 @@ export enum UsersSortField {
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
   EMAIL = 'email',
-  NAME = 'name',
+  FULL_NAME = 'fullName',
 }
 
 export class UsersQueryDto extends PaginationDto {

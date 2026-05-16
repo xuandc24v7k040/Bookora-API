@@ -52,7 +52,7 @@ export class TransformInterceptor<T> implements NestInterceptor<
         if (isResponseWithMeta<T>(data)) {
           return {
             statusCode,
-            message: data.message ?? responseMessage ?? 'Success',
+            message: data.message ?? responseMessage ?? 'Thành công',
             data: data.data,
             meta: data.meta,
           };
@@ -61,14 +61,14 @@ export class TransformInterceptor<T> implements NestInterceptor<
         if (isResponseWithResult<T>(data)) {
           return {
             statusCode,
-            message: data.message ?? responseMessage ?? 'Success',
+            message: data.message ?? responseMessage ?? 'Thành công',
             data: data.result ?? (data as T),
           };
         }
 
         return {
           statusCode,
-          message: responseMessage ?? 'Success',
+          message: responseMessage ?? 'Thành công',
           data: data as T,
         };
       }),
