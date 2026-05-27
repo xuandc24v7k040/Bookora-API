@@ -1,0 +1,54 @@
+enum CategoryType {
+  NORMAL
+  SYSTEM
+  COLLECTION
+  BRAND
+  LANDING
+}
+
+enum MegaMenuItemType {
+  CATEGORY
+  CUSTOM_LINK
+  LABEL
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  PREORDER
+  DISCONTINUED
+}
+
+enum ProductMediaType {
+  IMAGE
+  VIDEO
+  PDF_PREVIEW
+}
+
+enum ProductAttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  SINGLE_SELECT
+  MULTI_SELECT
+}
+
+enum FilterType {
+  CHECKBOX
+  RADIO
+  RANGE
+  SELECT
+  MULTI_SELECT
+}
+
+enum FilterSource {
+  ATTRIBUTE
+  CATEGORY
+  PRICE
+  BRANCH
+  STOCK
+  RATING
+  SYSTEM
+}

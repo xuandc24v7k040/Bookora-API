@@ -1,9 +1,4 @@
 import { registerAs } from '@nestjs/config';
+import { getYamlEnvironmentConfig } from './yaml.config';
 
-export default registerAs('app', () => ({
-  name: process.env.APP_NAME ?? 'Exam API',
-  port: Number(process.env.PORT ?? 3000),
-  apiPrefix: process.env.API_PREFIX ?? 'api',
-  corsOrigin: process.env.FRONTEND_URL ?? process.env.CORS_ORIGIN ?? '*',
-  frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173',
-}));
+export default registerAs('app', () => getYamlEnvironmentConfig().app);

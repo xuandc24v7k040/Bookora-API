@@ -1,1 +1,1 @@
-export { SortDirection } from './sort-direction.enum';
+export * from './sort-direction.enum';

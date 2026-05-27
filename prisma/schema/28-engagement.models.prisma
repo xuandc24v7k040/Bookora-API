@@ -1,0 +1,71 @@
+model Review {
+  id        String  @id @default(ulid())
+  userId    String
+  productId String
+  orderId   String?
+  rating    Int
+  content   String?
+  isVisible Boolean @default(true)
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  replies ReviewReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([orderId])
+  @@index([isVisible])
+  @@map("reviews")
+}
+
+model ReviewReply {
+  id        String   @id @default(ulid())
+  reviewId  String
+  adminId   String?
+  content   String
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  admin  User?  @relation("ReviewReplyAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([reviewId])
+  @@index([adminId])
+  @@map("review_replies")
+}
+
+model Wishlist {
+  id        String   @id @default(ulid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("wishlists")
+}
+
+model Notification {
+  id        String           @id @default(ulid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}

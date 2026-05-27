@@ -27,7 +27,7 @@ describe('AppController (e2e)', () => {
 
         expect(body).toMatchObject({
           statusCode: 200,
-          message: 'Health checked',
+          message: 'Kiểm tra trạng thái thành công',
           data: {
             name: 'Exam API',
             status: 'ok',

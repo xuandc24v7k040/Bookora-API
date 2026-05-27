@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: .
+      args:
+        DATABASE_URL: postgresql://postgres:password@postgres:5432/ecommerce_db?schema=public
+    container_name: nestjs-backend
+    restart: always
+    env_file:
+      - .env.production
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+      - minio
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ecommerce_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio
+    container_name: minio-storage
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: strong_minio_password
+    volumes:
+      - minio_data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,113 @@
+model Category {
+  id          String       @id @default(ulid())
+  name        String
+  slug        String       @unique
+  description String?
+  parentId    String?
+  type        CategoryType @default(NORMAL)
+  imageUrl    String?
+  iconUrl     String?
+  isActive    Boolean      @default(true)
+  sortOrder   Int          @default(0)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  products         ProductCategory[]
+  menuItems        MegaMenuItem[]
+  filterSets       CategoryFilterSet[]
+  couponCategories CouponCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([slug])
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+model ProductCategory {
+  id         String  @id @default(ulid())
+  productId  String
+  categoryId String
+  isPrimary  Boolean @default(false)
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("product_categories")
+}
+
+model MegaMenu {
+  id          String  @id @default(ulid())
+  name        String
+  code        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  columns MegaMenuColumn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+  @@map("mega_menus")
+}
+
+model MegaMenuColumn {
+  id        String  @id @default(ulid())
+  menuId    String
+  title     String?
+  sortOrder Int     @default(0)
+
+  menu     MegaMenu          @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  sections MegaMenuSection[]
+
+  @@index([menuId])
+  @@index([sortOrder])
+  @@map("mega_menu_columns")
+}
+
+model MegaMenuSection {
+  id        String  @id @default(ulid())
+  columnId  String
+  title     String
+  titleUrl  String?
+  iconUrl   String?
+  badge     String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  column MegaMenuColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  items  MegaMenuItem[]
+
+  @@index([columnId])
+  @@index([isActive, sortOrder])
+  @@map("mega_menu_sections")
+}
+
+model MegaMenuItem {
+  id         String           @id @default(ulid())
+  sectionId  String
+  categoryId String?
+  type       MegaMenuItemType @default(CATEGORY)
+  label      String
+  url        String?
+  badge      String?
+  iconUrl    String?
+  sortOrder  Int              @default(0)
+  isActive   Boolean          @default(true)
+
+  section  MegaMenuSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  category Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([sectionId])
+  @@index([categoryId])
+  @@index([isActive, sortOrder])
+  @@map("mega_menu_items")
+}

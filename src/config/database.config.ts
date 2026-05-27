@@ -1,5 +1,7 @@
 import { registerAs } from '@nestjs/config';
+import { getYamlEnvironmentConfig } from './yaml.config';
 
-export default registerAs('database', () => ({
-  uri: process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/exam',
-}));
+export default registerAs(
+  'database',
+  () => getYamlEnvironmentConfig().database,
+);

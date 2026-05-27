@@ -1,0 +1,55 @@
+model FilterDefinition {
+  id            String       @id @default(ulid())
+  name          String
+  code          String       @unique
+  type          FilterType
+  source        FilterSource
+  attributeCode String?
+  isSearchable  Boolean      @default(false)
+  isActive      Boolean      @default(true)
+
+  options    FilterOption[]
+  categories CategoryFilterSet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([source])
+  @@index([isActive])
+  @@map("filter_definitions")
+}
+
+model FilterOption {
+  id        String  @id @default(ulid())
+  filterId  String
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  filter FilterDefinition @relation(fields: [filterId], references: [id], onDelete: Cascade)
+
+  @@unique([filterId, value])
+  @@index([filterId])
+  @@index([isActive, sortOrder])
+  @@map("filter_options")
+}
+
+model CategoryFilterSet {
+  id         String  @id @default(ulid())
+  categoryId String
+  filterId   String
+  sortOrder  Int     @default(0)
+  isRequired Boolean @default(false)
+  isVisible  Boolean @default(true)
+
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  filter   FilterDefinition @relation(fields: [filterId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, filterId])
+  @@index([categoryId])
+  @@index([filterId])
+  @@index([isVisible, sortOrder])
+  @@map("category_filter_sets")
+}

@@ -22,7 +22,7 @@ export function setupApplication(app: INestApplication): void {
 
   app.use(helmet());
   app.use(compression());
-  app.use(cookieParser(configService.get<string>('COOKIE_SECRET')));
+  app.use(cookieParser(configService.get<string>('cookie.secret')));
   app.enableCors({
     origin: parseCorsOrigin(corsOrigin),
     credentials: true,

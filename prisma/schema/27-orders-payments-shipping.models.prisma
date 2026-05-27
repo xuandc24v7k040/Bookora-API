@@ -1,0 +1,148 @@
+model Order {
+  id              String      @id @default(ulid())
+  orderCode       String      @unique
+  userId          String
+  branchId        String
+  couponId        String?
+  status          OrderStatus @default(PENDING)
+  subtotalAmount  Decimal     @db.Decimal(12, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(12, 2)
+  shippingFee     Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal     @db.Decimal(12, 2)
+  receiverName    String
+  receiverPhone   String
+  shippingAddress String
+  note            String?
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  coupon Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  items          OrderItem[]
+  payment        Payment?
+  shipment       OrderShipment?
+  histories      OrderStatusHistory[]
+  stockMovements StockMovement[]
+  couponUsages   CouponUsage[]
+  reviews        Review[]
+  preorders      Preorder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderCode])
+  @@index([userId])
+  @@index([branchId])
+  @@index([couponId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String        @id @default(ulid())
+  orderId    String
+  variantId  String?
+  comboId    String?
+  itemType   OrderItemType
+  name       String
+  sku        String?
+  quantity   Int
+  unitPrice  Decimal       @db.Decimal(12, 2)
+  totalPrice Decimal       @db.Decimal(12, 2)
+  createdAt  DateTime      @default(now())
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  combo   Combo?          @relation(fields: [comboId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([variantId])
+  @@index([comboId])
+  @@map("order_items")
+}
+
+model Payment {
+  id      String        @id @default(ulid())
+  orderId String        @unique
+  method  PaymentMethod
+  status  PaymentStatus @default(PENDING)
+  amount  Decimal       @db.Decimal(12, 2)
+  paidAt  DateTime?
+
+  order        Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([method])
+  @@index([status])
+  @@map("payments")
+}
+
+model PaymentTransaction {
+  id                  String                   @id @default(ulid())
+  paymentId           String
+  transactionType     PaymentTransactionType
+  status              PaymentTransactionStatus @default(PENDING)
+  gateway             String
+  gatewayTxnRef       String?
+  gatewayOrderInfo    String?
+  gatewayResponseCode String?
+  gatewayMessage      String?
+  amount              Decimal                  @db.Decimal(12, 2)
+  requestPayload      Json?
+  responsePayload     Json?
+  ipAddress           String?
+  createdAt           DateTime                 @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([gateway])
+  @@index([gatewayTxnRef])
+  @@index([status])
+  @@map("payment_transactions")
+}
+
+model OrderShipment {
+  id           String  @id @default(ulid())
+  orderId      String  @unique
+  provider     String  @default("GHN")
+  serviceCode  String?
+  shippingFee  Decimal @db.Decimal(12, 2)
+  trackingCode String?
+  ghnOrderCode String?
+  status       String?
+  rawResponse  Json?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider])
+  @@index([trackingCode])
+  @@index([ghnOrderCode])
+  @@index([status])
+  @@map("order_shipments")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(ulid())
+  orderId     String
+  oldStatus   OrderStatus?
+  newStatus   OrderStatus
+  note        String?
+  changedById String?
+  createdAt   DateTime     @default(now())
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation("OrderStatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("order_status_histories")
+}

@@ -1,0 +1,43 @@
+enum StockMovementType {
+  IMPORT
+  EXPORT
+  SALE
+  RETURN
+  ADJUSTMENT
+  CANCEL_ORDER
+}
+
+enum CouponScope {
+  ALL_ORDER
+  BRANCH
+  PRODUCT
+  CATEGORY
+  SHIPPING
+}
+
+enum CouponTargetType {
+  INCLUDE
+  EXCLUDE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PENDING
+  CONFIRMED
+  PACKING
+  SHIPPING
+  COMPLETED
+  CANCELLED
+  RETURNED
+}
+
+enum OrderItemType {
+  PRODUCT
+  COMBO
+}

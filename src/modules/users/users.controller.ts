@@ -11,8 +11,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiBaseResponse,
   ApiPaginatedResponse,
-  ObjectIdParam,
   ResponseMessage,
+  UlidParam,
 } from '../../common/decorators';
 import {
   CreateUserDto,
@@ -52,7 +52,7 @@ export class UsersController {
     description: 'Lấy người dùng thành công',
   })
   @ResponseMessage('Lấy người dùng thành công')
-  findOne(@ObjectIdParam('id') id: string) {
+  findOne(@UlidParam('id') id: string) {
     return this.usersService.findOne(id);
   }
 
@@ -62,10 +62,7 @@ export class UsersController {
     description: 'Cập nhật người dùng thành công',
   })
   @ResponseMessage('Cập nhật người dùng thành công')
-  update(
-    @ObjectIdParam('id') id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  update(@UlidParam('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -75,7 +72,7 @@ export class UsersController {
     description: 'Xóa người dùng thành công',
   })
   @ResponseMessage('Xóa người dùng thành công')
-  remove(@ObjectIdParam('id') id: string) {
+  remove(@UlidParam('id') id: string) {
     return this.usersService.remove(id);
   }
 }

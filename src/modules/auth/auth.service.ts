@@ -1,23 +1,24 @@
 import {
   ConflictException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
+import { AuthProvider, Role, type User } from '@/generated/prisma/client';
+import { parseDuration } from '@/common/utils';
+import type { Response } from 'express';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import type { SignOptions } from 'jsonwebtoken';
 import { UsersService } from '../users/users.service';
+import { AuthAttemptService } from './auth-attempt.service';
+import { AuthSessionsRepository } from './auth-sessions.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { AuthAttemptsRepository } from './auth-attempts.repository';
 import { GoogleProfile } from './strategies/google.strategy';
-import { JwtPayload } from './types/jwt-payload.type';
 import { AuthenticatedUser } from './types/authenticated-user.type';
-import type { UserDocument } from '../../database/schemas/users/user.schema';
-import type { SignOptions } from 'jsonwebtoken';
+import { JwtPayload } from './types/jwt-payload.type';
 
 interface CookieOptionsConfig {
   httpOnly: boolean;
@@ -27,149 +28,121 @@ interface CookieOptionsConfig {
   path: string;
 }
 
-interface FailedLoginResult {
-  emailBlocked: boolean;
-  ipBlocked: boolean;
+interface RequestMetadata {
+  ipAddress?: string;
+  userAgent?: string;
 }
+
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+const INVALID_CREDENTIALS_MESSAGE = 'Email hoặc mật khẩu không đúng.';
+const INVALID_SESSION_MESSAGE = 'Phiên đăng nhập không hợp lệ';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly usersService: UsersService,
-    private readonly authAttemptsRepository: AuthAttemptsRepository,
+    private readonly authAttemptService: AuthAttemptService,
+    private readonly authSessionsRepository: AuthSessionsRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto, response: Response) {
-    const existing = await this.usersService.findByEmail(dto.email);
+  async register(dto: RegisterDto) {
+    const email = this.authAttemptService.normalizeEmail(dto.email);
+    const existing = await this.usersService.findByEmail(email);
     if (existing) {
       throw new ConflictException('Email đã được sử dụng');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.usersService.create({
+    const user = await this.usersService.createForAuth({
       fullName: dto.fullName,
-      email: dto.email.toLowerCase(),
+      email,
       passwordHash,
-      provider: 'local',
-      role: 'user',
+      provider: AuthProvider.LOCAL,
+      role: Role.USER,
     });
 
-    await this.issueSession(user, response);
     return this.toPublicUser(user);
   }
 
-  async login(dto: LoginDto, ip: string, response: Response) {
-    await Promise.all([
-      this.ensureIpNotBlocked(ip),
-      this.ensureEmailNotBlocked(dto.email),
-    ]);
-    const user = await this.usersService.findByEmail(dto.email, true);
+  async login(dto: LoginDto, metadata: RequestMetadata, response: Response) {
+    const email = this.authAttemptService.normalizeEmail(dto.email);
+    const ip = metadata.ipAddress ?? 'unknown';
 
-    if (!user || user.provider !== 'local' || !user.passwordHash) {
-      const failedLogin = await this.recordFailedLogin(dto.email, ip, user);
-      throw this.createLoginFailureException(failedLogin);
-    }
+    await this.authAttemptService.checkLoginBlocked(email, ip);
+    const user = await this.usersService.findByEmail(email, true);
 
-    if (user.lockUntil && user.lockUntil > new Date()) {
-      this.logger.warn(`Account locked for email=${user.email}`);
-      throw new UnauthorizedException(
-        this.getEmailLockedMessage(user.lockUntil),
-      );
+    if (!user || user.provider !== AuthProvider.LOCAL || !user.passwordHash) {
+      await this.authAttemptService.recordLoginFailure(email, ip);
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordValid) {
-      const failedLogin = await this.recordFailedLogin(dto.email, ip, user);
-      throw this.createLoginFailureException(failedLogin);
+      await this.authAttemptService.recordLoginFailure(email, ip);
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    await Promise.all([
-      this.usersService.updateAuthFields(String(user._id), {
-        failedLoginAttempts: 0,
-        lockUntil: null,
-      }),
-      this.resetAttempt('email', dto.email),
-      this.resetAttempt('ip', ip),
-    ]);
-
-    await this.issueSession(user, response);
+    await this.authAttemptService.resetLoginAttempts(email, ip);
+    await this.startSession(user, metadata, response);
     return this.toPublicUser(user);
   }
 
   async logout(
-    userId: string | undefined,
+    accessToken: string | undefined,
     refreshToken: string | undefined,
     response: Response,
   ) {
-    let resolvedUserId = userId;
-    if (!resolvedUserId && refreshToken) {
-      try {
-        const payload = await this.jwtService.verifyAsync<JwtPayload>(
-          refreshToken,
-          {
-            secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-          },
-        );
-        resolvedUserId = payload.sub;
-      } catch {
-        resolvedUserId = undefined;
-      }
+    const userId = await this.getUserIdFromAuthCookies(
+      accessToken,
+      refreshToken,
+    );
+
+    if (userId) {
+      await this.authSessionsRepository.revokeActiveByUserId(userId);
     }
 
-    if (resolvedUserId) {
-      await this.usersService.updateAuthFields(resolvedUserId, {
-        refreshTokenHash: null,
-      });
-    }
     this.clearAuthCookies(response);
-    this.logger.log(
-      `Logout completed for userId=${resolvedUserId ?? 'anonymous'}`,
-    );
     return { success: true };
   }
 
   async refresh(refreshToken: string | undefined, response: Response) {
     if (!refreshToken) {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
 
     let payload: JwtPayload;
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      });
+      payload = await this.verifyRefreshToken(refreshToken);
     } catch {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
 
-    const user = await this.usersService.findByEmail(payload.email, true);
-    if (!user || !user.refreshTokenHash) {
+    const session =
+      await this.authSessionsRepository.findActiveByUserIdWithUser(payload.sub);
+    if (!session) {
       this.clearAuthCookies(response);
-      throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
 
-    const tokenMatches = this.matchesStoredRefreshToken(
-      refreshToken,
-      user.refreshTokenHash,
-    );
-    if (!tokenMatches) {
-      await this.usersService.updateAuthFields(String(user._id), {
-        refreshTokenHash: null,
-      });
+    if (
+      !this.matchesStoredRefreshToken(refreshToken, session.refreshTokenHash)
+    ) {
+      await this.authSessionsRepository.revokeActiveByUserId(payload.sub);
       this.clearAuthCookies(response);
-      this.logger.warn(`Refresh token mismatch for userId=${String(user._id)}`);
       throw new UnauthorizedException(
         'Refresh token không hợp lệ hoặc đã được dùng lại',
       );
     }
 
-    await this.issueSession(user, response);
+    await this.rotateSession(session.user, session.id, response);
     return { success: true };
   }
 
@@ -197,71 +170,99 @@ export class AuthService {
     return Boolean(cookieState && queryState && cookieState === queryState);
   }
 
-  async loginWithGoogle(profile: GoogleProfile, response: Response) {
+  async loginWithGoogle(
+    profile: GoogleProfile,
+    metadata: RequestMetadata,
+    response: Response,
+  ) {
     if (!profile.email || !profile.emailVerified) {
       throw new UnauthorizedException(
         'Tài khoản Google chưa được xác minh email',
       );
     }
 
-    let user: UserDocument | null = await this.usersService.findByEmail(
-      profile.email,
-      true,
-    );
+    const email = this.authAttemptService.normalizeEmail(profile.email);
+    let user = await this.usersService.findByEmail(email, true);
     if (!user) {
-      user = await this.usersService.create({
+      user = await this.usersService.createForAuth({
         fullName: profile.fullName,
-        email: profile.email.toLowerCase(),
-        provider: 'google',
+        email,
+        provider: AuthProvider.GOOGLE,
         googleId: profile.googleId,
-        role: 'user',
+        role: Role.USER,
       });
-    } else if (user.provider === 'local') {
-      user = await this.usersService.updateAuthFields(String(user._id), {
+    } else if (user.provider === AuthProvider.LOCAL) {
+      user = await this.usersService.updateAuthFields(user.id, {
         googleId: profile.googleId,
       });
     }
 
-    if (!user) {
-      throw new UnauthorizedException('Đăng nhập Google thất bại');
-    }
-
-    await this.issueSession(user, response);
+    await this.startSession(user, metadata, response);
     return this.toPublicUser(user);
   }
 
-  private async issueSession(
-    user: {
-      _id: unknown;
-      email: string;
-      role: 'user' | 'admin';
-      fullName: string;
-    },
+  private async startSession(
+    user: User,
+    metadata: RequestMetadata,
     response: Response,
   ) {
+    await this.authSessionsRepository.revokeActiveByUserId(user.id);
+
+    const { accessToken, refreshToken } = await this.signTokenPair(user);
+    await this.authSessionsRepository.create({
+      userId: user.id,
+      refreshTokenHash: this.hashRefreshToken(refreshToken),
+      userAgent: metadata.userAgent,
+      ipAddress: metadata.ipAddress,
+      expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
+    });
+
+    this.setAuthCookies(response, accessToken, refreshToken);
+  }
+
+  private async rotateSession(
+    user: User,
+    sessionId: string,
+    response: Response,
+  ) {
+    const { accessToken, refreshToken } = await this.signTokenPair(user);
+    await this.authSessionsRepository.update(sessionId, {
+      refreshTokenHash: this.hashRefreshToken(refreshToken),
+      expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
+    });
+    this.setAuthCookies(response, accessToken, refreshToken);
+  }
+
+  private async signTokenPair(user: User): Promise<TokenPair> {
     const payload: JwtPayload = {
-      sub: String(user._id),
+      sub: user.id,
       email: user.email,
-      role: user.role,
+      role: this.toPublicRole(user.role),
     };
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: (this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ??
-          '15m') as SignOptions['expiresIn'],
+        secret: this.configService.getOrThrow<string>('auth.jwt.accessSecret'),
+        expiresIn: (this.configService.get<string>(
+          'auth.jwt.accessExpiresIn',
+        ) ?? '15m') as SignOptions['expiresIn'],
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ??
-          '7d') as SignOptions['expiresIn'],
+        secret: this.configService.getOrThrow<string>('auth.jwt.refreshSecret'),
+        expiresIn: (this.configService.get<string>(
+          'auth.jwt.refreshExpiresIn',
+        ) ?? '7d') as SignOptions['expiresIn'],
       }),
     ]);
 
-    const refreshTokenHash = this.hashRefreshToken(refreshToken);
-    await this.usersService.updateAuthFields(String(user._id), {
-      refreshTokenHash,
-    });
+    return { accessToken, refreshToken };
+  }
 
+  private setAuthCookies(
+    response: Response,
+    accessToken: string,
+    refreshToken: string,
+  ) {
     response.cookie('accessToken', accessToken, {
       ...this.baseCookieOptions(),
       maxAge: this.getAccessMaxAge(),
@@ -272,110 +273,41 @@ export class AuthService {
     });
   }
 
-  private async recordFailedLogin(
-    email: string,
-    ip: string,
-    user: { _id: unknown; failedLoginAttempts: number } | null,
-  ): Promise<FailedLoginResult> {
-    this.logger.warn(`Login failed for email=${email.toLowerCase()} ip=${ip}`);
-    const emailAttempt = await this.incrementAttempt('email', email);
-    const ipAttempt = await this.incrementAttempt('ip', ip);
-    const maxEmailAttempts = Number(
-      this.configService.get<string>('AUTH_LOGIN_MAX_ATTEMPTS') ?? 5,
-    );
+  private verifyRefreshToken(refreshToken: string) {
+    return this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+      secret: this.configService.getOrThrow<string>('auth.jwt.refreshSecret'),
+    });
+  }
 
-    if (user) {
-      const failedLoginAttempts = user.failedLoginAttempts + 1;
-      const lockUntil =
-        failedLoginAttempts >= maxEmailAttempts
-          ? this.getWindowEnd()
-          : undefined;
-      await this.usersService.updateAuthFields(String(user._id), {
-        failedLoginAttempts,
-        lockUntil,
-      });
-      if (lockUntil) {
-        this.logger.warn(`Account locked for userId=${String(user._id)}`);
+  private verifyAccessToken(accessToken: string) {
+    return this.jwtService.verifyAsync<JwtPayload>(accessToken, {
+      secret: this.configService.getOrThrow<string>('auth.jwt.accessSecret'),
+    });
+  }
+
+  private async getUserIdFromAuthCookies(
+    accessToken: string | undefined,
+    refreshToken: string | undefined,
+  ) {
+    if (accessToken) {
+      try {
+        const payload = await this.verifyAccessToken(accessToken);
+        return payload.sub;
+      } catch {
+        // Try refresh token next so logout still works after access expiry.
       }
     }
 
-    if (emailAttempt?.blockedUntil || ipAttempt?.blockedUntil) {
-      this.logger.warn(
-        `Auth attempt blocked email=${email.toLowerCase()} ip=${ip}`,
-      );
+    if (refreshToken) {
+      try {
+        const payload = await this.verifyRefreshToken(refreshToken);
+        return payload.sub;
+      } catch {
+        return null;
+      }
     }
 
-    return {
-      emailBlocked: Boolean(emailAttempt?.blockedUntil),
-      ipBlocked: Boolean(ipAttempt?.blockedUntil),
-    };
-  }
-
-  private async ensureIpNotBlocked(ip: string) {
-    const attempt = await this.authAttemptsRepository.findOne({
-      type: 'ip',
-      key: ip.toLowerCase(),
-    });
-    if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new UnauthorizedException(
-        this.getIpBlockedMessage(attempt.blockedUntil),
-      );
-    }
-  }
-
-  private async ensureEmailNotBlocked(email: string) {
-    const attempt = await this.authAttemptsRepository.findOne({
-      type: 'email',
-      key: email.toLowerCase(),
-    });
-    if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new UnauthorizedException(
-        this.getEmailLockedMessage(attempt.blockedUntil),
-      );
-    }
-  }
-
-  private async incrementAttempt(type: 'email' | 'ip', key: string) {
-    const normalizedKey = key.toLowerCase();
-    const existing = await this.authAttemptsRepository.findOne({
-      type,
-      key: normalizedKey,
-    });
-    const now = new Date();
-    const expired =
-      !existing || existing.windowStartedAt < this.getWindowStart();
-    const attempts = expired ? 1 : existing.attempts + 1;
-    const maxAttempts =
-      type === 'email'
-        ? Number(this.configService.get<string>('AUTH_LOGIN_MAX_ATTEMPTS') ?? 5)
-        : Number(this.configService.get<string>('AUTH_IP_MAX_ATTEMPTS') ?? 5);
-    const blockedUntil = attempts >= maxAttempts ? this.getWindowEnd() : null;
-
-    if (!existing) {
-      return this.authAttemptsRepository.create({
-        type,
-        key: normalizedKey,
-        attempts,
-        windowStartedAt: now,
-        blockedUntil,
-      });
-    }
-
-    return this.authAttemptsRepository.findOneAndUpdate(
-      { _id: existing._id },
-      {
-        attempts,
-        windowStartedAt: expired ? now : existing.windowStartedAt,
-        blockedUntil,
-      },
-    );
-  }
-
-  private resetAttempt(type: 'email' | 'ip', key: string) {
-    return this.authAttemptsRepository.findOneAndUpdate(
-      { type, key: key.toLowerCase() },
-      { attempts: 0, blockedUntil: null, windowStartedAt: new Date() },
-    );
+    return null;
   }
 
   private clearAuthCookies(response: Response) {
@@ -386,25 +318,24 @@ export class AuthService {
     response.clearCookie('oauthState', options);
   }
 
-  private toPublicUser(user: {
-    _id: unknown;
-    email: string;
-    fullName: string;
-    role: 'user' | 'admin';
-  }): AuthenticatedUser {
+  private toPublicUser(user: User): AuthenticatedUser {
     return {
-      id: String(user._id),
+      id: user.id,
       email: user.email,
-      fullName: user.fullName,
-      role: user.role,
+      fullName: user.fullName ?? '',
+      role: this.toPublicRole(user.role),
     };
+  }
+
+  private toPublicRole(role: Role): 'user' | 'admin' {
+    return role === Role.SUPER_ADMIN ? 'admin' : 'user';
   }
 
   private baseCookieOptions(): CookieOptionsConfig {
     const isProduction =
-      this.configService.get<string>('NODE_ENV') === 'production';
+      this.configService.get<string>('environment.nodeEnv') === 'production';
     const frontendUrl = this.configService.get<string>('app.frontendUrl') ?? '';
-    const backendDomain = this.configService.get<string>('COOKIE_DOMAIN');
+    const backendDomain = this.configService.get<string>('cookie.domain');
     const frontendHost = frontendUrl ? new URL(frontendUrl).host : '';
     const crossSite = Boolean(
       backendDomain && frontendHost && !frontendHost.includes(backendDomain),
@@ -420,105 +351,24 @@ export class AuthService {
   }
 
   private getAccessMaxAge() {
-    return this.parseDuration(
-      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m',
+    return parseDuration(
+      this.configService.get<string>('auth.jwt.accessExpiresIn') ?? '15m',
     );
   }
 
   private getRefreshMaxAge() {
-    return this.parseDuration(
-      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d',
+    return parseDuration(
+      this.configService.get<string>('auth.jwt.refreshExpiresIn') ?? '7d',
     );
   }
 
-  private parseDuration(value: string) {
-    const match = value.match(/^(\d+)([smhd])$/);
-    if (!match) {
-      return 15 * 60 * 1000;
-    }
-
-    const amount = Number(match[1]);
-    const unit = match[2];
-    const multipliers = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
-    };
-    return amount * multipliers[unit];
-  }
-
-  private getWindowStart() {
-    return new Date(Date.now() - this.getWindowMs());
-  }
-
-  private getWindowEnd() {
-    return new Date(Date.now() + this.getWindowMs());
-  }
-
-  private getWindowMs() {
-    const minutes = Number(
-      this.configService.get<string>('AUTH_LOCK_WINDOW_MINUTES') ?? 1,
-    );
-    return minutes * 60 * 1000;
-  }
-
-  private createLoginFailureException(result: FailedLoginResult) {
-    if (result.emailBlocked) {
-      return new UnauthorizedException(
-        this.getEmailLockedMessage(this.getWindowEnd()),
-      );
-    }
-
-    if (result.ipBlocked) {
-      return new UnauthorizedException(
-        this.getIpBlockedMessage(this.getWindowEnd()),
-      );
-    }
-
-    return new UnauthorizedException(this.getInvalidCredentialsMessage());
-  }
-
-  private getInvalidCredentialsMessage() {
-    return 'Email hoặc mật khẩu không đúng';
-  }
-
-  private getEmailLockedMessage(lockUntil: Date) {
-    if (!this.isDevelopment()) {
-      return this.getInvalidCredentialsMessage();
-    }
-
-    return `Tài khoản đã bị khóa ${this.getWindowMinutes()} phút, thử lại sau ${this.formatRetryAt(lockUntil)}.`;
-  }
-
-  private getIpBlockedMessage(blockedUntil: Date) {
-    if (!this.isDevelopment()) {
-      return this.getInvalidCredentialsMessage();
-    }
-
-    return `IP đã bị chặn ${this.getWindowMinutes()} phút, thử lại sau ${this.formatRetryAt(blockedUntil)}.`;
-  }
-
-  private isDevelopment() {
-    return this.configService.get<string>('NODE_ENV') !== 'production';
-  }
-
-  private getWindowMinutes() {
-    return Number(
-      this.configService.get<string>('AUTH_LOCK_WINDOW_MINUTES') ?? 1,
-    );
-  }
-
-  private formatRetryAt(date: Date) {
-    return date.toLocaleString('vi-VN', {
-      hour12: false,
-    });
-  }
-
-  // JWT refresh tokens are long and share a common prefix, so bcrypt's
-  // 72-byte truncation rule is unsafe here. Store a full-length digest instead.
   private hashRefreshToken(refreshToken: string) {
-    return createHash('sha256').update(refreshToken).digest('hex');
+    return createHmac(
+      'sha256',
+      this.configService.getOrThrow<string>('auth.jwt.refreshTokenHashSecret'),
+    )
+      .update(refreshToken)
+      .digest('hex');
   }
 
   private matchesStoredRefreshToken(refreshToken: string, storedHash: string) {

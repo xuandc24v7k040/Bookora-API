@@ -3,11 +3,10 @@ import {
   HttpStatus,
   type ValidationError,
 } from '@nestjs/common';
-import { Error as MongooseError } from 'mongoose';
+import { Prisma } from '@/generated/prisma/client';
 import {
   type ExceptionResponse,
   type HttpExceptionResponseBody,
-  type MongoServerException,
 } from '../types';
 import { flattenValidationErrors } from './validation.util';
 
@@ -16,8 +15,8 @@ export function createValidationExceptionResponse(
 ): ExceptionResponse {
   return {
     statusCode: HttpStatus.BAD_REQUEST,
-    message: 'Validation failed',
-    error: 'Bad Request',
+    message: 'Dữ liệu không hợp lệ',
+    error: 'Yêu cầu không hợp lệ',
     errors: flattenValidationErrors(validationErrors),
   };
 }
@@ -27,34 +26,22 @@ export function normalizeException(exception: unknown): ExceptionResponse {
     return normalizeHttpException(exception);
   }
 
-  if (exception instanceof MongooseError.ValidationError) {
-    return normalizeMongooseValidationError(exception);
+  if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+    return normalizePrismaKnownRequestError(exception);
   }
 
-  if (exception instanceof MongooseError.CastError) {
+  if (exception instanceof Prisma.PrismaClientValidationError) {
     return {
       statusCode: HttpStatus.BAD_REQUEST,
-      message: `Invalid ${exception.path}`,
-      error: 'Bad Request',
-      errors: {
-        [exception.path]: exception.message,
-      },
-    };
-  }
-
-  if (isMongoDuplicateKeyError(exception)) {
-    return {
-      statusCode: HttpStatus.CONFLICT,
-      message: 'Duplicate key error',
-      error: 'Conflict',
-      errors: getDuplicateKeyErrors(exception),
+      message: 'Dữ liệu không hợp lệ',
+      error: 'Yêu cầu không hợp lệ',
     };
   }
 
   return {
     statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-    message: 'Internal server error',
-    error: 'Internal Server Error',
+    message: 'Lỗi máy chủ nội bộ',
+    error: 'Lỗi máy chủ nội bộ',
   };
 }
 
@@ -83,40 +70,36 @@ function normalizeHttpException(exception: HttpException): ExceptionResponse {
   };
 }
 
-function normalizeMongooseValidationError(
-  exception: MongooseError.ValidationError,
+function normalizePrismaKnownRequestError(
+  exception: Prisma.PrismaClientKnownRequestError,
 ): ExceptionResponse {
+  if (exception.code === 'P2002') {
+    return {
+      statusCode: HttpStatus.CONFLICT,
+      message: 'Dữ liệu đã tồn tại',
+      error: 'Xung đột dữ liệu',
+    };
+  }
+
+  if (exception.code === 'P2003') {
+    return {
+      statusCode: HttpStatus.BAD_REQUEST,
+      message: 'Dữ liệu liên kết không hợp lệ',
+      error: 'Yêu cầu không hợp lệ',
+    };
+  }
+
+  if (exception.code === 'P2025') {
+    return {
+      statusCode: HttpStatus.NOT_FOUND,
+      message: 'Không tìm thấy dữ liệu',
+      error: 'Không tìm thấy',
+    };
+  }
+
   return {
     statusCode: HttpStatus.BAD_REQUEST,
-    message: 'Database validation failed',
-    error: 'Bad Request',
-    errors: Object.fromEntries(
-      Object.entries(exception.errors).map(([key, error]) => [
-        key,
-        error.message,
-      ]),
-    ),
+    message: 'Thao tác cơ sở dữ liệu không hợp lệ',
+    error: 'Yêu cầu không hợp lệ',
   };
-}
-
-function isMongoDuplicateKeyError(
-  exception: unknown,
-): exception is MongoServerException {
-  return (
-    typeof exception === 'object' &&
-    exception !== null &&
-    'code' in exception &&
-    (exception as MongoServerException).code === 11000
-  );
-}
-
-function getDuplicateKeyErrors(
-  exception: MongoServerException,
-): Record<string, string> {
-  return Object.entries(exception.keyValue ?? {}).reduce<
-    Record<string, string>
-  >((errors, [key, value]) => {
-    errors[key] = `${key} '${String(value)}' already exists`;
-    return errors;
-  }, {});
 }

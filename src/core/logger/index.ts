@@ -1,1 +1,1 @@
-export { winstonConfig } from './winston.config';
+export * from './winston.config';

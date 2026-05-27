@@ -20,17 +20,17 @@ export class JwtAccessStrategy extends PassportStrategy(
         (request: Request) => request.cookies?.accessToken as string | null,
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      secretOrKey: configService.getOrThrow<string>('auth.jwt.accessSecret'),
     });
   }
 
   async validate(payload: JwtPayload) {
     const user = await this.usersService.findOne(payload.sub);
     return {
-      id: String(user._id),
+      id: user.id,
       email: user.email,
-      fullName: user.fullName,
-      role: user.role,
+      fullName: user.fullName ?? '',
+      role: user.role === 'SUPER_ADMIN' ? 'admin' : 'user',
     };
   }
 }

@@ -1,0 +1,15 @@
+enum Role {
+  USER
+  BRANCH_ADMIN
+  SUPER_ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum AuthAttemptType {
+  EMAIL
+  IP
+}

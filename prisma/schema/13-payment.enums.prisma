@@ -1,0 +1,27 @@
+enum PaymentMethod {
+  COD
+  VNPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentTransactionType {
+  PAYMENT
+  REFUND
+  CANCEL
+  CALLBACK
+  VERIFY
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}

@@ -1,9 +1,6 @@
+import { normalizeException, removeUndefinedProperties } from '@/common/utils';
 import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common';
 import { type Request, type Response } from 'express';
-import {
-  normalizeException,
-  removeUndefinedProperties,
-} from '../../common/utils';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

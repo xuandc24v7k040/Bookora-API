@@ -1,17 +1,15 @@
 import { SortDirection } from '../enums';
 import type { PaginationMeta, PaginationOptions } from '../types';
 
-export type MongoSortOrder = 1 | -1;
-
 interface PaginationInput {
   page?: number;
   limit?: number;
 }
 
-export function getMongoSortOrder(
+export function getPrismaSortOrder(
   sortDirection?: SortDirection,
-): MongoSortOrder {
-  return sortDirection === SortDirection.ASC ? 1 : -1;
+): 'asc' | 'desc' {
+  return sortDirection === SortDirection.ASC ? 'asc' : 'desc';
 }
 
 export function getPaginationOptions(

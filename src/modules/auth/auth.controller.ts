@@ -22,9 +22,13 @@ import { CsrfGuard } from './guards/csrf.guard';
 import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { TurnstileService } from './turnstile.service';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 import type { GoogleProfile } from './strategies/google.strategy';
 import { ResponseMessage } from '../../common/decorators';
+import authConfig from '../../config/auth.config';
+
+const authThrottleConfig = authConfig().throttle;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -32,6 +36,7 @@ import { ResponseMessage } from '../../common/decorators';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly turnstileService: TurnstileService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -39,21 +44,22 @@ export class AuthController {
   @UseGuards(CsrfGuard)
   @Throttle({
     default: {
-      limit: Number(process.env.AUTH_REGISTER_LIMIT ?? 10),
-      ttl: Number(process.env.AUTH_REGISTER_TTL_SECONDS ?? 60) * 1000,
+      limit: authThrottleConfig.register.limit,
+      ttl: authThrottleConfig.register.ttlSeconds * 1000,
     },
   })
   @ApiOperation({
-    summary: 'Register with cookie-based JWT session',
-    description: 'Sets accessToken and refreshToken as httpOnly cookies.',
+    summary: 'Đăng ký tài khoản',
+    description: 'Tạo tài khoản mới, chưa đăng nhập tự động.',
   })
   @ApiResponse({ status: 201, description: 'Registered successfully' })
   @ResponseMessage('Đăng ký thành công')
-  register(
-    @Body() dto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.authService.register(dto, res);
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    await this.turnstileService.verifyToken(
+      dto.turnstileToken,
+      this.getClientIp(req),
+    );
+    return this.authService.register(dto);
   }
 
   @Post('login')
@@ -61,43 +67,39 @@ export class AuthController {
   @UseGuards(CsrfGuard)
   @Throttle({
     default: {
-      limit: Number(process.env.AUTH_LOGIN_LIMIT ?? 10),
-      ttl: Number(process.env.AUTH_LOGIN_TTL_SECONDS ?? 60) * 1000,
+      limit: authThrottleConfig.login.limit,
+      ttl: authThrottleConfig.login.ttlSeconds * 1000,
     },
   })
   @ApiOperation({
-    summary: 'Login with cookie-based JWT session',
-    description: 'Sets accessToken and refreshToken as httpOnly cookies.',
+    summary: 'Đăng nhập',
+    description: 'Tạo phiên đăng nhập và lưu token vào cookie.',
   })
   @ApiResponse({ status: 200, description: 'Logged in successfully' })
   @ResponseMessage('Đăng nhập thành công')
-  login(
+  async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(
-      dto,
-      req.ip ?? req.socket.remoteAddress ?? 'unknown',
-      res,
+    await this.turnstileService.verifyToken(
+      dto.turnstileToken,
+      this.getClientIp(req),
     );
+    return this.authService.login(dto, this.getRequestMetadata(req), res);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @ApiOperation({
-    summary: 'Logout current session',
-    description: 'Clears cookie-based JWT session.',
+    summary: 'Đăng xuất',
+    description: 'Thu hồi phiên hiện tại và xóa cookie đăng nhập.',
   })
   @ResponseMessage('Đăng xuất thành công')
-  logout(
-    @Req() req: Request,
-    @CurrentUser() user: AuthenticatedUser | undefined,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.authService.logout(
-      user?.id,
+      req.cookies?.accessToken as string | undefined,
       req.cookies?.refreshToken as string | undefined,
       res,
     );
@@ -108,13 +110,13 @@ export class AuthController {
   @UseGuards(CsrfGuard)
   @Throttle({
     default: {
-      limit: Number(process.env.AUTH_REFRESH_LIMIT ?? 10),
-      ttl: Number(process.env.AUTH_REFRESH_TTL_SECONDS ?? 60) * 1000,
+      limit: authThrottleConfig.refresh.limit,
+      ttl: authThrottleConfig.refresh.ttlSeconds * 1000,
     },
   })
   @ApiOperation({
-    summary: 'Rotate refresh token and issue new cookies',
-    description: 'Reads refreshToken from httpOnly cookie.',
+    summary: 'Làm mới phiên đăng nhập',
+    description: 'Cấp lại token mới từ refresh token trong cookie.',
   })
   @ResponseMessage('Làm mới phiên đăng nhập thành công')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -124,7 +126,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAccessGuard)
   @ApiOperation({
-    summary: 'Get current authenticated user from accessToken cookie',
+    summary: 'Lấy thông tin tài khoản hiện tại',
   })
   @ResponseMessage('Lấy thông tin người dùng thành công')
   me(@CurrentUser() user: AuthenticatedUser) {
@@ -134,12 +136,12 @@ export class AuthController {
   @Get('csrf-token')
   @Throttle({
     default: {
-      limit: Number(process.env.AUTH_CSRF_LIMIT ?? 10),
-      ttl: Number(process.env.AUTH_CSRF_TTL_SECONDS ?? 60) * 1000,
+      limit: authThrottleConfig.csrf.limit,
+      ttl: authThrottleConfig.csrf.ttlSeconds * 1000,
     },
   })
   @ApiOperation({
-    summary: 'Issue initial CSRF cookie for cookie-authenticated flows',
+    summary: 'Tạo CSRF token',
   })
   @ResponseMessage('Tạo CSRF token thành công')
   csrfToken(@Res({ passthrough: true }) res: Response) {
@@ -148,12 +150,12 @@ export class AuthController {
 
   @Get('google')
   @UseGuards(GoogleOauthGuard)
-  @ApiOperation({ summary: 'Start Google OAuth login' })
+  @ApiOperation({ summary: 'Đăng nhập bằng Google' })
   google() {}
 
   @Get('google/callback')
   @UseGuards(GoogleOauthGuard)
-  @ApiOperation({ summary: 'Handle Google OAuth callback' })
+  @ApiOperation({ summary: 'Xử lý callback Google' })
   async googleCallback(
     @Req() req: Request,
     @Query('state') state: string,
@@ -170,11 +172,31 @@ export class AuthController {
     }
 
     try {
-      await this.authService.loginWithGoogle(req.user as GoogleProfile, res);
+      await this.authService.loginWithGoogle(
+        req.user as GoogleProfile,
+        this.getRequestMetadata(req),
+        res,
+      );
       res.clearCookie('oauthState');
       return res.redirect(`${frontendUrl}/auth/callback?success=true`);
     } catch {
       return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
     }
+  }
+
+  private getRequestMetadata(req: Request) {
+    return {
+      ipAddress: this.getClientIp(req),
+      userAgent: req.header('user-agent'),
+    };
+  }
+
+  private getClientIp(req: Request) {
+    const forwardedFor = req.header('x-forwarded-for');
+    if (forwardedFor) {
+      return forwardedFor.split(',')[0].trim();
+    }
+
+    return req.ip ?? req.socket.remoteAddress ?? 'unknown';
   }
 }

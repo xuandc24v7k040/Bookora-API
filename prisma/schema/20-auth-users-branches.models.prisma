@@ -1,0 +1,125 @@
+model User {
+  id           String       @id @default(ulid())
+  email        String       @unique
+  passwordHash String?
+  fullName     String?
+  phone        String?
+  role         Role         @default(USER)
+  provider     AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  isActive     Boolean      @default(true)
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  authSessions       AuthSession[]
+  addresses          UserAddress[]
+  carts              Cart[]
+  orders             Order[]
+  reviews            Review[]
+  wishlists          Wishlist[]
+  notifications      Notification[]
+  couponUsages       CouponUsage[]
+  preorders          Preorder[]
+  stockMovements     StockMovement[]      @relation("StockMovementPerformedBy")
+  orderStatusChanges OrderStatusHistory[] @relation("OrderStatusChangedBy")
+  reviewReplies      ReviewReply[]        @relation("ReviewReplyAdmin")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([branchId])
+  @@map("users")
+}
+
+model AuthSession {
+  id               String    @id @default(ulid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("auth_sessions")
+}
+
+model AuthAttempt {
+  id              String          @id @default(ulid())
+  type            AuthAttemptType
+  key             String
+  attempts        Int             @default(0)
+  windowStartedAt DateTime?
+  blockedUntil    DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([type, key])
+  @@index([type, key])
+  @@index([blockedUntil])
+  @@map("auth_attempts")
+}
+
+model Branch {
+  id        String   @id @default(ulid())
+  name      String
+  code      String   @unique
+  phone     String?
+  address   String
+  province  String?
+  district  String?
+  ward      String?
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+  isActive  Boolean  @default(true)
+
+  users          User[]
+  carts          Cart[]
+  orders         Order[]
+  stocks         BranchProductStock[]
+  prices         BranchProductPrice[]
+  stockMovements StockMovement[]
+  comboBranches  ComboBranch[]
+  couponBranches CouponBranch[]
+  preorders      Preorder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+  @@map("branches")
+}
+
+model UserAddress {
+  id            String   @id @default(ulid())
+  userId        String
+  receiverName  String
+  receiverPhone String
+  province      String
+  district      String
+  ward          String
+  detail        String
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+
+  isDefault Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isDefault])
+  @@map("user_addresses")
+}

@@ -1,5 +1,5 @@
 export interface EntityId {
-  _id: string;
+  id: string;
 }
 
 export interface TimestampedEntity {

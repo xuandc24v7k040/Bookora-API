@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty()
@@ -18,4 +24,12 @@ export class RegisterDto {
     message: 'password must contain at least one letter and one number',
   })
   password!: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Token lấy từ Cloudflare Turnstile widget frontend.',
+  })
+  @IsOptional()
+  @IsString()
+  turnstileToken?: string;
 }
