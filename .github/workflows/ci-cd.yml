@@ -1,0 +1,147 @@
+name: CI/CD Backend
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: ecommerce_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/ecommerce_db?schema=public
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run migrations for test database
+        run: npx prisma migrate deploy --schema=prisma/schema
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit test
+        run: npm run test -- --passWithNoTests
+
+      - name: E2E test
+        run: npm run test:e2e -- --passWithNoTests
+
+      - name: Build project
+        run: npm run build
+
+  security-report:
+    name: Security Report
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Scan source code with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: 0
+
+      - name: Build Docker image for scan
+        run: |
+          docker build \
+            --build-arg DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            -t bookora-api-backend:${{ github.sha }} .
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: bookora-api-backend:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 0
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: security-report
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_PORT }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+
+            cd ${{ secrets.VPS_APP_DIR }}
+
+            git fetch origin
+            git reset --hard origin/master
+
+            docker compose up -d --build
+
+            docker compose exec -T backend npx prisma migrate deploy --schema=prisma/schema
+
+            curl -f http://localhost:3000/api/v1/health
+
+            docker image prune -f
+
+  workflow-report:
+    name: Workflow Report
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-test
+      - security-report
+      - deploy
+
+    if: always()
+
+    steps:
+      - name: Show workflow result
+        run: |
+          echo "Build and Test: ${{ needs.build-and-test.result }}"
+          echo "Security Report: ${{ needs.security-report.result }}"
+          echo "Deploy: ${{ needs.deploy.result }}"
