@@ -1,58 +1,51 @@
-const REQUIRED_ENV_KEYS = [
-  'DATABASE_URL',
-  'JWT_ACCESS_SECRET',
-  'JWT_REFRESH_SECRET',
-  'REFRESH_TOKEN_HASH_SECRET',
-] as const;
-
-const OPTIONAL_NUMBER_ENV_KEYS = [
-  'PORT',
-  'AUTH_LOGIN_MAX_ATTEMPTS',
-  'AUTH_EMAIL_MAX_FAILED_ATTEMPTS',
-  'AUTH_LOCK_WINDOW_MINUTES',
-  'AUTH_EMAIL_LOCK_SECONDS',
-  'AUTH_IP_MAX_ATTEMPTS',
-  'AUTH_IP_MAX_FAILED_ATTEMPTS',
-  'AUTH_IP_LOCK_SECONDS',
-  'AUTH_ATTEMPT_WINDOW_SECONDS',
-  'AUTH_LOGIN_TTL_SECONDS',
-  'AUTH_LOGIN_LIMIT',
-  'AUTH_LOGIN_THROTTLE_TTL_SECONDS',
-  'AUTH_LOGIN_THROTTLE_LIMIT',
-  'AUTH_REGISTER_TTL_SECONDS',
-  'AUTH_REGISTER_LIMIT',
-  'AUTH_REFRESH_TTL_SECONDS',
-  'AUTH_REFRESH_LIMIT',
-  'AUTH_CSRF_TTL_SECONDS',
-  'AUTH_CSRF_LIMIT',
-] as const;
+import {
+  OPTIONAL_BOOLEAN_ENV_KEYS,
+  OPTIONAL_NUMBER_ENV_KEYS,
+  REQUIRED_ENV_KEYS,
+} from './env.keys';
+import { isEnvValuePresent, readEnvValue } from './env.utils';
 
 export function validateEnv(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
   const errors: string[] = [];
+  const nodeEnv = readEnvValue(config, 'NODE_ENV');
 
   for (const key of REQUIRED_ENV_KEYS) {
-    if (!isPresent(config[key])) {
+    const value = readEnvValue(config, key);
+
+    if (!isEnvValuePresent(config, key)) {
       errors.push(`${key} is required`);
+      continue;
+    }
+
+    if (nodeEnv === 'production' && value?.startsWith('change-me')) {
+      errors.push(`${key} must be replaced for production`);
     }
   }
 
   for (const key of OPTIONAL_NUMBER_ENV_KEYS) {
-    const value = config[key];
+    const value = readEnvValue(config, key);
 
-    if (isPresent(value) && Number.isNaN(Number(value))) {
-      errors.push(`${key} must be a number`);
+    if (value !== undefined && !Number.isFinite(Number(value))) {
+      errors.push(`${key} must be a finite number`);
     }
   }
 
-  const turnstileEnabled = config.TURNSTILE_ENABLED;
+  for (const key of OPTIONAL_BOOLEAN_ENV_KEYS) {
+    const value = readEnvValue(config, key);
+
+    if (value !== undefined && value !== 'true' && value !== 'false') {
+      errors.push(`${key} must be true or false`);
+    }
+  }
+
   if (
-    isPresent(turnstileEnabled) &&
-    turnstileEnabled !== 'true' &&
-    turnstileEnabled !== 'false'
+    nodeEnv === 'production' &&
+    readEnvValue(config, 'TURNSTILE_ENABLED') === 'true' &&
+    !isEnvValuePresent(config, 'TURNSTILE_SECRET_KEY')
   ) {
-    errors.push('TURNSTILE_ENABLED must be true or false');
+    errors.push('TURNSTILE_SECRET_KEY is required when TURNSTILE_ENABLED=true');
   }
 
   if (errors.length > 0) {
@@ -60,8 +53,4 @@ export function validateEnv(
   }
 
   return config;
-}
-
-function isPresent(value: unknown): boolean {
-  return value !== undefined && value !== null && value !== '';
 }

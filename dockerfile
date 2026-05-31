@@ -10,8 +10,7 @@ RUN npm ci
 
 COPY . .
 
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
+ENV DATABASE_URL=postgresql://postgres:password@postgres:5432/ecommerce_db?schema=public
 
 RUN npx prisma generate
 RUN npm run build
