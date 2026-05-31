@@ -160,15 +160,21 @@ export class AuthAttemptService {
 
   private throwEmailBlocked(): never {
     throw new HttpException(
-      'Tài khoản tạm thời bị khóa, vui lòng thử lại sau 1 phút.',
+      `Tài khoản tạm thời bị khóa, vui lòng thử lại sau ${this.getLockMinutes('auth.login.emailLockSeconds', 60)} phút.`,
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }
 
   private throwIpBlocked(): never {
     throw new HttpException(
-      'IP tạm thời bị chặn do quá nhiều lần đăng nhập thất bại, vui lòng thử lại sau 5 phút.',
+      `IP tạm thời bị chặn do quá nhiều lần đăng nhập thất bại, vui lòng thử lại sau ${this.getLockMinutes('auth.login.ipLockSeconds', 120)} phút.`,
       HttpStatus.TOO_MANY_REQUESTS,
     );
+  }
+
+  private getLockMinutes(configKey: string, fallbackSeconds: number) {
+    const seconds =
+      this.configService.get<number>(configKey) ?? fallbackSeconds;
+    return Math.ceil(seconds / 60);
   }
 }

@@ -29,6 +29,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:password@localhost:5432/ecommerce_db?schema=public
+      JWT_ACCESS_SECRET: access_secret
+      JWT_REFRESH_SECRET: refresh_secret
+      REFRESH_TOKEN_HASH_SECRET: refresh_hash_secret
+      GOOGLE_CLIENT_ID: test_google_client_id
+      GOOGLE_CLIENT_SECRET: test_google_client_secret
 
     steps:
       - name: Checkout source
@@ -98,10 +103,38 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: 0
 
+  docker-build-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: security-report
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bookora-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bookora-api:${{ github.sha }}
+
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: security-report
+    needs: docker-build-push
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
@@ -115,17 +148,38 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -e
-
             cd ${{ secrets.VPS_APP_DIR }}
 
             git fetch origin
             git reset --hard origin/master
 
-            docker compose up -d --build
+            docker compose pull backend
 
-            docker compose exec -T backend npx prisma migrate deploy --schema=prisma/schema
+            echo "Run Prisma migrate"
+            docker compose run --rm --no-deps backend npx prisma migrate deploy --schema=prisma/schema
 
-            curl -f http://localhost:3000/api/v1/health
+            echo "Restart backend"
+            docker compose up -d --no-deps backend
+
+            docker compose ps
+            docker logs nestjs-backend --tail 100
+
+            echo "Waiting for backend health check..."
+
+            for i in {1..30}; do
+              if  curl -fsS http://localhost:3000/api/v1/health; then
+                echo "Backend is healthy"
+                exit 0
+              fi
+
+              echo "Backend not ready yet... retry $i/30"
+              sleep 3
+            done
+
+            echo "Backend health check failed"
+            docker compose ps
+            docker logs nestjs-backend --tail 100
+            exit 1
 
             docker image prune -f
 

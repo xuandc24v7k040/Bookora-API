@@ -1,9 +1,6 @@
 services:
   backend:
-    build:
-      context: .
-      args:
-        DATABASE_URL: postgresql://postgres:password@postgres:5432/ecommerce_db?schema=public
+    image: ptxuan/bookora-api:latest
     container_name: nestjs-backend
     restart: always
     env_file:
