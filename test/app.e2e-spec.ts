@@ -29,7 +29,7 @@ describe('AppController (e2e)', () => {
           statusCode: 200,
           message: 'Kiểm tra trạng thái thành công',
           data: {
-            name: 'Exam API',
+            name: 'Bookora API',
             status: 'ok',
           },
         });
