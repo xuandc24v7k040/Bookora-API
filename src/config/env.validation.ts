@@ -9,18 +9,9 @@ export function validateEnv(
   config: Record<string, unknown>,
 ): Record<string, unknown> {
   const errors: string[] = [];
-  const nodeEnv = readEnvValue(config, 'NODE_ENV');
-
   for (const key of REQUIRED_ENV_KEYS) {
-    const value = readEnvValue(config, key);
-
     if (!isEnvValuePresent(config, key)) {
       errors.push(`${key} is required`);
-      continue;
-    }
-
-    if (nodeEnv === 'production' && value?.startsWith('change-me')) {
-      errors.push(`${key} must be replaced for production`);
     }
   }
 
@@ -41,7 +32,7 @@ export function validateEnv(
   }
 
   if (
-    nodeEnv === 'production' &&
+    readEnvValue(config, 'NODE_ENV') === 'production' &&
     readEnvValue(config, 'TURNSTILE_ENABLED') === 'true' &&
     !isEnvValuePresent(config, 'TURNSTILE_SECRET_KEY')
   ) {

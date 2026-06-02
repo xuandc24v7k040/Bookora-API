@@ -46,6 +46,11 @@ jobs:
       - name: Prepare test environment
         run: cp .env.test.example .env.test
 
+      - name: Validate Docker Compose config
+        run: |
+          cp .env.production.example .env.production
+          docker compose --env-file .env.production config --quiet
+
       - name: Generate Prisma Client
         run: npx prisma generate
 
@@ -88,7 +93,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: 0
 
-  docker-build-push:
+  build-and-push-docker-image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: security-report
@@ -122,7 +127,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: docker-build-push
+    needs: build-and-push-docker-image
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
@@ -138,72 +143,8 @@ jobs:
             set -e
             cd ${{ secrets.VPS_APP_DIR }}
 
-            if [ ! -f .env.production ]; then
-              echo ".env.production is missing on VPS"
-              exit 1
-            fi
-
-            if [ ! -f docker-compose.yml ]; then
-              echo "docker-compose.yml is missing on VPS"
-              exit 1
-            fi
-
-            export IMAGE_TAG="${{ github.sha }}"
-
-            echo "Pull image ptxuan/bookora-api:${IMAGE_TAG}"
-            docker compose --env-file .env.production pull backend
-
-            echo "Start dependencies"
-            docker compose --env-file .env.production up -d postgres minio
-
-            echo "Wait for PostgreSQL"
-            for i in {1..30}; do
-              if docker compose --env-file .env.production exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; then
-                echo "PostgreSQL is ready"
-                break
-              fi
-
-              if [ "$i" -eq 30 ]; then
-                echo "PostgreSQL did not become ready"
-                docker compose --env-file .env.production ps
-                exit 1
-              fi
-
-              echo "Waiting for PostgreSQL... $i/30"
-              sleep 2
-            done
-
-            echo "Run Prisma migrate"
-            docker compose --env-file .env.production run --rm --no-deps backend npx prisma migrate deploy --schema=prisma/schema
-
-            echo "Restart backend"
-            docker compose --env-file .env.production up -d --no-deps backend
-
-            docker compose --env-file .env.production ps
-            docker logs nestjs-backend --tail 100
-
-            echo "Waiting for backend health check..."
-
-            healthy=0
-            for i in {1..30}; do
-              if  curl -fsS http://localhost:3000/api/v1/health; then
-                echo "Backend is healthy"
-                healthy=1
-                break
-              fi
-
-              echo "Backend not ready yet... retry $i/30"
-              sleep 3
-            done
-
-            if [ "$healthy" -ne 1 ]; then
-              echo "Backend health check failed"
-              docker compose --env-file .env.production ps
-              docker logs nestjs-backend --tail 100
-              exit 1
-            fi
-
-            docker image prune -af --filter "until=168h"
+            chmod +x deploy.sh
+            APP_DIR="${{ secrets.VPS_APP_DIR }}" IMAGE_TAG="${{ github.sha }}" ./deploy.sh
 
   workflow-report:
     name: Workflow Report
@@ -211,7 +152,7 @@ jobs:
     needs:
       - build-and-test
       - security-report
-      - docker-build-push
+      - build-and-push-docker-image
       - deploy
 
     if: always()
@@ -221,5 +162,5 @@ jobs:
         run: |
           echo "Build and Test: ${{ needs.build-and-test.result }}"
           echo "Security Report: ${{ needs.security-report.result }}"
-          echo "Build and Push Docker Image: ${{ needs.docker-build-push.result }}"
+          echo "Build and Push Docker Image: ${{ needs['build-and-push-docker-image'].result }}"
           echo "Deploy: ${{ needs.deploy.result }}"

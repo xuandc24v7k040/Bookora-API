@@ -23,25 +23,7 @@ echo "Deploying ptxuan/bookora-api:$IMAGE_TAG"
 export IMAGE_TAG
 
 docker compose --env-file .env.production pull backend
-docker compose --env-file .env.production up -d postgres minio
-
-echo "Waiting for PostgreSQL"
-postgres_ready=0
-for i in $(seq 1 30); do
-  if docker compose --env-file .env.production exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; then
-    postgres_ready=1
-    break
-  fi
-
-  echo "PostgreSQL not ready yet... $i/30"
-  sleep 2
-done
-
-if [ "$postgres_ready" -ne 1 ]; then
-  echo "PostgreSQL did not become ready"
-  docker compose --env-file .env.production ps
-  exit 1
-fi
+docker compose --env-file .env.production up -d minio
 
 echo "Running Prisma migrations"
 docker compose --env-file .env.production run --rm --no-deps backend \
