@@ -1,7 +1,12 @@
-enum Role {
-  USER
-  BRANCH_ADMIN
-  SUPER_ADMIN
+enum UserType {
+  SYSTEM
+  BRANCH
+  CUSTOMER
+}
+
+enum PermissionEffect {
+  ALLOW
+  DENY
 }
 
 enum AuthProvider {

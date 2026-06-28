@@ -10,4 +10,19 @@ export default registerAs('app', () => ({
     getEnvString('CORS_ORIGIN', 'http://localhost:5173'),
   ),
   frontendUrl: getEnvString('FRONTEND_URL', 'http://localhost:5173'),
+  trustProxy: parseTrustProxy(getEnvString('TRUST_PROXY', 'false')),
 }));
+
+function parseTrustProxy(value: string): boolean | number {
+  const normalizedValue = value.trim().toLowerCase();
+
+  if (normalizedValue === 'true') {
+    return true;
+  }
+
+  if (normalizedValue === 'false' || normalizedValue === '') {
+    return false;
+  }
+
+  return Number(normalizedValue);
+}

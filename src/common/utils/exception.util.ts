@@ -66,6 +66,7 @@ function normalizeHttpException(exception: HttpException): ExceptionResponse {
     statusCode,
     message,
     error: body.error ?? exception.name,
+    code: body.code,
     errors: body.errors,
   };
 }

@@ -10,15 +10,42 @@ export class AuthSessionsRepository {
     return this.prisma.authSession.create({ data });
   }
 
-  findActiveByUserIdWithUser(userId: string, now = new Date()) {
+  findActiveByIdAndUserIdWithUser(
+    id: string,
+    userId: string,
+    now = new Date(),
+  ) {
     return this.prisma.authSession.findFirst({
       where: {
+        id,
         userId,
         revokedAt: null,
         expiresAt: { gt: now },
       },
-      orderBy: { createdAt: 'desc' },
       include: { user: true },
+    });
+  }
+
+  rotateIfCurrent(data: {
+    id: string;
+    userId: string;
+    currentRefreshTokenHash: string;
+    newRefreshTokenHash: string;
+    expiresAt: Date;
+    now?: Date;
+  }) {
+    return this.prisma.authSession.updateMany({
+      where: {
+        id: data.id,
+        userId: data.userId,
+        refreshTokenHash: data.currentRefreshTokenHash,
+        revokedAt: null,
+        expiresAt: { gt: data.now ?? new Date() },
+      },
+      data: {
+        refreshTokenHash: data.newRefreshTokenHash,
+        expiresAt: data.expiresAt,
+      },
     });
   }
 

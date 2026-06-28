@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthAttemptType } from '@/generated/prisma/client';
 import { AuthAttemptsRepository } from './auth-attempts.repository';
@@ -10,10 +10,22 @@ interface AttemptLimitConfig {
 
 interface FailedAttemptResult {
   blocked: boolean;
+  blockedUntil: Date | null;
+}
+
+const GENERIC_LOGIN_RESTRICTED_MESSAGE =
+  'Thông tin đăng nhập không hợp lệ hoặc yêu cầu tạm thời bị hạn chế. Vui lòng thử lại sau.';
+
+export class EmailLoginRestrictedException extends HttpException {
+  constructor() {
+    super(GENERIC_LOGIN_RESTRICTED_MESSAGE, HttpStatus.TOO_MANY_REQUESTS);
+  }
 }
 
 @Injectable()
 export class AuthAttemptService {
+  private readonly logger = new Logger(AuthAttemptService.name);
+
   constructor(
     private readonly authAttemptsRepository: AuthAttemptsRepository,
     private readonly configService: ConfigService,
@@ -32,10 +44,16 @@ export class AuthAttemptService {
 
     const ipResult = await this.recordIpFailure(ip);
     if (ipResult.blocked) {
+      this.logger.warn(
+        `Login blocked by IP failure threshold: email=${email}, ip=${ip}, blockedUntil=${ipResult.blockedUntil?.toISOString() ?? 'unknown'}`,
+      );
       this.throwIpBlocked();
     }
 
-    this.throwEmailBlocked();
+    this.logger.warn(
+      `Login blocked by active email lock: email=${email}, ip=${ip}`,
+    );
+    this.throwGenericLoginRestricted();
   }
 
   async recordLoginFailure(email: string, ip: string) {
@@ -51,11 +69,17 @@ export class AuthAttemptService {
     ]);
 
     if (ipResult.blocked) {
+      this.logger.warn(
+        `Login blocked by IP failure threshold: email=${email}, ip=${ip}, blockedUntil=${ipResult.blockedUntil?.toISOString() ?? 'unknown'}`,
+      );
       this.throwIpBlocked();
     }
 
     if (emailResult.blocked) {
-      this.throwEmailBlocked();
+      this.logger.warn(
+        `Login blocked by email failure threshold: email=${email}, ip=${ip}, blockedUntil=${emailResult.blockedUntil?.toISOString() ?? 'unknown'}`,
+      );
+      this.throwGenericLoginRestricted();
     }
   }
 
@@ -68,6 +92,7 @@ export class AuthAttemptService {
 
   private async throwIfIpBlocked(ip: string) {
     if (await this.isBlocked(AuthAttemptType.IP, ip)) {
+      this.logger.warn(`Login blocked by active IP lock: ip=${ip}`);
       this.throwIpBlocked();
     }
   }
@@ -91,39 +116,20 @@ export class AuthAttemptService {
     key: string,
     limitConfig: AttemptLimitConfig,
   ): Promise<FailedAttemptResult> {
-    const now = new Date();
-    const attempt = await this.authAttemptsRepository.findOne(type, key);
+    const attemptWindowSeconds =
+      this.configService.get<number>('auth.login.attemptWindowSeconds') ?? 60;
+    const result = await this.authAttemptsRepository.recordFailedAttemptAtomic({
+      type,
+      key,
+      maxAttempts: limitConfig.maxAttempts,
+      lockSeconds: limitConfig.lockSeconds,
+      windowSeconds: attemptWindowSeconds,
+    });
 
-    if (attempt?.blockedUntil && attempt.blockedUntil > now) {
-      return { blocked: true };
-    }
-
-    const windowStartedAt = this.shouldStartNewWindow(attempt, now)
-      ? now
-      : attempt?.windowStartedAt;
-    const attempts = windowStartedAt === now ? 1 : (attempt?.attempts ?? 0) + 1;
-    const blockedUntil =
-      attempts >= limitConfig.maxAttempts
-        ? new Date(now.getTime() + limitConfig.lockSeconds * 1000)
-        : null;
-
-    if (!attempt) {
-      await this.authAttemptsRepository.create({
-        type,
-        key,
-        attempts,
-        windowStartedAt,
-        blockedUntil,
-      });
-    } else {
-      await this.authAttemptsRepository.update(attempt.id, {
-        attempts,
-        windowStartedAt,
-        blockedUntil,
-      });
-    }
-
-    return { blocked: Boolean(blockedUntil) };
+    return {
+      blocked: Boolean(result.blockedUntil && result.blockedUntil > new Date()),
+      blockedUntil: result.blockedUntil,
+    };
   }
 
   private async resetAttempt(type: AuthAttemptType, key: string) {
@@ -139,35 +145,13 @@ export class AuthAttemptService {
     });
   }
 
-  private shouldStartNewWindow(
-    attempt: Awaited<ReturnType<AuthAttemptsRepository['findOne']>>,
-    now: Date,
-  ) {
-    if (!attempt?.windowStartedAt) {
-      return true;
-    }
-
-    if (attempt.blockedUntil && attempt.blockedUntil <= now) {
-      return true;
-    }
-
-    const windowSeconds =
-      this.configService.get<number>('auth.login.attemptWindowSeconds') ?? 60;
-    const windowStart = new Date(now.getTime() - windowSeconds * 1000);
-
-    return attempt.windowStartedAt < windowStart;
-  }
-
-  private throwEmailBlocked(): never {
-    throw new HttpException(
-      `Tài khoản tạm thời bị khóa, vui lòng thử lại sau ${this.getLockMinutes('auth.login.emailLockSeconds', 60)} phút.`,
-      HttpStatus.TOO_MANY_REQUESTS,
-    );
+  private throwGenericLoginRestricted(): never {
+    throw new EmailLoginRestrictedException();
   }
 
   private throwIpBlocked(): never {
     throw new HttpException(
-      `IP tạm thời bị chặn do quá nhiều lần đăng nhập thất bại, vui lòng thử lại sau ${this.getLockMinutes('auth.login.ipLockSeconds', 120)} phút.`,
+      `Yêu cầu đăng nhập tạm thời bị hạn chế. Vui lòng thử lại sau ${this.getLockMinutes('auth.login.ipLockSeconds', 120)} phút.`,
       HttpStatus.TOO_MANY_REQUESTS,
     );
   }

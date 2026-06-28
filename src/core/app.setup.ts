@@ -19,6 +19,13 @@ export function setupApplication(app: INestApplication): void {
   const configService = app.get(ConfigService);
   const apiPrefix = configService.get<string>('app.apiPrefix') ?? 'api';
   const corsOrigin = configService.get<string>('app.corsOrigin') ?? '*';
+  const trustProxy =
+    configService.get<boolean | number>('app.trustProxy') ?? false;
+
+  const expressApp = app.getHttpAdapter().getInstance() as {
+    set(setting: string, value: boolean | number): void;
+  };
+  expressApp.set('trust proxy', trustProxy);
 
   app.use(helmet());
   app.use(compression());

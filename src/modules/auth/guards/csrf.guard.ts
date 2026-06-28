@@ -5,6 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { timingSafeTokenEqual } from '@/common/utils';
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
@@ -17,7 +18,7 @@ export class CsrfGuard implements CanActivate {
     const cookieToken = request.cookies?.csrfToken as string | undefined;
     const headerToken = request.header('X-CSRF-Token');
 
-    if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    if (!timingSafeTokenEqual(cookieToken, headerToken)) {
       throw new ForbiddenException('CSRF token không hợp lệ');
     }
 

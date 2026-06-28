@@ -8,11 +8,15 @@
   "scripts": {
     "build": "nest build && tsc-alias -p tsconfig.build.json",
     "docs:openapi": "ts-node -r tsconfig-paths/register src/scripts/export-openapi.ts",
+    "docs:contract": "node scripts/check-openapi-contract.cjs",
+    "docs:lint": "npx @redocly/cli lint docs/openapi.json",
+    "docs:check": "npm run docs:openapi && npm run docs:contract && npm run docs:lint",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio --browser none",
+    "prisma:seed:dev": "ts-node -r tsconfig-paths/register prisma/seed.dev.ts",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
     "start": "nest start",
@@ -109,7 +113,8 @@
     ],
     "coverageDirectory": "../coverage",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "testEnvironment": "node"
   }

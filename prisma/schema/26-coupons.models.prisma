@@ -3,17 +3,17 @@ model Coupon {
   code              String       @unique
   name              String
   description       String?
-  discountType      DiscountType
-  discountValue     Decimal      @db.Decimal(12, 2)
+  discountType      DiscountType @map("discount_type")
+  discountValue     Decimal      @map("discount_value") @db.Decimal(12, 2)
   scope             CouponScope  @default(ALL_ORDER)
-  minOrderAmount    Decimal?     @db.Decimal(12, 2)
-  maxDiscount       Decimal?     @db.Decimal(12, 2)
-  usageLimit        Int?
-  usageLimitPerUser Int?
-  usedCount         Int          @default(0)
-  startAt           DateTime
-  endAt             DateTime
-  isActive          Boolean      @default(true)
+  minOrderAmount    Decimal?     @map("min_order_amount") @db.Decimal(12, 2)
+  maxDiscount       Decimal?     @map("max_discount") @db.Decimal(12, 2)
+  usageLimit        Int?         @map("usage_limit")
+  usageLimitPerUser Int?         @map("usage_limit_per_user")
+  usedCount         Int          @default(0) @map("used_count")
+  startAt           DateTime     @map("start_at")
+  endAt             DateTime     @map("end_at")
+  isActive          Boolean      @default(true) @map("is_active")
 
   branches   CouponBranch[]
   products   CouponProduct[]
@@ -21,8 +21,8 @@ model Coupon {
   usages     CouponUsage[]
   orders     Order[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([code])
   @@index([isActive, startAt, endAt])
@@ -31,9 +31,9 @@ model Coupon {
 
 model CouponBranch {
   id         String           @id @default(ulid())
-  couponId   String
-  branchId   String
-  targetType CouponTargetType @default(INCLUDE)
+  couponId   String           @map("coupon_id")
+  branchId   String           @map("branch_id")
+  targetType CouponTargetType @default(INCLUDE) @map("target_type")
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
@@ -46,10 +46,10 @@ model CouponBranch {
 
 model CouponProduct {
   id         String           @id @default(ulid())
-  couponId   String
-  productId  String?
-  variantId  String?
-  targetType CouponTargetType @default(INCLUDE)
+  couponId   String           @map("coupon_id")
+  productId  String?          @map("product_id")
+  variantId  String?          @map("variant_id")
+  targetType CouponTargetType @default(INCLUDE) @map("target_type")
 
   coupon  Coupon          @relation(fields: [couponId], references: [id], onDelete: Cascade)
   product Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -58,15 +58,18 @@ model CouponProduct {
   @@index([couponId])
   @@index([productId])
   @@index([variantId])
+  @@index([targetType])
+  @@index([couponId, productId, targetType])
+  @@index([couponId, variantId, targetType])
   @@map("coupon_products")
 }
 
 model CouponCategory {
   id              String           @id @default(ulid())
-  couponId        String
-  categoryId      String
-  targetType      CouponTargetType @default(INCLUDE)
-  includeChildren Boolean          @default(true)
+  couponId        String           @map("coupon_id")
+  categoryId      String           @map("category_id")
+  targetType      CouponTargetType @default(INCLUDE) @map("target_type")
+  includeChildren Boolean          @default(true) @map("include_children")
 
   coupon   Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -79,11 +82,11 @@ model CouponCategory {
 
 model CouponUsage {
   id             String   @id @default(ulid())
-  couponId       String
-  userId         String
-  orderId        String?
-  discountAmount Decimal  @db.Decimal(12, 2)
-  createdAt      DateTime @default(now())
+  couponId       String   @map("coupon_id")
+  userId         String   @map("user_id")
+  orderId        String?  @map("order_id")
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

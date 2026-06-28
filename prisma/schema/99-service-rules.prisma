@@ -1,0 +1,17 @@
+// Service-level rules intentionally not enforced directly by Prisma:
+// 1. Product ACTIVE must have at least one active ProductVariant.
+// 2. Single products must have one default ProductVariant.
+// 3. Product creation for single products must create the default variant.
+// 4. Publishing a product without an active variant must throw BadRequest.
+// 5. Branch admins may only query data scoped to active UserBranch assignments.
+// 6. Checkout must run in a transaction.
+// 7. Checkout must check availableQuantity = quantity - reservedQuantity, prevent negative stock,
+//    create Order, OrderItem, Payment and Shipment, reserve or subtract stock per payment flow,
+//    and write StockMovement records.
+// 8. Stock transfers must create StockTransfer and StockTransferItem records, write TRANSFER_OUT
+//    movements when shipping, and write TRANSFER_IN movements when receiving.
+// 9. Price, stock, coupon, order status, menu and product changes must write AuditLog records.
+// 10. Filters read from source-specific tables:
+//    PRICE from BranchProductPrice, BRANCH from Branch, STOCK from BranchProductStock,
+//    ATTRIBUTE from ProductAttributeValue, and VARIANT_OPTION from ProductOptionValue /
+//    ProductVariantOptionValue.

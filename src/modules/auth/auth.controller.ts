@@ -11,12 +11,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AuthMeResponseDto } from './dto/auth-me-response.dto';
+import {
+  AuthMutationResponseDto,
+  CsrfTokenResponseDto,
+  PublicAuthUserResponseDto,
+} from './dto/auth-response.dto';
 import { AuthService } from './auth.service';
 import { CsrfGuard } from './guards/csrf.guard';
 import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
@@ -25,7 +31,7 @@ import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { TurnstileService } from './turnstile.service';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 import type { GoogleProfile } from './strategies/google.strategy';
-import { ResponseMessage } from '../../common/decorators';
+import { ApiBaseResponse, ResponseMessage } from '../../common/decorators';
 import authConfig from '../../config/auth.config';
 
 const authThrottleConfig = authConfig().throttle;
@@ -52,12 +58,17 @@ export class AuthController {
     summary: 'Đăng ký tài khoản',
     description: 'Tạo tài khoản mới, chưa đăng nhập tự động.',
   })
-  @ApiResponse({ status: 201, description: 'Registered successfully' })
+  @ApiSecurity('csrf')
+  @ApiBaseResponse(PublicAuthUserResponseDto, {
+    status: 201,
+    description: 'Đăng ký thành công',
+  })
   @ResponseMessage('Đăng ký thành công')
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
     await this.turnstileService.verifyToken(
       dto.turnstileToken,
       this.getClientIp(req),
+      'register',
     );
     return this.authService.register(dto);
   }
@@ -75,7 +86,10 @@ export class AuthController {
     summary: 'Đăng nhập',
     description: 'Tạo phiên đăng nhập và lưu token vào cookie.',
   })
-  @ApiResponse({ status: 200, description: 'Logged in successfully' })
+  @ApiSecurity('csrf')
+  @ApiBaseResponse(PublicAuthUserResponseDto, {
+    description: 'Đăng nhập thành công',
+  })
   @ResponseMessage('Đăng nhập thành công')
   async login(
     @Body() dto: LoginDto,
@@ -85,6 +99,7 @@ export class AuthController {
     await this.turnstileService.verifyToken(
       dto.turnstileToken,
       this.getClientIp(req),
+      'login',
     );
     return this.authService.login(dto, this.getRequestMetadata(req), res);
   }
@@ -94,7 +109,14 @@ export class AuthController {
   @UseGuards(CsrfGuard)
   @ApiOperation({
     summary: 'Đăng xuất',
-    description: 'Thu hồi phiên hiện tại và xóa cookie đăng nhập.',
+    description:
+      'Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập.',
+  })
+  @ApiSecurity('accessToken')
+  @ApiSecurity('refreshToken')
+  @ApiSecurity('csrf')
+  @ApiBaseResponse(AuthMutationResponseDto, {
+    description: 'Đăng xuất thành công',
   })
   @ResponseMessage('Đăng xuất thành công')
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -118,6 +140,11 @@ export class AuthController {
     summary: 'Làm mới phiên đăng nhập',
     description: 'Cấp lại token mới từ refresh token trong cookie.',
   })
+  @ApiSecurity('refreshToken')
+  @ApiSecurity('csrf')
+  @ApiBaseResponse(AuthMutationResponseDto, {
+    description: 'Làm mới phiên đăng nhập thành công',
+  })
   @ResponseMessage('Làm mới phiên đăng nhập thành công')
   refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.authService.refresh(req.cookies?.refreshToken as string, res);
@@ -128,9 +155,27 @@ export class AuthController {
   @ApiOperation({
     summary: 'Lấy thông tin tài khoản hiện tại',
   })
+  @ApiSecurity('accessToken')
+  @ApiBaseResponse(AuthMeResponseDto, {
+    description: 'Lấy thông tin người dùng thành công',
+  })
   @ResponseMessage('Lấy thông tin người dùng thành công')
   me(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      type: user.type,
+      roles: user.roles,
+      permissions: user.permissions,
+      globalRoles: user.globalRoles,
+      globalPermissions: user.globalPermissions,
+      branchAssignments: user.branchAssignments,
+      maxRoleLevel: user.maxRoleLevel,
+      isSuperAdmin: user.isSuperAdmin,
+      branches: user.branches,
+      primaryBranchId: user.primaryBranchId,
+    };
   }
 
   @Get('csrf-token')
@@ -142,6 +187,9 @@ export class AuthController {
   })
   @ApiOperation({
     summary: 'Tạo CSRF token',
+  })
+  @ApiBaseResponse(CsrfTokenResponseDto, {
+    description: 'Tạo CSRF token thành công',
   })
   @ResponseMessage('Tạo CSRF token thành công')
   csrfToken(@Res({ passthrough: true }) res: Response) {
@@ -192,11 +240,7 @@ export class AuthController {
   }
 
   private getClientIp(req: Request) {
-    const forwardedFor = req.header('x-forwarded-for');
-    if (forwardedFor) {
-      return forwardedFor.split(',')[0].trim();
-    }
-
-    return req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
   }
 }

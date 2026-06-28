@@ -5,19 +5,25 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { AuthProvider, Role, type User } from '@/generated/prisma/client';
-import { parseDuration } from '@/common/utils';
+import {
+  AuthProvider,
+  type User,
+  type UserType,
+} from '@/generated/prisma/client';
+import { parseDuration, timingSafeTokenEqual } from '@/common/utils';
 import type { Response } from 'express';
 import * as bcrypt from 'bcrypt';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import type { SignOptions } from 'jsonwebtoken';
 import { UsersService } from '../users/users.service';
-import { AuthAttemptService } from './auth-attempt.service';
+import {
+  AuthAttemptService,
+  EmailLoginRestrictedException,
+} from './auth-attempt.service';
 import { AuthSessionsRepository } from './auth-sessions.repository';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleProfile } from './strategies/google.strategy';
-import { AuthenticatedUser } from './types/authenticated-user.type';
 import { JwtPayload } from './types/jwt-payload.type';
 
 interface CookieOptionsConfig {
@@ -38,8 +44,20 @@ interface TokenPair {
   refreshToken: string;
 }
 
-const INVALID_CREDENTIALS_MESSAGE = 'Email hoặc mật khẩu không đúng.';
+export interface PublicAuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  type: UserType;
+}
+
+const INVALID_CREDENTIALS_MESSAGE =
+  'Thông tin đăng nhập không hợp lệ hoặc yêu cầu tạm thời bị hạn chế. Vui lòng thử lại sau.';
 const INVALID_SESSION_MESSAGE = 'Phiên đăng nhập không hợp lệ';
+const REFRESH_TOKEN_INVALID_OR_REUSED = 'REFRESH_TOKEN_INVALID_OR_REUSED';
+const REFRESH_TOKEN_ALREADY_ROTATED = 'REFRESH_TOKEN_ALREADY_ROTATED';
+const DUMMY_PASSWORD_HASH =
+  '$2b$12$W4eNCct48uDkK9PWEV4k3eVArX1fpyxnrBK9KvJx.Ih8HFueC8Z3q';
 
 @Injectable()
 export class AuthService {
@@ -59,12 +77,11 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.usersService.createForAuth({
+    const user = await this.usersService.createCustomerForAuth({
       fullName: dto.fullName,
       email,
       passwordHash,
       provider: AuthProvider.LOCAL,
-      role: Role.USER,
     });
 
     return this.toPublicUser(user);
@@ -74,16 +91,25 @@ export class AuthService {
     const email = this.authAttemptService.normalizeEmail(dto.email);
     const ip = metadata.ipAddress ?? 'unknown';
 
-    await this.authAttemptService.checkLoginBlocked(email, ip);
-    const user = await this.usersService.findByEmail(email, true);
-
-    if (!user || user.provider !== AuthProvider.LOCAL || !user.passwordHash) {
-      await this.authAttemptService.recordLoginFailure(email, ip);
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    try {
+      await this.authAttemptService.checkLoginBlocked(email, ip);
+    } catch (error) {
+      if (error instanceof EmailLoginRestrictedException) {
+        await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
+      }
+      throw error;
     }
+    const user = await this.usersService.findByEmail(email, true);
+    const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+    const passwordValid = await bcrypt.compare(dto.password, passwordHash);
 
-    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordValid) {
+    if (
+      !user ||
+      !user.isActive ||
+      user.provider !== AuthProvider.LOCAL ||
+      !user.passwordHash ||
+      !passwordValid
+    ) {
       await this.authAttemptService.recordLoginFailure(email, ip);
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
@@ -125,9 +151,25 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
 
+    if (!payload.sub || !payload.sid) {
+      this.clearAuthCookies(response);
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    }
+
+    const now = new Date();
     const session =
-      await this.authSessionsRepository.findActiveByUserIdWithUser(payload.sub);
+      await this.authSessionsRepository.findActiveByIdAndUserIdWithUser(
+        payload.sid,
+        payload.sub,
+        now,
+      );
     if (!session) {
+      this.clearAuthCookies(response);
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
+    }
+
+    if (!session.user.isActive) {
+      await this.authSessionsRepository.revoke(session.id);
       this.clearAuthCookies(response);
       throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
@@ -135,14 +177,33 @@ export class AuthService {
     if (
       !this.matchesStoredRefreshToken(refreshToken, session.refreshTokenHash)
     ) {
-      await this.authSessionsRepository.revokeActiveByUserId(payload.sub);
+      await this.authSessionsRepository.revoke(session.id);
       this.clearAuthCookies(response);
-      throw new UnauthorizedException(
+      throw this.createUnauthorizedException(
         'Refresh token không hợp lệ hoặc đã được dùng lại',
+        REFRESH_TOKEN_INVALID_OR_REUSED,
       );
     }
 
-    await this.rotateSession(session.user, session.id, response);
+    const { accessToken, refreshToken: newRefreshToken } =
+      await this.signTokenPair(session.user, session.id);
+    const rotation = await this.authSessionsRepository.rotateIfCurrent({
+      id: session.id,
+      userId: payload.sub,
+      currentRefreshTokenHash: session.refreshTokenHash,
+      newRefreshTokenHash: this.hashRefreshToken(newRefreshToken),
+      expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
+      now,
+    });
+
+    if (rotation.count !== 1) {
+      throw this.createUnauthorizedException(
+        'Refresh token đã được xoay vòng bởi một yêu cầu khác',
+        REFRESH_TOKEN_ALREADY_ROTATED,
+      );
+    }
+
+    this.setAuthCookies(response, accessToken, newRefreshToken);
     return { success: true };
   }
 
@@ -167,7 +228,7 @@ export class AuthService {
   }
 
   validateOauthState(cookieState: string | undefined, queryState: string) {
-    return Boolean(cookieState && queryState && cookieState === queryState);
+    return timingSafeTokenEqual(cookieState, queryState);
   }
 
   async loginWithGoogle(
@@ -184,13 +245,14 @@ export class AuthService {
     const email = this.authAttemptService.normalizeEmail(profile.email);
     let user = await this.usersService.findByEmail(email, true);
     if (!user) {
-      user = await this.usersService.createForAuth({
+      user = await this.usersService.createCustomerForAuth({
         fullName: profile.fullName,
         email,
         provider: AuthProvider.GOOGLE,
         googleId: profile.googleId,
-        role: Role.USER,
       });
+    } else if (!user.isActive) {
+      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     } else if (user.provider === AuthProvider.LOCAL) {
       user = await this.usersService.updateAuthFields(user.id, {
         googleId: profile.googleId,
@@ -208,36 +270,38 @@ export class AuthService {
   ) {
     await this.authSessionsRepository.revokeActiveByUserId(user.id);
 
-    const { accessToken, refreshToken } = await this.signTokenPair(user);
-    await this.authSessionsRepository.create({
+    const session = await this.authSessionsRepository.create({
       userId: user.id,
-      refreshTokenHash: this.hashRefreshToken(refreshToken),
+      refreshTokenHash: randomBytes(32).toString('hex'),
       userAgent: metadata.userAgent,
       ipAddress: metadata.ipAddress,
       expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
     });
 
-    this.setAuthCookies(response, accessToken, refreshToken);
+    try {
+      const { accessToken, refreshToken } = await this.signTokenPair(
+        user,
+        session.id,
+      );
+      await this.authSessionsRepository.update(session.id, {
+        refreshTokenHash: this.hashRefreshToken(refreshToken),
+      });
+      await this.usersService.updateLastLoginAt(user.id);
+      this.setAuthCookies(response, accessToken, refreshToken);
+    } catch (error) {
+      await this.authSessionsRepository.revoke(session.id);
+      throw error;
+    }
   }
 
-  private async rotateSession(
+  private async signTokenPair(
     user: User,
     sessionId: string,
-    response: Response,
-  ) {
-    const { accessToken, refreshToken } = await this.signTokenPair(user);
-    await this.authSessionsRepository.update(sessionId, {
-      refreshTokenHash: this.hashRefreshToken(refreshToken),
-      expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
-    });
-    this.setAuthCookies(response, accessToken, refreshToken);
-  }
-
-  private async signTokenPair(user: User): Promise<TokenPair> {
+  ): Promise<TokenPair> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      role: this.toPublicRole(user.role),
+      sid: sessionId,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -318,17 +382,13 @@ export class AuthService {
     response.clearCookie('oauthState', options);
   }
 
-  private toPublicUser(user: User): AuthenticatedUser {
+  private toPublicUser(user: User): PublicAuthUser {
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName ?? '',
-      role: this.toPublicRole(user.role),
+      type: user.type,
     };
-  }
-
-  private toPublicRole(role: Role): 'user' | 'admin' {
-    return role === Role.SUPER_ADMIN ? 'admin' : 'user';
   }
 
   private baseCookieOptions(): CookieOptionsConfig {
@@ -381,5 +441,9 @@ export class AuthService {
     const right = Buffer.from(storedHash, 'hex');
 
     return left.length === right.length && timingSafeEqual(left, right);
+  }
+
+  private createUnauthorizedException(message: string, code: string) {
+    return new UnauthorizedException({ message, code });
   }
 }

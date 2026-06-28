@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@/generated/prisma/client';
 import { PaginatedResponseDto } from '@/common/dto';
 import {
@@ -11,21 +16,44 @@ import {
   UsersQueryDto,
   UsersSortField,
 } from './dto';
-import { UsersRepository } from './users.repository';
+import {
+  CustomerRoleConfigurationError,
+  type CreateCustomerForAuthInput,
+  UsersRepository,
+} from './users.repository';
+import { AuthProvider } from '@/generated/prisma/client';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
+import { SystemProtectionPolicy } from '../authorization';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly systemProtectionPolicy: SystemProtectionPolicy,
+  ) {}
 
-  create(createUserDto: CreateUserDto) {
-    return this.usersRepository.create({
+  async create(actor: AuthenticatedUser, createUserDto: CreateUserDto) {
+    this.assertSuperAdmin(actor);
+    const user = await this.createCustomerForAuth({
       ...createUserDto,
       email: createUserDto.email.toLowerCase(),
+      provider: AuthProvider.LOCAL,
     });
+    return this.findOne(actor, user.id);
   }
 
-  createForAuth(data: Prisma.UserCreateInput) {
-    return this.usersRepository.createForAuth(data);
+  async createCustomerForAuth(data: CreateCustomerForAuthInput) {
+    try {
+      return await this.usersRepository.createCustomerForAuth(data);
+    } catch (error) {
+      if (error instanceof CustomerRoleConfigurationError) {
+        throw new InternalServerErrorException(
+          'Cấu hình role CUSTOMER chưa sẵn sàng',
+        );
+      }
+
+      throw error;
+    }
   }
 
   findByEmail(email: string, includeSecrets = false) {
@@ -36,7 +64,12 @@ export class UsersService {
     return this.usersRepository.updateAuthFields(id, update);
   }
 
-  async findAll(query: UsersQueryDto) {
+  updateLastLoginAt(id: string, lastLoginAt = new Date()) {
+    return this.usersRepository.updateLastLoginAt(id, lastLoginAt);
+  }
+
+  async findAll(actor: AuthenticatedUser, query: UsersQueryDto) {
+    this.assertSuperAdmin(actor);
     const { page, limit, skip } = getPaginationOptions(query);
     const where = this.buildUserFilter(query);
     const sortBy = query.sortBy ?? UsersSortField.CREATED_AT;
@@ -57,7 +90,8 @@ export class UsersService {
     return new PaginatedResponseDto(users, total, page, limit);
   }
 
-  async findOne(id: string) {
+  async findOne(actor: AuthenticatedUser, id: string) {
+    this.assertSuperAdmin(actor);
     const user = await this.usersRepository.findById(id);
     if (!user) {
       throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
@@ -66,19 +100,26 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    try {
-      return await this.usersRepository.update(id, updateUserDto);
-    } catch {
-      throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
-    }
+  async update(
+    actor: AuthenticatedUser,
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ) {
+    await this.findOne(actor, id);
+    return this.usersRepository.update(id, updateUserDto);
   }
 
-  async remove(id: string) {
-    try {
-      return await this.usersRepository.delete(id);
-    } catch {
-      throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
+  async remove(actor: AuthenticatedUser, id: string) {
+    this.assertSuperAdmin(actor);
+    await this.findOne(actor, id);
+    return this.usersRepository.disableWithSessions(id, async (tx) => {
+      await this.systemProtectionPolicy.assertCanRemoveSuperAdmin(id, tx);
+    });
+  }
+
+  private assertSuperAdmin(actor: AuthenticatedUser): void {
+    if (!actor.isSuperAdmin) {
+      throw new ForbiddenException('Chỉ Super Admin được quản lý Users API');
     }
   }
 

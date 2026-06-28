@@ -1,48 +1,61 @@
 model User {
   id           String       @id @default(ulid())
   email        String       @unique
-  passwordHash String?
-  fullName     String?
+  passwordHash String?      @map("password_hash")
+  fullName     String?      @map("full_name")
   phone        String?
-  role         Role         @default(USER)
+  type         UserType     @default(CUSTOMER)
   provider     AuthProvider @default(LOCAL)
-  googleId     String?      @unique
-  isActive     Boolean      @default(true)
+  googleId     String?      @unique @map("google_id")
+  isActive     Boolean      @default(true) @map("is_active")
+  lastLoginAt  DateTime?    @map("last_login_at")
 
-  branchId String?
-  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  authSessions                  AuthSession[]
+  userRoles                     UserRole[]             @relation("UserRoleTarget")
+  rolesAssigned                 UserRole[]             @relation("UserRoleAssigner")
+  userBranchRolesAssigned       UserBranchRole[]       @relation("UserBranchRoleAssigner")
+  userPermissions               UserPermission[]       @relation("UserPermissionTarget")
+  permissionsAssigned           UserPermission[]       @relation("UserPermissionAssigner")
+  userBranchPermissionsAssigned UserBranchPermission[] @relation("UserBranchPermissionAssigner")
+  userBranches                  UserBranch[]           @relation("UserBranchTarget")
+  branchesAssigned              UserBranch[]           @relation("UserBranchAssigner")
+  addresses                     UserAddress[]
+  carts                         Cart[]
+  orders                        Order[]
+  reviews                       Review[]
+  wishlists                     Wishlist[]
+  notifications                 Notification[]
+  couponUsages                  CouponUsage[]
+  preorders                     Preorder[]
+  stockMovements                StockMovement[]        @relation("StockMovementPerformedBy")
+  stockTransfersRequested       StockTransfer[]        @relation("StockTransferRequestedBy")
+  stockTransfersApproved        StockTransfer[]        @relation("StockTransferApprovedBy")
+  stockTransfersShipped         StockTransfer[]        @relation("StockTransferShippedBy")
+  stockTransfersReceived        StockTransfer[]        @relation("StockTransferReceivedBy")
+  stockTransfersCancelled       StockTransfer[]        @relation("StockTransferCancelledBy")
+  orderStatusChanges            OrderStatusHistory[]   @relation("OrderStatusChangedBy")
+  reviewReplies                 ReviewReply[]          @relation("ReviewReplyAdmin")
+  auditLogs                     AuditLog[]
 
-  authSessions       AuthSession[]
-  addresses          UserAddress[]
-  carts              Cart[]
-  orders             Order[]
-  reviews            Review[]
-  wishlists          Wishlist[]
-  notifications      Notification[]
-  couponUsages       CouponUsage[]
-  preorders          Preorder[]
-  stockMovements     StockMovement[]      @relation("StockMovementPerformedBy")
-  orderStatusChanges OrderStatusHistory[] @relation("OrderStatusChangedBy")
-  reviewReplies      ReviewReply[]        @relation("ReviewReplyAdmin")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([email])
-  @@index([branchId])
+  @@index([type])
+  @@index([isActive])
   @@map("users")
 }
 
 model AuthSession {
   id               String    @id @default(ulid())
-  userId           String
-  refreshTokenHash String
-  userAgent        String?
-  ipAddress        String?
-  expiresAt        DateTime
-  revokedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  userId           String    @map("user_id")
+  refreshTokenHash String    @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -58,10 +71,10 @@ model AuthAttempt {
   type            AuthAttemptType
   key             String
   attempts        Int             @default(0)
-  windowStartedAt DateTime?
-  blockedUntil    DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  windowStartedAt DateTime?       @map("window_started_at")
+  blockedUntil    DateTime?       @map("blocked_until")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
 
   @@unique([type, key])
   @@index([type, key])
@@ -80,20 +93,23 @@ model Branch {
   ward      String?
   latitude  Decimal? @db.Decimal(10, 7)
   longitude Decimal? @db.Decimal(10, 7)
-  isActive  Boolean  @default(true)
+  isActive  Boolean  @default(true) @map("is_active")
 
-  users          User[]
-  carts          Cart[]
-  orders         Order[]
-  stocks         BranchProductStock[]
-  prices         BranchProductPrice[]
-  stockMovements StockMovement[]
-  comboBranches  ComboBranch[]
-  couponBranches CouponBranch[]
-  preorders      Preorder[]
+  userBranches       UserBranch[]
+  carts              Cart[]
+  orders             Order[]
+  stocks             BranchProductStock[]
+  prices             BranchProductPrice[]
+  stockMovements     StockMovement[]
+  stockTransfersFrom StockTransfer[]      @relation("StockTransferFromBranch")
+  stockTransfersTo   StockTransfer[]      @relation("StockTransferToBranch")
+  comboBranches      ComboBranch[]
+  couponBranches     CouponBranch[]
+  preorders          Preorder[]
+  reviews            Review[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([code])
   @@index([isActive])
@@ -102,22 +118,25 @@ model Branch {
 
 model UserAddress {
   id            String   @id @default(ulid())
-  userId        String
-  receiverName  String
-  receiverPhone String
+  userId        String   @map("user_id")
+  receiverName  String   @map("receiver_name")
+  receiverPhone String   @map("receiver_phone")
   province      String
   district      String
   ward          String
   detail        String
+  ghnProvinceId Int?     @map("ghn_province_id")
+  ghnDistrictId Int?     @map("ghn_district_id")
+  ghnWardCode   String?  @map("ghn_ward_code")
   latitude      Decimal? @db.Decimal(10, 7)
   longitude     Decimal? @db.Decimal(10, 7)
 
-  isDefault Boolean @default(false)
+  isDefault Boolean @default(false) @map("is_default")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
   @@index([isDefault])

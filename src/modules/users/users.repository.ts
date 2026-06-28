@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type User } from '@/generated/prisma/client';
+import { runSerializableTransaction } from '@/database/serializable-transaction.util';
+import { Prisma, UserType, type User } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 
 const publicUserSelect = {
@@ -7,23 +8,57 @@ const publicUserSelect = {
   email: true,
   fullName: true,
   phone: true,
-  role: true,
+  type: true,
   provider: true,
   isActive: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
+
+export class CustomerRoleConfigurationError extends Error {
+  constructor() {
+    super('Active system role CUSTOMER is not configured');
+  }
+}
+
+export type CreateCustomerForAuthInput = Pick<
+  Prisma.UserUncheckedCreateInput,
+  'email' | 'fullName' | 'phone' | 'passwordHash' | 'provider' | 'googleId'
+>;
 
 @Injectable()
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.UserCreateInput) {
-    return this.prisma.user.create({ data, select: publicUserSelect });
-  }
+  createCustomerForAuth(data: CreateCustomerForAuthInput): Promise<User> {
+    return runSerializableTransaction(this.prisma, async (tx) => {
+      const customerRole = await tx.role.findFirst({
+        where: {
+          code: 'CUSTOMER',
+          type: UserType.CUSTOMER,
+          isSystem: true,
+          isActive: true,
+        },
+        select: { id: true },
+      });
 
-  createForAuth(data: Prisma.UserCreateInput): Promise<User> {
-    return this.prisma.user.create({ data });
+      if (!customerRole) {
+        throw new CustomerRoleConfigurationError();
+      }
+
+      const user = await tx.user.create({
+        data: { ...data, type: UserType.CUSTOMER },
+      });
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: customerRole.id,
+        },
+      });
+
+      return user;
+    });
   }
 
   findById(id: string) {
@@ -65,10 +100,28 @@ export class UsersRepository {
     return this.prisma.user.update({ where: { id }, data });
   }
 
-  delete(id: string) {
-    return this.prisma.user.delete({
+  updateLastLoginAt(id: string, lastLoginAt: Date): Promise<User> {
+    return this.prisma.user.update({
       where: { id },
-      select: publicUserSelect,
+      data: { lastLoginAt },
+    });
+  }
+
+  disableWithSessions(
+    id: string,
+    assertAllowed: (tx: Prisma.TransactionClient) => Promise<void>,
+  ) {
+    return runSerializableTransaction(this.prisma, async (tx) => {
+      await assertAllowed(tx);
+      await tx.authSession.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return tx.user.update({
+        where: { id },
+        data: { isActive: false },
+        select: publicUserSelect,
+      });
     });
   }
 }

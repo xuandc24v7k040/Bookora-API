@@ -26,11 +26,12 @@ describe('TurnstileService', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
-  it('skips verification when Turnstile is disabled', async () => {
-    config.get.mockReturnValue(false);
+  it('skips verification when Turnstile is disabled outside production', async () => {
+    mockConfig({ enabled: false, nodeEnv: 'test' });
 
     await expect(
       service.verifyToken(undefined, '127.0.0.1'),
@@ -38,8 +39,17 @@ describe('TurnstileService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('rejects production bypass when Turnstile is disabled', async () => {
+    mockConfig({ enabled: false, nodeEnv: 'production' });
+
+    await expect(
+      service.verifyToken(undefined, '127.0.0.1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects missing token when Turnstile is enabled', async () => {
-    config.get.mockReturnValue(true);
+    mockConfig({ enabled: true });
 
     await expect(service.verifyToken(undefined)).rejects.toBeInstanceOf(
       BadRequestException,
@@ -47,19 +57,36 @@ describe('TurnstileService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('rejects invalid token without exposing Cloudflare response', async () => {
-    config.get.mockImplementation((key: string) => {
-      if (key === 'auth.turnstile.enabled') {
-        return true;
-      }
-
-      if (key === 'auth.turnstile.secretKey') {
-        return 'secret';
-      }
-
-      return undefined;
+  it('accepts a valid Turnstile response', async () => {
+    mockConfig({
+      expectedHostnames: ['bookora.local'],
+      expectedLoginAction: 'login',
     });
-    config.getOrThrow.mockReturnValue('https://example.com/siteverify');
+    fetchMock.mockResolvedValue({
+      json: () =>
+        Promise.resolve({
+          success: true,
+          hostname: 'bookora.local',
+          action: 'login',
+        }),
+    });
+
+    await expect(
+      service.verifyToken('valid-token', '127.0.0.1', 'login'),
+    ).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://example.com/siteverify',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(URLSearchParams),
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
+
+  it('rejects success=false without exposing Cloudflare details', async () => {
+    mockConfig();
     fetchMock.mockResolvedValue({
       json: () =>
         Promise.resolve({
@@ -73,33 +100,106 @@ describe('TurnstileService', () => {
     );
   });
 
-  it('passes valid token to Cloudflare siteverify', async () => {
-    config.get.mockImplementation((key: string) => {
-      if (key === 'auth.turnstile.enabled') {
-        return true;
-      }
-
-      if (key === 'auth.turnstile.secretKey') {
-        return 'secret';
-      }
-
-      return undefined;
-    });
-    config.getOrThrow.mockReturnValue('https://example.com/siteverify');
+  it('rejects hostname mismatch', async () => {
+    mockConfig({ expectedHostnames: ['bookora.local'] });
     fetchMock.mockResolvedValue({
-      json: () => Promise.resolve({ success: true }),
+      json: () =>
+        Promise.resolve({
+          success: true,
+          hostname: 'evil.example',
+        }),
+    });
+
+    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('rejects action mismatch', async () => {
+    mockConfig({ expectedLoginAction: 'login' });
+    fetchMock.mockResolvedValue({
+      json: () =>
+        Promise.resolve({
+          success: true,
+          action: 'register',
+        }),
     });
 
     await expect(
-      service.verifyToken('valid-token', '127.0.0.1'),
-    ).resolves.toBeUndefined();
+      service.verifyToken('token', '127.0.0.1', 'login'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://example.com/siteverify',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.any(URLSearchParams),
-      }),
+  it('rejects malformed responses', async () => {
+    mockConfig();
+    fetchMock.mockResolvedValue({
+      json: () => Promise.resolve({ hostname: 'bookora.local' }),
+    });
+
+    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
+      ForbiddenException,
     );
   });
+
+  it('rejects network errors', async () => {
+    mockConfig();
+    fetchMock.mockRejectedValue(new Error('network down'));
+
+    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('aborts timeout requests and cleans up the timer', async () => {
+    jest.useFakeTimers();
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    mockConfig({ timeoutMs: 25 });
+    fetchMock.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          const signal = init.signal as AbortSignal;
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+
+    const verification = expect(
+      service.verifyToken('token'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await jest.advanceTimersByTimeAsync(25);
+
+    await verification;
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+
+  function mockConfig(options?: {
+    enabled?: boolean;
+    nodeEnv?: string;
+    expectedHostnames?: string[];
+    expectedLoginAction?: string;
+    expectedRegisterAction?: string;
+    timeoutMs?: number;
+  }) {
+    config.get.mockImplementation((key: string) => {
+      const values: Record<string, unknown> = {
+        'auth.turnstile.enabled': options?.enabled ?? true,
+        'environment.nodeEnv': options?.nodeEnv ?? 'test',
+        'auth.turnstile.secretKey': 'secret',
+        'auth.turnstile.expectedHostnames': options?.expectedHostnames ?? [],
+        'auth.turnstile.expectedActions.login':
+          options?.expectedLoginAction ?? 'login',
+        'auth.turnstile.expectedActions.register':
+          options?.expectedRegisterAction ?? 'register',
+        'auth.turnstile.timeoutMs': options?.timeoutMs ?? 3000,
+      };
+      return values[key];
+    });
+    config.getOrThrow.mockImplementation((key: string) => {
+      if (key === 'auth.turnstile.siteverifyUrl') {
+        return 'https://example.com/siteverify';
+      }
+      return undefined;
+    });
+  }
 });

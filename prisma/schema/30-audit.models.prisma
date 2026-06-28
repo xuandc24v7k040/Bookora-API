@@ -1,0 +1,25 @@
+model AuditLog {
+  id          String          @id @default(ulid())
+  actorId     String?         @map("actor_id")
+  action      AuditAction
+  targetType  AuditTargetType @map("target_type")
+  targetId    String?         @map("target_id")
+  module      String?
+  description String?
+  beforeData  Json?           @map("before_data")
+  afterData   Json?           @map("after_data")
+  metadata    Json?
+  ipAddress   String?         @map("ip_address")
+  userAgent   String?         @map("user_agent")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

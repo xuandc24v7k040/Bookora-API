@@ -3,7 +3,7 @@
   "paths": {
     "/health": {
       "get": {
-        "operationId": "HealthController_getHealth",
+        "operationId": "healthGetHealth",
         "parameters": [],
         "responses": {
           "200": {
@@ -33,17 +33,29 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Kiểm tra trạng thái ứng dụng",
         "tags": [
           "health"
-        ]
+        ],
+        "description": "Kiểm tra trạng thái ứng dụng",
+        "security": []
       }
     },
     "/users": {
       "post": {
-        "operationId": "UsersController_create",
+        "operationId": "usersCreate",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -83,15 +95,52 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
         "summary": "Tạo người dùng",
         "tags": [
           "users"
-        ]
+        ],
+        "description": "Tạo người dùng"
       },
       "get": {
-        "operationId": "UsersController_findAll",
+        "operationId": "usersFindAll",
         "parameters": [
           {
             "name": "page",
@@ -219,24 +268,65 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
         "summary": "Lấy danh sách người dùng",
         "tags": [
           "users"
-        ]
+        ],
+        "description": "Lấy danh sách người dùng"
       }
     },
     "/users/{id}": {
       "get": {
-        "operationId": "UsersController_findOne",
+        "operationId": "usersFindOne",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
             }
           }
         ],
@@ -268,22 +358,63 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
         "summary": "Lấy người dùng theo id",
         "tags": [
           "users"
-        ]
+        ],
+        "description": "Lấy người dùng theo id"
       },
       "patch": {
-        "operationId": "UsersController_update",
+        "operationId": "usersUpdate",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
             }
           }
         ],
@@ -325,22 +456,64 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
         "summary": "Cập nhật người dùng theo id",
         "tags": [
           "users"
-        ]
+        ],
+        "description": "Cập nhật người dùng theo id"
       },
       "delete": {
-        "operationId": "UsersController_remove",
+        "operationId": "usersRemove",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
             }
           }
         ],
@@ -372,18 +545,4055 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
         "summary": "Xóa người dùng theo id",
         "tags": [
           "users"
+        ],
+        "description": "Xóa người dùng theo id"
+      }
+    },
+    "/roles": {
+      "get": {
+        "operationId": "rolesList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Roles retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Roles retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RoleResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List roles",
+        "tags": [
+          "roles"
+        ],
+        "description": "List roles"
+      },
+      "post": {
+        "operationId": "rolesCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create custom role",
+        "tags": [
+          "roles"
+        ],
+        "description": "Create custom role"
+      }
+    },
+    "/roles/{id}": {
+      "get": {
+        "operationId": "rolesGet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get role detail",
+        "tags": [
+          "roles"
+        ],
+        "description": "Get role detail"
+      },
+      "patch": {
+        "operationId": "rolesUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role updated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Update role",
+        "tags": [
+          "roles"
+        ],
+        "description": "Update role"
+      },
+      "delete": {
+        "operationId": "rolesDeactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role deactivated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Deactivate role",
+        "tags": [
+          "roles"
+        ],
+        "description": "Deactivate role"
+      }
+    },
+    "/roles/{id}/permissions": {
+      "get": {
+        "operationId": "rolesPermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role permissions retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role permissions retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RolePermissionResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List role permissions",
+        "tags": [
+          "roles"
+        ],
+        "description": "List role permissions"
+      }
+    },
+    "/roles/{id}/permissions/{permissionId}": {
+      "post": {
+        "operationId": "rolesAssignPermission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "permissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Role permission assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role permission assigned"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RolePermissionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Assign permission to role",
+        "tags": [
+          "roles"
+        ],
+        "description": "Assign permission to role"
+      },
+      "delete": {
+        "operationId": "rolesRemovePermission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "permissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role permission removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role permission removed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Remove permission from role",
+        "tags": [
+          "roles"
+        ],
+        "description": "Remove permission from role"
+      }
+    },
+    "/permissions": {
+      "get": {
+        "operationId": "permissionsList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permissions retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permissions retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PermissionResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List permissions",
+        "tags": [
+          "permissions"
+        ],
+        "description": "List permissions"
+      },
+      "post": {
+        "operationId": "permissionsCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permission created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PermissionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create permission",
+        "tags": [
+          "permissions"
+        ],
+        "description": "Create permission"
+      }
+    },
+    "/permissions/{id}": {
+      "get": {
+        "operationId": "permissionsGet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PermissionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get permission detail",
+        "tags": [
+          "permissions"
+        ],
+        "description": "Get permission detail"
+      },
+      "patch": {
+        "operationId": "permissionsUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permission updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission updated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PermissionResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Update permission",
+        "tags": [
+          "permissions"
+        ],
+        "description": "Update permission"
+      },
+      "delete": {
+        "operationId": "permissionsRemove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission deleted"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Delete unused permission",
+        "tags": [
+          "permissions"
+        ],
+        "description": "Delete unused permission"
+      }
+    },
+    "/branches": {
+      "get": {
+        "operationId": "branchesList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branches retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branches retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/BranchResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List branches in scope",
+        "tags": [
+          "branches"
+        ],
+        "description": "List branches in scope"
+      },
+      "post": {
+        "operationId": "branchesCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Branch created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BranchResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create branch",
+        "tags": [
+          "branches"
+        ],
+        "description": "Create branch"
+      }
+    },
+    "/branches/{id}": {
+      "get": {
+        "operationId": "branchesGet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BranchResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get branch in scope",
+        "tags": [
+          "branches"
+        ],
+        "description": "Get branch in scope"
+      },
+      "patch": {
+        "operationId": "branchesUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Branch updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch updated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BranchResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Update branch",
+        "tags": [
+          "branches"
+        ],
+        "description": "Update branch"
+      },
+      "delete": {
+        "operationId": "branchesDeactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch deactivated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/BranchResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Deactivate branch",
+        "tags": [
+          "branches"
+        ],
+        "description": "Deactivate branch"
+      }
+    },
+    "/branch-admins": {
+      "get": {
+        "operationId": "branchAdminsList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch Admins retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch Admins retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ManagedUserResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List Branch Admins",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "List Branch Admins"
+      },
+      "post": {
+        "operationId": "branchAdminsCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInternalUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Branch Admin created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch Admin created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create Branch Admin",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Create Branch Admin"
+      }
+    },
+    "/branch-admins/{id}": {
+      "get": {
+        "operationId": "branchAdminsGet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch Admin retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch Admin retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get Branch Admin detail",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Get Branch Admin detail"
+      }
+    },
+    "/branch-admins/{id}/convert": {
+      "post": {
+        "operationId": "branchAdminsConvert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertBranchAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer converted to Branch Admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Customer converted to Branch Admin"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Convert Customer to Branch Admin",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Convert Customer to Branch Admin"
+      }
+    },
+    "/branch-admins/{id}/branches/{branchId}": {
+      "post": {
+        "operationId": "branchAdminsAssignBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Branch assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assigned"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Assign branch to Branch Admin",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Assign branch to Branch Admin"
+      },
+      "delete": {
+        "operationId": "branchAdminsRemoveBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePrimaryBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Branch assignment removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment removed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Remove Branch Admin branch",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Remove Branch Admin branch"
+      }
+    },
+    "/branch-admins/{id}/branches/{branchId}/activate": {
+      "patch": {
+        "operationId": "branchAdminsActivateBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch assignment activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment activated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Activate Branch Admin branch assignment",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Activate Branch Admin branch assignment"
+      }
+    },
+    "/branch-admins/{id}/branches/{branchId}/deactivate": {
+      "patch": {
+        "operationId": "branchAdminsDeactivateBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePrimaryBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Branch assignment deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment deactivated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Deactivate Branch Admin branch assignment",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Deactivate Branch Admin branch assignment"
+      }
+    },
+    "/branch-admins/{id}/branches/{branchId}/primary": {
+      "patch": {
+        "operationId": "branchAdminsPrimary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Primary branch changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Primary branch changed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Set Branch Admin primary branch",
+        "tags": [
+          "branch-admins"
+        ],
+        "description": "Set Branch Admin primary branch"
+      }
+    },
+    "/staff": {
+      "get": {
+        "operationId": "staffList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ManagedUserResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "List staff in branch scope",
+        "tags": [
+          "staff"
+        ],
+        "description": "List staff in branch scope"
+      },
+      "post": {
+        "operationId": "staffCreate",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Staff created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff created"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create staff in selected branch",
+        "tags": [
+          "staff"
+        ],
+        "description": "Create staff in selected branch"
+      }
+    },
+    "/staff/{id}": {
+      "get": {
+        "operationId": "staffGet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff retrieved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Get staff in branch scope",
+        "tags": [
+          "staff"
+        ],
+        "description": "Get staff in branch scope"
+      },
+      "patch": {
+        "operationId": "staffUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Staff updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff updated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Update staff",
+        "tags": [
+          "staff"
+        ],
+        "description": "Update staff"
+      },
+      "delete": {
+        "operationId": "staffDisable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff offboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff offboarded"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Deactivate staff employment in selected branch",
+        "tags": [
+          "staff"
+        ],
+        "description": "Deactivate staff employment in selected branch"
+      }
+    },
+    "/staff/{id}/convert": {
+      "post": {
+        "operationId": "staffConvert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertStaffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer converted to Staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Customer converted to Staff"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Convert Customer to Staff",
+        "tags": [
+          "staff"
+        ],
+        "description": "Convert Customer to Staff"
+      }
+    },
+    "/staff/{id}/transfer-branch": {
+      "post": {
+        "description": "Super Admin only. Atomically activates the destination branch assignment with explicit destination roles, clears stale destination direct permissions, deactivates the source branch assignment, preserves sessions, and verifies the active primary branch invariant. X-Branch-Id is not required because scope is provided by fromBranchId/toBranchId.",
+        "operationId": "staffTransferBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferStaffBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Staff branch transferred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Staff branch transferred"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagedUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid branch or role input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Super Admin permission required"
+          },
+          "404": {
+            "description": "Source assignment not found"
+          },
+          "409": {
+            "description": "Destination branch assignment is already active"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Transfer staff from one branch to another",
+        "tags": [
+          "staff"
         ]
+      }
+    },
+    "/staff/{id}/roles/{roleId}": {
+      "post": {
+        "operationId": "staffAssignRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Role assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role assigned"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Assign role to staff",
+        "tags": [
+          "staff"
+        ],
+        "description": "Assign role to staff"
+      },
+      "delete": {
+        "operationId": "staffRemoveRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Role removed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Remove role from staff",
+        "tags": [
+          "staff"
+        ],
+        "description": "Remove role from staff"
+      }
+    },
+    "/staff/{id}/permissions/{permissionId}": {
+      "put": {
+        "operationId": "staffPermission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "permissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertUserPermissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Permission override saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission override saved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Create or update staff permission override",
+        "tags": [
+          "staff"
+        ],
+        "description": "Create or update staff permission override"
+      },
+      "delete": {
+        "operationId": "staffRemovePermission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "permissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            },
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permission override removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Permission override removed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Remove staff permission override",
+        "tags": [
+          "staff"
+        ],
+        "description": "Remove staff permission override"
+      }
+    },
+    "/staff/{id}/branches/{branchId}": {
+      "post": {
+        "operationId": "staffAssignBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Branch assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assigned"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Assign branch to staff",
+        "tags": [
+          "staff"
+        ],
+        "description": "Assign branch to staff"
+      },
+      "delete": {
+        "operationId": "staffRemoveBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePrimaryBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Branch assignment removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment removed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/MutationCountResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Remove staff branch assignment",
+        "tags": [
+          "staff"
+        ],
+        "description": "Remove staff branch assignment"
+      }
+    },
+    "/staff/{id}/branches/{branchId}/activate": {
+      "patch": {
+        "operationId": "staffActivateBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch assignment activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment activated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Activate staff branch assignment",
+        "tags": [
+          "staff"
+        ],
+        "description": "Activate staff branch assignment"
+      }
+    },
+    "/staff/{id}/branches/{branchId}/deactivate": {
+      "patch": {
+        "operationId": "staffDeactivateBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePrimaryBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Branch assignment deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch assignment deactivated"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Deactivate staff branch assignment",
+        "tags": [
+          "staff"
+        ],
+        "description": "Deactivate staff branch assignment"
+      }
+    },
+    "/staff/{id}/branches/{branchId}/primary": {
+      "patch": {
+        "operationId": "staffPrimary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Primary branch changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Primary branch changed"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AssignmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or branch selection"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or scope denied"
+          },
+          "404": {
+            "description": "Resource not found in scope"
+          },
+          "409": {
+            "description": "Conflicting authorization data"
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Set staff primary branch",
+        "tags": [
+          "staff"
+        ],
+        "description": "Set staff primary branch"
       }
     },
     "/auth/register": {
       "post": {
-        "description": "Sets accessToken and refreshToken as httpOnly cookies.",
-        "operationId": "AuthController_register",
+        "description": "Tạo tài khoản mới, chưa đăng nhập tự động.",
+        "operationId": "authRegister",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -397,10 +4607,50 @@
         },
         "responses": {
           "201": {
-            "description": "Registered successfully"
+            "description": "Đăng ký thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đăng ký thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublicAuthUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Register with cookie-based JWT session",
+        "security": [
+          {
+            "csrf": []
+          }
+        ],
+        "summary": "Đăng ký tài khoản",
         "tags": [
           "auth"
         ]
@@ -408,8 +4658,8 @@
     },
     "/auth/login": {
       "post": {
-        "description": "Sets accessToken and refreshToken as httpOnly cookies.",
-        "operationId": "AuthController_login",
+        "description": "Tạo phiên đăng nhập và lưu token vào cookie.",
+        "operationId": "authLogin",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -423,10 +4673,50 @@
         },
         "responses": {
           "200": {
-            "description": "Logged in successfully"
+            "description": "Đăng nhập thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đăng nhập thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublicAuthUserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Login with cookie-based JWT session",
+        "security": [
+          {
+            "csrf": []
+          }
+        ],
+        "summary": "Đăng nhập",
         "tags": [
           "auth"
         ]
@@ -434,15 +4724,77 @@
     },
     "/auth/logout": {
       "post": {
-        "description": "Clears cookie-based JWT session.",
-        "operationId": "AuthController_logout",
+        "description": "Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập.",
+        "operationId": "authLogout",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Đăng xuất thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đăng xuất thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AuthMutationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Logout current session",
+        "security": [
+          {
+            "accessToken": [],
+            "refreshToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Đăng xuất",
         "tags": [
           "auth"
         ]
@@ -450,15 +4802,66 @@
     },
     "/auth/refresh": {
       "post": {
-        "description": "Reads refreshToken from httpOnly cookie.",
-        "operationId": "AuthController_refresh",
+        "description": "Cấp lại token mới từ refresh token trong cookie.",
+        "operationId": "authRefresh",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Làm mới phiên đăng nhập thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Làm mới phiên đăng nhập thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AuthMutationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Rotate refresh token and issue new cookies",
+        "security": [
+          {
+            "refreshToken": [],
+            "csrf": []
+          }
+        ],
+        "summary": "Làm mới phiên đăng nhập",
         "tags": [
           "auth"
         ]
@@ -466,52 +4869,162 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "AuthController_me",
+        "operationId": "authMe",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Lấy thông tin người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy thông tin người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AuthMeResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Get current authenticated user from accessToken cookie",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy thông tin tài khoản hiện tại",
         "tags": [
           "auth"
-        ]
+        ],
+        "description": "Lấy thông tin tài khoản hiện tại"
       }
     },
     "/auth/csrf-token": {
       "get": {
-        "operationId": "AuthController_csrfToken",
+        "operationId": "authCsrfToken",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Tạo CSRF token thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tạo CSRF token thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CsrfTokenResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Issue initial CSRF cookie for cookie-authenticated flows",
+        "summary": "Tạo CSRF token",
         "tags": [
           "auth"
-        ]
+        ],
+        "description": "Tạo CSRF token",
+        "security": []
       }
     },
     "/auth/google": {
       "get": {
-        "operationId": "AuthController_google",
+        "operationId": "authGoogle",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": ""
+          "302": {
+            "description": "Chuyển hướng sang Google OAuth và set cookie oauthState đã ký."
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Start Google OAuth login",
+        "summary": "Đăng nhập bằng Google",
         "tags": [
           "auth"
-        ]
+        ],
+        "description": "Đăng nhập bằng Google",
+        "security": []
       }
     },
     "/auth/google/callback": {
       "get": {
-        "operationId": "AuthController_googleCallback",
+        "operationId": "authGoogleCallback",
         "parameters": [
           {
             "name": "state",
@@ -523,39 +5036,95 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": ""
+          "302": {
+            "description": "Chuyển hướng về frontend sau khi xác thực Google thành công hoặc thất bại."
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Handle Google OAuth callback",
+        "summary": "Xử lý callback Google",
         "tags": [
           "auth"
-        ]
+        ],
+        "description": "Xử lý callback Google",
+        "security": []
       }
     }
   },
   "info": {
-    "title": "Exam API",
-    "description": "API documentation for the exam project",
+    "title": "Bookora API",
+    "description": "Contract OpenAPI chính thức cho backend Bookora. Frontend dùng cookie credentials, cookie accessToken/refreshToken và header X-CSRF-Token cho mutation cần CSRF.",
     "version": "1.0",
-    "contact": {}
+    "license": {
+      "name": "Proprietary"
+    }
   },
   "tags": [
     {
       "name": "health",
-      "description": ""
+      "description": "Kiểm tra trạng thái dịch vụ."
     },
     {
       "name": "users",
-      "description": ""
+      "description": "Quản lý người dùng cấp hệ thống."
     },
     {
       "name": "auth",
-      "description": ""
+      "description": "Đăng ký, đăng nhập, phiên đăng nhập, CSRF và OAuth."
+    },
+    {
+      "name": "roles",
+      "description": "Quản lý vai trò và quyền gán vào vai trò."
+    },
+    {
+      "name": "permissions",
+      "description": "Quản lý danh mục quyền."
+    },
+    {
+      "name": "branches",
+      "description": "Quản lý chi nhánh và phạm vi chi nhánh."
+    },
+    {
+      "name": "branch-admins",
+      "description": "Quản lý Branch Admin và phân công chi nhánh."
+    },
+    {
+      "name": "staff",
+      "description": "Quản lý Staff trong phạm vi chi nhánh."
     }
   ],
-  "servers": [],
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "API base path"
+    }
+  ],
   "components": {
+    "securitySchemes": {
+      "accessToken": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "accessToken"
+      },
+      "refreshToken": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refreshToken"
+      },
+      "csrf": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-CSRF-Token"
+      }
+    },
     "schemas": {
       "HealthResponseDto": {
         "type": "object",
@@ -570,7 +5139,8 @@
           },
           "timestamp": {
             "type": "string",
-            "example": "2026-05-13T00:00:00.000Z"
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
           }
         },
         "required": [
@@ -582,9 +5152,13 @@
       "UserResponseDto": {
         "type": "object",
         "properties": {
-          "_id": {
+          "id": {
             "type": "string",
-            "example": "663b7f1f8a56b1d9fc45a001"
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
           },
           "email": {
             "type": "string",
@@ -602,20 +5176,37 @@
             "type": "boolean",
             "example": true
           },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ],
+            "example": "CUSTOMER"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "example": "2026-06-21T00:00:00.000Z",
+            "format": "date-time"
+          },
           "createdAt": {
             "type": "string",
-            "example": "2026-05-13T00:00:00.000Z"
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "example": "2026-05-13T00:00:00.000Z"
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
           }
         },
         "required": [
-          "_id",
+          "id",
           "email",
           "fullName",
           "isActive",
+          "type",
           "createdAt",
           "updatedAt"
         ]
@@ -634,10 +5225,6 @@
           "phone": {
             "type": "string",
             "example": "0900000000"
-          },
-          "isActive": {
-            "type": "boolean",
-            "example": true
           }
         },
         "required": [
@@ -659,12 +5246,855 @@
           "phone": {
             "type": "string",
             "example": "0900000000"
-          },
-          "isActive": {
-            "type": "boolean",
-            "example": true
           }
         }
+      },
+      "RoleResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "guardName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "level": {
+            "type": "number"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "guardName",
+          "type",
+          "level",
+          "isSystem",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SALES_STAFF"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "level": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "guardName": {
+            "type": "string",
+            "default": "web"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "type",
+          "level"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "level": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "guardName": {
+            "type": "string"
+          }
+        }
+      },
+      "PermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "guardName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "resource",
+          "action",
+          "guardName",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "RolePermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "$ref": "#/components/schemas/PermissionResponseDto"
+          }
+        },
+        "required": [
+          "permission"
+        ]
+      },
+      "MutationCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "CreatePermissionDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "orders.read"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string",
+            "example": "orders"
+          },
+          "action": {
+            "type": "string",
+            "example": "read"
+          },
+          "guardName": {
+            "type": "string",
+            "default": "web"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "resource",
+          "action"
+        ]
+      },
+      "UpdatePermissionDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "guardName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "BranchResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "address",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateBranchDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "can-tho"
+          },
+          "address": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "address"
+        ]
+      },
+      "UpdateBranchDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "ManagedUserRoleResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/RoleResponseDto"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "ManagedUserPermissionResponseDto": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "permission": {
+            "$ref": "#/components/schemas/PermissionResponseDto"
+          }
+        },
+        "required": [
+          "effect",
+          "permission"
+        ]
+      },
+      "ManagedUserBranchResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "branch": {
+            "$ref": "#/components/schemas/BranchResponseDto"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedUserRoleResponseDto"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedUserPermissionResponseDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "branchId",
+          "isPrimary",
+          "isActive",
+          "branch",
+          "roles",
+          "permissions"
+        ]
+      },
+      "ManagedUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedUserRoleResponseDto"
+            }
+          },
+          "userPermissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedUserPermissionResponseDto"
+            }
+          },
+          "userBranches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedUserBranchResponseDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "type",
+          "isActive",
+          "createdAt",
+          "updatedAt",
+          "userRoles",
+          "userPermissions",
+          "userBranches"
+        ]
+      },
+      "CreateInternalUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "phone": {
+            "type": "string"
+          },
+          "branchIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          }
+        },
+        "required": [
+          "email",
+          "fullName",
+          "password",
+          "branchIds"
+        ]
+      },
+      "ConvertBranchAdminDto": {
+        "type": "object",
+        "properties": {
+          "branchIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          }
+        },
+        "required": [
+          "branchIds"
+        ]
+      },
+      "AssignmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "roleId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "permissionId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      },
+      "ChangePrimaryBranchDto": {
+        "type": "object",
+        "properties": {
+          "replacementBranchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          }
+        }
+      },
+      "CreateStaffDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8
+          },
+          "phone": {
+            "type": "string"
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          },
+          "permissionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          }
+        },
+        "required": [
+          "email",
+          "fullName",
+          "password",
+          "roleIds"
+        ]
+      },
+      "ConvertStaffPermissionDto": {
+        "type": "object",
+        "properties": {
+          "permissionId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          }
+        },
+        "required": [
+          "permissionId",
+          "effect"
+        ]
+      },
+      "ConvertStaffBranchAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConvertStaffPermissionDto"
+            }
+          }
+        },
+        "required": [
+          "branchId",
+          "isPrimary",
+          "roleIds"
+        ]
+      },
+      "ConvertStaffDto": {
+        "type": "object",
+        "properties": {
+          "branchAssignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConvertStaffBranchAssignmentDto"
+            }
+          }
+        },
+        "required": [
+          "branchAssignments"
+        ]
+      },
+      "TransferStaffBranchDto": {
+        "type": "object",
+        "properties": {
+          "fromBranchId": {
+            "type": "string",
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "description": "Active source branch assignment to deactivate atomically.",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
+          },
+          "toBranchId": {
+            "type": "string",
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "description": "Active destination branch assignment to create or reactivate.",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
+          },
+          "destinationRoleIds": {
+            "example": [
+              "01K1000000000000000000000A"
+            ],
+            "description": "Explicit active STAFF role ids for the destination branch. Existing direct permissions at the destination are cleared.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26
+            }
+          }
+        },
+        "required": [
+          "fromBranchId",
+          "toBranchId",
+          "destinationRoleIds"
+        ]
+      },
+      "UpdateStaffDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        }
+      },
+      "UpsertUserPermissionDto": {
+        "type": "object",
+        "properties": {
+          "effect": {
+            "type": "string",
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          }
+        },
+        "required": [
+          "effect"
+        ]
+      },
+      "UserType": {
+        "type": "string",
+        "enum": [
+          "SYSTEM",
+          "BRANCH",
+          "CUSTOMER"
+        ]
+      },
+      "PublicAuthUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "customer@example.com"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Nguyen Van A"
+          },
+          "type": {
+            "example": "CUSTOMER",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserType"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "type"
+        ]
       },
       "RegisterDto": {
         "type": "object",
@@ -677,6 +6107,10 @@
           },
           "password": {
             "type": "string"
+          },
+          "turnstileToken": {
+            "type": "string",
+            "description": "Token lấy từ Cloudflare Turnstile widget frontend."
           }
         },
         "required": [
@@ -693,12 +6127,305 @@
           },
           "password": {
             "type": "string"
+          },
+          "turnstileToken": {
+            "type": "string",
+            "description": "Token lấy từ Cloudflare Turnstile widget frontend."
           }
         },
         "required": [
           "email",
           "password"
         ]
+      },
+      "AuthMutationResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "AuthMeRoleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "level": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "isSystem": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "level",
+          "type",
+          "isSystem"
+        ]
+      },
+      "AuthMeBranchDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "isPrimary"
+        ]
+      },
+      "AuthMeBranchAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "userBranchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branch": {
+            "$ref": "#/components/schemas/AuthMeBranchDto"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthMeRoleDto"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxRoleLevel": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "branchId",
+          "userBranchId",
+          "branch",
+          "isPrimary",
+          "isActive",
+          "roles",
+          "permissions",
+          "maxRoleLevel"
+        ]
+      },
+      "AuthMeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ]
+          },
+          "roles": {
+            "description": "Legacy request-effective roles. Empty for BRANCH users until a branch-scoped request resolves X-Branch-Id.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthMeRoleDto"
+            }
+          },
+          "permissions": {
+            "description": "Legacy request-effective permissions. Never contains a cross-branch union.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "globalRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthMeRoleDto"
+            }
+          },
+          "globalPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "branchAssignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthMeBranchAssignmentDto"
+            }
+          },
+          "maxRoleLevel": {
+            "type": "number"
+          },
+          "isSuperAdmin": {
+            "type": "boolean"
+          },
+          "branches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthMeBranchDto"
+            }
+          },
+          "primaryBranchId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "type",
+          "roles",
+          "permissions",
+          "globalRoles",
+          "globalPermissions",
+          "branchAssignments",
+          "maxRoleLevel",
+          "isSuperAdmin",
+          "branches",
+          "primaryBranchId"
+        ]
+      },
+      "CsrfTokenResponseDto": {
+        "type": "object",
+        "properties": {
+          "csrfToken": {
+            "type": "string",
+            "example": "8f1f0d6c2ad34f6a9bb20b2ca3fc2a4f2c8873cfd5c5fb22ad91bc70ed9a6aa2"
+          }
+        },
+        "required": [
+          "csrfToken"
+        ]
+      },
+      "ErrorResponseDto": {
+        "type": "object",
+        "required": [
+          "statusCode",
+          "message",
+          "path",
+          "method",
+          "timestamp"
+        ],
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "message": {
+            "type": "string",
+            "example": "Dữ liệu không hợp lệ"
+          },
+          "error": {
+            "type": "string",
+            "example": "Bad Request"
+          },
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "email must be an email"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "example": "/api/v1/auth/login"
+          },
+          "method": {
+            "type": "string",
+            "example": "POST"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-28T12:00:00.000Z"
+          }
+        }
       }
     }
   }

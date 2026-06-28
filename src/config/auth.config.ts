@@ -72,5 +72,14 @@ export default registerAs('auth', () => ({
       'TURNSTILE_SITEVERIFY_URL',
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
     ),
+    expectedHostnames: getEnvString('TURNSTILE_EXPECTED_HOSTNAMES', '')
+      .split(',')
+      .map((hostname) => hostname.trim().toLowerCase())
+      .filter(Boolean),
+    expectedActions: {
+      login: getEnvString('TURNSTILE_LOGIN_ACTION', 'login'),
+      register: getEnvString('TURNSTILE_REGISTER_ACTION', 'register'),
+    },
+    timeoutMs: getEnvNumber('TURNSTILE_TIMEOUT_MS', 3000),
   },
 }));

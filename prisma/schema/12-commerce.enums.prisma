@@ -5,6 +5,25 @@ enum StockMovementType {
   RETURN
   ADJUSTMENT
   CANCEL_ORDER
+  TRANSFER_OUT
+  TRANSFER_IN
+}
+
+enum StockTransferStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum StockTransferItemStatus {
+  PENDING
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
 }
 
 enum CouponScope {
@@ -40,4 +59,48 @@ enum OrderStatus {
 enum OrderItemType {
   PRODUCT
   COMBO
+}
+
+enum PreorderStatus {
+  PENDING
+  CONFIRMED
+  CONVERTED
+  CANCELLED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  CANCEL
+  IMPORT
+  EXPORT
+  TRANSFER
+  PAYMENT_CALLBACK
+  CHANGE_STATUS
+}
+
+enum AuditTargetType {
+  USER
+  BRANCH
+  CATEGORY
+  MEGA_MENU
+  PRODUCT
+  PRODUCT_VARIANT
+  INVENTORY
+  STOCK_TRANSFER
+  ORDER
+  PAYMENT
+  SHIPMENT
+  COUPON
+  REVIEW
+  COMBO
+  SERIES
+  PREORDER
+  BOOK_PREVIEW
+  SYSTEM
 }

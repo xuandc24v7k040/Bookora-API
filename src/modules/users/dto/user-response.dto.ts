@@ -16,8 +16,11 @@ export class UserResponseDto {
   @ApiProperty({ example: true })
   isActive!: boolean;
 
-  @ApiProperty({ example: 'USER' })
-  role!: 'USER' | 'ADMIN';
+  @ApiProperty({ enum: ['SYSTEM', 'BRANCH', 'CUSTOMER'], example: 'CUSTOMER' })
+  type!: 'SYSTEM' | 'BRANCH' | 'CUSTOMER';
+
+  @ApiPropertyOptional({ example: '2026-06-21T00:00:00.000Z' })
+  lastLoginAt?: string;
 
   @ApiProperty({ example: '2026-05-13T00:00:00.000Z' })
   createdAt!: string;

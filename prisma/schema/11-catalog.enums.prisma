@@ -45,6 +45,7 @@ enum FilterType {
 
 enum FilterSource {
   ATTRIBUTE
+  VARIANT_OPTION
   CATEGORY
   PRICE
   BRANCH

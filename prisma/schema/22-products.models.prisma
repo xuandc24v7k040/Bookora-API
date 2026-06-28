@@ -8,8 +8,8 @@ model Supplier {
 
   products Product[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("suppliers")
 }
@@ -21,8 +21,8 @@ model Publisher {
 
   products Product[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("publishers")
 }
@@ -34,16 +34,16 @@ model Author {
 
   products ProductAuthor[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("authors")
 }
 
 model ProductAuthor {
   id        String @id @default(ulid())
-  productId String
-  authorId  String
+  productId String @map("product_id")
+  authorId  String @map("author_id")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   author  Author  @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -55,21 +55,25 @@ model ProductAuthor {
 }
 
 model Product {
+  /// Service rules:
+  /// - ACTIVE products must have at least one active ProductVariant.
+  /// - Single products still create one default ProductVariant.
+  /// - Cart, order, stock and price flows always work through ProductVariant.
   id               String        @id @default(ulid())
   name             String
   slug             String        @unique
   description      String?
-  shortDescription String?
-  supplierId       String?
-  publisherId      String?
+  shortDescription String?       @map("short_description")
+  supplierId       String?       @map("supplier_id")
+  publisherId      String?       @map("publisher_id")
   isbn             String?
-  publicationYear  Int?
-  pageCount        Int?
-  weightGram       Int?
-  packageSize      String?
-  coverType        String?
+  publicationYear  Int?          @map("publication_year")
+  pageCount        Int?          @map("page_count")
+  weightGram       Int?          @map("weight_gram")
+  packageSize      String?       @map("package_size")
+  coverType        String?       @map("cover_type")
   status           ProductStatus @default(DRAFT)
-  releaseDate      DateTime?
+  releaseDate      DateTime?     @map("release_date")
 
   supplier  Supplier?  @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   publisher Publisher? @relation(fields: [publisherId], references: [id], onDelete: SetNull)
@@ -87,8 +91,8 @@ model Product {
   previews        BookPreview[]
   couponProducts  CouponProduct[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([supplierId])
   @@index([publisherId])
@@ -99,13 +103,13 @@ model Product {
 
 model ProductMedia {
   id        String           @id @default(ulid())
-  productId String
+  productId String           @map("product_id")
   type      ProductMediaType @default(IMAGE)
   url       String
-  altText   String?
-  sortOrder Int              @default(0)
-  isPrimary Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  altText   String?          @map("alt_text")
+  sortOrder Int              @default(0) @map("sort_order")
+  isPrimary Boolean          @default(false) @map("is_primary")
+  createdAt DateTime         @default(now()) @map("created_at")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -118,24 +122,24 @@ model ProductOption {
   id        String @id @default(ulid())
   name      String
   code      String @unique
-  sortOrder Int    @default(0)
+  sortOrder Int    @default(0) @map("sort_order")
 
   values ProductOptionValue[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("product_options")
 }
 
 model ProductOptionValue {
   id        String  @id @default(ulid())
-  optionId  String
+  optionId  String  @map("option_id")
   label     String
   value     String
-  colorCode String?
-  imageUrl  String?
-  sortOrder Int     @default(0)
+  colorCode String? @map("color_code")
+  imageUrl  String? @map("image_url")
+  sortOrder Int     @default(0) @map("sort_order")
 
   option       ProductOption               @relation(fields: [optionId], references: [id], onDelete: Cascade)
   variantLinks ProductVariantOptionValue[]
@@ -146,33 +150,36 @@ model ProductOptionValue {
 }
 
 model ProductVariant {
+  /// Service layer enforces a single default variant per product and creates it for single products.
   id         String  @id @default(ulid())
-  productId  String
+  productId  String  @map("product_id")
   name       String
   sku        String  @unique
   barcode    String?
-  imageUrl   String?
-  weightGram Int?
-  isDefault  Boolean @default(false)
-  isActive   Boolean @default(true)
+  imageUrl   String? @map("image_url")
+  weightGram Int?    @map("weight_gram")
+  isDefault  Boolean @default(false) @map("is_default")
+  isActive   Boolean @default(true) @map("is_active")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  optionValues   ProductVariantOptionValue[]
-  media          ProductVariantMedia[]
-  stocks         BranchProductStock[]
-  prices         BranchProductPrice[]
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  comboItems     ComboItem[]
-  stockMovements StockMovement[]
-  preorders      Preorder[]
-  couponProducts CouponProduct[]
+  optionValues       ProductVariantOptionValue[]
+  media              ProductVariantMedia[]
+  stocks             BranchProductStock[]
+  prices             BranchProductPrice[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  comboItems         ComboItem[]
+  stockMovements     StockMovement[]
+  stockTransferItems StockTransferItem[]
+  preorders          Preorder[]
+  couponProducts     CouponProduct[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([productId])
+  @@index([productId, isDefault])
   @@index([sku])
   @@index([isActive])
   @@map("product_variants")
@@ -180,8 +187,8 @@ model ProductVariant {
 
 model ProductVariantOptionValue {
   id            String @id @default(ulid())
-  variantId     String
-  optionValueId String
+  variantId     String @map("variant_id")
+  optionValueId String @map("option_value_id")
 
   variant     ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
   optionValue ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
@@ -194,12 +201,12 @@ model ProductVariantOptionValue {
 
 model ProductVariantMedia {
   id        String   @id @default(ulid())
-  variantId String
+  variantId String   @map("variant_id")
   url       String
-  altText   String?
-  sortOrder Int      @default(0)
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
+  altText   String?  @map("alt_text")
+  sortOrder Int      @default(0) @map("sort_order")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
 
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
@@ -216,21 +223,21 @@ model ProductAttribute {
 
   values ProductAttributeValue[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("product_attributes")
 }
 
 model ProductAttributeValue {
   id           String    @id @default(ulid())
-  productId    String
-  attributeId  String
-  textValue    String?
-  numberValue  Decimal?  @db.Decimal(12, 2)
-  booleanValue Boolean?
-  dateValue    DateTime?
-  jsonValue    Json?
+  productId    String    @map("product_id")
+  attributeId  String    @map("attribute_id")
+  textValue    String?   @map("text_value")
+  numberValue  Decimal?  @map("number_value") @db.Decimal(12, 2)
+  booleanValue Boolean?  @map("boolean_value")
+  dateValue    DateTime? @map("date_value")
+  jsonValue    Json?     @map("json_value")
 
   product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   attribute ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)

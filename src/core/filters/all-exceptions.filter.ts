@@ -24,6 +24,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         statusCode: normalized.statusCode,
         message: normalized.message,
         error: normalized.error,
+        code: normalized.code,
         errors: normalized.errors,
         path: request.url,
         method: request.method,

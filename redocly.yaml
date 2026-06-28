@@ -1,0 +1,8 @@
+extends:
+  - recommended-strict
+
+rules:
+  # Bookora là project private/proprietary và repo không có public license URL.
+  info-license-strict: off
+  # Google OAuth start/callback trả redirect 302 theo runtime, không có JSON 2XX body.
+  operation-2xx-response: off

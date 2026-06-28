@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
@@ -20,8 +20,7 @@ export class LoginDto {
   })
   password!: string;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
     description: 'Token lấy từ Cloudflare Turnstile widget frontend.',
   })
   @IsOptional()

@@ -31,12 +31,58 @@ export function validateEnv(
     }
   }
 
+  const trustProxy = readEnvValue(config, 'TRUST_PROXY');
+  if (
+    trustProxy !== undefined &&
+    trustProxy !== 'true' &&
+    trustProxy !== 'false' &&
+    (!/^\d+$/.test(trustProxy) || Number(trustProxy) < 0)
+  ) {
+    errors.push('TRUST_PROXY must be true, false, or a non-negative integer');
+  }
+
+  if (
+    readEnvValue(config, 'NODE_ENV') === 'production' &&
+    readEnvValue(config, 'TURNSTILE_ENABLED') !== 'true'
+  ) {
+    errors.push('TURNSTILE_ENABLED must be true in production');
+  }
+
   if (
     readEnvValue(config, 'NODE_ENV') === 'production' &&
     readEnvValue(config, 'TURNSTILE_ENABLED') === 'true' &&
     !isEnvValuePresent(config, 'TURNSTILE_SECRET_KEY')
   ) {
     errors.push('TURNSTILE_SECRET_KEY is required when TURNSTILE_ENABLED=true');
+  }
+
+  if (
+    readEnvValue(config, 'NODE_ENV') === 'production' &&
+    readEnvValue(config, 'TURNSTILE_ENABLED') === 'true' &&
+    !isEnvValuePresent(config, 'TURNSTILE_EXPECTED_HOSTNAMES')
+  ) {
+    errors.push(
+      'TURNSTILE_EXPECTED_HOSTNAMES is required when TURNSTILE_ENABLED=true in production',
+    );
+  }
+
+  const turnstileTimeoutMs = readEnvValue(config, 'TURNSTILE_TIMEOUT_MS');
+  if (turnstileTimeoutMs !== undefined && Number(turnstileTimeoutMs) <= 0) {
+    errors.push('TURNSTILE_TIMEOUT_MS must be greater than 0');
+  }
+
+  const expectedHostnames = readEnvValue(
+    config,
+    'TURNSTILE_EXPECTED_HOSTNAMES',
+  );
+  if (
+    expectedHostnames !== undefined &&
+    expectedHostnames
+      .split(',')
+      .map((hostname) => hostname.trim())
+      .some((hostname) => hostname.length === 0)
+  ) {
+    errors.push('TURNSTILE_EXPECTED_HOSTNAMES must not contain empty entries');
   }
 
   if (errors.length > 0) {

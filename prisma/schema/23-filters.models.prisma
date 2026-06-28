@@ -4,29 +4,37 @@ model FilterDefinition {
   code          String       @unique
   type          FilterType
   source        FilterSource
-  attributeCode String?
-  isSearchable  Boolean      @default(false)
-  isActive      Boolean      @default(true)
+  /// Legacy/backward compatibility. Prefer sourceCode for new ATTRIBUTE filters.
+  attributeCode String?      @map("attribute_code")
+  /// Standard source identifier for ATTRIBUTE and VARIANT_OPTION filters.
+  sourceCode    String?      @map("source_code")
+  isSearchable  Boolean      @default(false) @map("is_searchable")
+  isActive      Boolean      @default(true) @map("is_active")
 
   options    FilterOption[]
   categories CategoryFilterSet[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([code])
   @@index([source])
+  @@index([source, sourceCode])
+  @@index([attributeCode])
   @@index([isActive])
   @@map("filter_definitions")
 }
 
 model FilterOption {
-  id        String  @id @default(ulid())
-  filterId  String
+  id        String   @id @default(ulid())
+  filterId  String   @map("filter_id")
   label     String
   value     String
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  minValue  Decimal? @map("min_value") @db.Decimal(12, 2)
+  maxValue  Decimal? @map("max_value") @db.Decimal(12, 2)
+  metadata  Json?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
 
   filter FilterDefinition @relation(fields: [filterId], references: [id], onDelete: Cascade)
 
@@ -38,11 +46,11 @@ model FilterOption {
 
 model CategoryFilterSet {
   id         String  @id @default(ulid())
-  categoryId String
-  filterId   String
-  sortOrder  Int     @default(0)
-  isRequired Boolean @default(false)
-  isVisible  Boolean @default(true)
+  categoryId String  @map("category_id")
+  filterId   String  @map("filter_id")
+  sortOrder  Int     @default(0) @map("sort_order")
+  isRequired Boolean @default(false) @map("is_required")
+  isVisible  Boolean @default(true) @map("is_visible")
 
   category Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   filter   FilterDefinition @relation(fields: [filterId], references: [id], onDelete: Cascade)
