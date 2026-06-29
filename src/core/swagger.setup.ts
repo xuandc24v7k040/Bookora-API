@@ -42,6 +42,8 @@ type SchemaLike = {
   pattern?: string;
   minLength?: number;
   maxLength?: number;
+  minItems?: number;
+  uniqueItems?: boolean;
   example?: string;
   nullable?: boolean;
   items?: SchemaLike;
@@ -88,16 +90,27 @@ function createSwaggerConfig() {
       type: 'apiKey',
       in: 'cookie',
       name: 'accessToken',
+      description: 'Cookie accessToken dùng để xác thực request cần user.',
     })
     .addSecurity('refreshToken', {
       type: 'apiKey',
       in: 'cookie',
       name: 'refreshToken',
+      description: 'Cookie refreshToken dùng cho refresh/logout phiên.',
     })
-    .addSecurity('csrf', {
+    .addSecurity('csrfCookie', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'csrfToken',
+      description:
+        'Cookie csrfToken trong cơ chế CSRF double-submit. Phải đi cùng header X-CSRF-Token trên mutation cần CSRF.',
+    })
+    .addSecurity('csrfHeader', {
       type: 'apiKey',
       in: 'header',
       name: 'X-CSRF-Token',
+      description:
+        'Header CSRF double-submit. Giá trị phải trùng cookie csrfToken trên mutation cần CSRF.',
     })
     .build();
 }
@@ -287,26 +300,34 @@ function normalizeSecurity(
   }
 
   if (path === '/auth/register' || path === '/auth/login') {
-    return [{ csrf: [] }];
+    return [csrfSecurity()];
   }
 
   if (path === '/auth/logout') {
-    return [{ accessToken: [], refreshToken: [], csrf: [] }];
+    return [csrfSecurity({ accessToken: [], refreshToken: [] })];
   }
 
   if (path === '/auth/refresh') {
-    return [{ refreshToken: [], csrf: [] }];
+    return [csrfSecurity({ refreshToken: [] })];
   }
 
   if (!security) {
-    return [{ accessToken: [], csrf: [] }];
+    return [csrfSecurity({ accessToken: [] })];
   }
 
   const requiresAccessToken = security.some((item) => 'accessToken' in item);
-  const requiresCsrf = security.some((item) => 'csrf' in item);
+  const requiresRefreshToken = security.some((item) => 'refreshToken' in item);
+  const requiresCsrf = security.some(
+    (item) => 'csrf' in item || 'csrfCookie' in item || 'csrfHeader' in item,
+  );
 
-  if (requiresAccessToken && requiresCsrf) {
-    return [{ accessToken: [], csrf: [] }];
+  if (requiresCsrf) {
+    return [
+      csrfSecurity({
+        ...(requiresAccessToken ? { accessToken: [] } : {}),
+        ...(requiresRefreshToken ? { refreshToken: [] } : {}),
+      }),
+    ];
   }
 
   return security;
@@ -321,15 +342,15 @@ function normalizeAuthSecurity(
   }
 
   if (path === '/auth/register' || path === '/auth/login') {
-    return [{ csrf: [] }];
+    return [csrfSecurity()];
   }
 
   if (path === '/auth/logout') {
-    return [{ accessToken: [], refreshToken: [], csrf: [] }];
+    return [csrfSecurity({ accessToken: [], refreshToken: [] })];
   }
 
   if (path === '/auth/refresh') {
-    return [{ refreshToken: [], csrf: [] }];
+    return [csrfSecurity({ refreshToken: [] })];
   }
 
   if (method === 'get') {
@@ -337,6 +358,16 @@ function normalizeAuthSecurity(
   }
 
   return [];
+}
+
+function csrfSecurity(
+  requirements: SecurityRequirement = {},
+): SecurityRequirement {
+  return {
+    ...requirements,
+    csrfCookie: [],
+    csrfHeader: [],
+  };
 }
 
 function normalizeParameters(parameters: ParameterLike[] | undefined): void {
@@ -386,12 +417,26 @@ function normalizeSchemaProperties(schema: SchemaLike): void {
     schema.properties,
   )) {
     if (ID_PROPERTY_NAMES.has(propertyName)) {
+      const declaredExample = propertySchema.example;
       Object.assign(propertySchema, ulidSchema());
+      if (declaredExample) {
+        propertySchema.example = declaredExample;
+      }
     }
 
     if (ID_ARRAY_PROPERTY_NAMES.has(propertyName)) {
       propertySchema.type = 'array';
       propertySchema.items = ulidSchema(false);
+
+      if (
+        propertyName === 'branchIds' ||
+        propertyName === 'roleIds' ||
+        propertyName === 'destinationRoleIds'
+      ) {
+        propertySchema.minItems ??= 1;
+      }
+
+      propertySchema.uniqueItems ??= true;
     }
 
     if (DATE_TIME_PROPERTY_NAMES.has(propertyName)) {

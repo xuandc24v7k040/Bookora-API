@@ -111,7 +111,11 @@ for (const [schemaName, schema] of Object.entries(schemas)) {
 
 const securitySchemes = document.components?.securitySchemes ?? {};
 assertSecurityScheme(securitySchemes.accessToken, 'cookie', 'accessToken');
-assertSecurityScheme(securitySchemes.csrf, 'header', 'X-CSRF-Token');
+assertSecurityScheme(securitySchemes.csrfCookie, 'cookie', 'csrfToken');
+assertSecurityScheme(securitySchemes.csrfHeader, 'header', 'X-CSRF-Token');
+if (securitySchemes.csrf) {
+  failures.push('security scheme csrf cũ không được xuất hiện');
+}
 
 for (const key of PUBLIC_ROUTES) {
   const item = operations.find((operation) => operation.key === key);
@@ -134,6 +138,28 @@ if (
   )
 ) {
   failures.push('POST /staff/{id}/transfer-branch không được có X-Branch-Id');
+}
+
+assertSecurityObject(
+  operations.find((operation) => operation.key === 'POST /auth/login'),
+  ['csrfCookie', 'csrfHeader'],
+);
+assertSecurityObject(
+  operations.find((operation) => operation.key === 'POST /auth/register'),
+  ['csrfCookie', 'csrfHeader'],
+);
+
+for (const item of operations) {
+  const isMutation = ['post', 'put', 'patch', 'delete'].includes(item.method);
+  const security = item.operation.security ?? [];
+  const requiresAccessToken = security.some((entry) => 'accessToken' in entry);
+  const requiresCsrf =
+    security.some((entry) => 'csrfCookie' in entry || 'csrfHeader' in entry) ||
+    security.some((entry) => 'csrf' in entry);
+
+  if (isMutation && requiresAccessToken && requiresCsrf) {
+    assertSecurityObject(item, ['accessToken', 'csrfCookie', 'csrfHeader']);
+  }
 }
 
 for (const key of [
@@ -245,6 +271,25 @@ function assertUlidArraySchema(schema, location) {
   }
 
   assertUlidSchema(schema.items, `${location}.items`);
+}
+
+function assertSecurityObject(item, requiredSchemes) {
+  if (!item) {
+    failures.push('Không tìm thấy operation cần kiểm tra security');
+    return;
+  }
+
+  const security = item.operation.security;
+  if (!Array.isArray(security) || security.length !== 1) {
+    failures.push(`${item.key} phải có đúng một security object để biểu diễn AND`);
+    return;
+  }
+
+  for (const scheme of requiredSchemes) {
+    if (!(scheme in security[0])) {
+      failures.push(`${item.key} thiếu security scheme ${scheme}`);
+    }
+  }
 }
 
 function assertSecurityScheme(scheme, expectedIn, expectedName) {

@@ -517,22 +517,31 @@ export class StaffController {
   @Permissions('staff.assign_branch')
   @ApiSecurity('csrf')
   @ApiOperation({
-    summary: 'Transfer staff from one branch to another',
+    summary: 'Chuyển hẳn Staff sang chi nhánh khác',
     description:
-      'Super Admin only. Atomically activates the destination branch assignment with explicit destination roles, clears stale destination direct permissions, deactivates the source branch assignment, preserves sessions, and verifies the active primary branch invariant. X-Branch-Id is not required because scope is provided by fromBranchId/toBranchId.',
+      'Chỉ Super Admin được gọi. API chạy atomically: kích hoạt assignment chi nhánh đích với role đích được chỉ định rõ, xóa direct permission cũ tại assignment đích, deactivate assignment chi nhánh nguồn, giữ nguyên session và kiểm tra invariant đúng một active primary branch. Không yêu cầu X-Branch-Id vì phạm vi được truyền bằng fromBranchId/toBranchId.',
   })
   @ApiBody({ type: TransferStaffBranchDto })
   @ApiBaseResponse(ManagedUserResponseDto, {
     status: 201,
-    description: 'Staff branch transferred',
+    description: 'Chuyển chi nhánh Staff thành công',
   })
-  @ApiResponse({ status: 400, description: 'Invalid branch or role input' })
-  @ApiResponse({ status: 401, description: 'Authentication required' })
-  @ApiResponse({ status: 403, description: 'Super Admin permission required' })
-  @ApiResponse({ status: 404, description: 'Source assignment not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu chi nhánh hoặc role không hợp lệ',
+  })
+  @ApiResponse({ status: 401, description: 'Thiếu hoặc sai cookie xác thực' })
+  @ApiResponse({
+    status: 403,
+    description: 'Chỉ Super Admin được chuyển chi nhánh Staff',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy assignment nguồn active',
+  })
   @ApiResponse({
     status: 409,
-    description: 'Destination branch assignment is already active',
+    description: 'Assignment chi nhánh đích đã active',
   })
   transferBranch(
     @CurrentUser() actor: AuthenticatedUser,

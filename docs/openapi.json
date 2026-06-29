@@ -130,7 +130,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Tạo người dùng",
@@ -491,7 +492,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Cập nhật người dùng theo id",
@@ -580,7 +582,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Xóa người dùng theo id",
@@ -782,7 +785,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create custom role",
@@ -941,7 +945,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Update role",
@@ -1015,7 +1020,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Deactivate role",
@@ -1182,7 +1188,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Assign permission to role",
@@ -1269,7 +1276,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Remove permission from role",
@@ -1471,7 +1479,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create permission",
@@ -1630,7 +1639,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Update permission",
@@ -1704,7 +1714,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Delete unused permission",
@@ -1920,7 +1931,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create branch",
@@ -2107,7 +2119,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Update branch",
@@ -2195,7 +2208,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Deactivate branch",
@@ -2397,7 +2411,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create Branch Admin",
@@ -2558,7 +2573,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Convert Customer to Branch Admin",
@@ -2647,7 +2663,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Assign branch to Branch Admin",
@@ -2744,7 +2761,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Remove Branch Admin branch",
@@ -2833,7 +2851,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Activate Branch Admin branch assignment",
@@ -2932,7 +2951,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Deactivate Branch Admin branch assignment",
@@ -3021,7 +3041,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Set Branch Admin primary branch",
@@ -3252,7 +3273,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create staff in selected branch",
@@ -3439,7 +3461,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Update staff",
@@ -3527,7 +3550,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Deactivate staff employment in selected branch",
@@ -3613,7 +3637,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Convert Customer to Staff",
@@ -3625,7 +3650,7 @@
     },
     "/staff/{id}/transfer-branch": {
       "post": {
-        "description": "Super Admin only. Atomically activates the destination branch assignment with explicit destination roles, clears stale destination direct permissions, deactivates the source branch assignment, preserves sessions, and verifies the active primary branch invariant. X-Branch-Id is not required because scope is provided by fromBranchId/toBranchId.",
+        "description": "Chỉ Super Admin được gọi. API chạy atomically: kích hoạt assignment chi nhánh đích với role đích được chỉ định rõ, xóa direct permission cũ tại assignment đích, deactivate assignment chi nhánh nguồn, giữ nguyên session và kiểm tra invariant đúng một active primary branch. Không yêu cầu X-Branch-Id vì phạm vi được truyền bằng fromBranchId/toBranchId.",
         "operationId": "staffTransferBranch",
         "parameters": [
           {
@@ -3654,7 +3679,7 @@
         },
         "responses": {
           "201": {
-            "description": "Staff branch transferred",
+            "description": "Chuyển chi nhánh Staff thành công",
             "content": {
               "application/json": {
                 "schema": {
@@ -3671,7 +3696,7 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Staff branch transferred"
+                      "example": "Chuyển chi nhánh Staff thành công"
                     },
                     "data": {
                       "$ref": "#/components/schemas/ManagedUserResponseDto"
@@ -3682,28 +3707,29 @@
             }
           },
           "400": {
-            "description": "Invalid branch or role input"
+            "description": "Dữ liệu chi nhánh hoặc role không hợp lệ"
           },
           "401": {
-            "description": "Authentication required"
+            "description": "Thiếu hoặc sai cookie xác thực"
           },
           "403": {
-            "description": "Super Admin permission required"
+            "description": "Chỉ Super Admin được chuyển chi nhánh Staff"
           },
           "404": {
-            "description": "Source assignment not found"
+            "description": "Không tìm thấy assignment nguồn active"
           },
           "409": {
-            "description": "Destination branch assignment is already active"
+            "description": "Assignment chi nhánh đích đã active"
           }
         },
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
-        "summary": "Transfer staff from one branch to another",
+        "summary": "Chuyển hẳn Staff sang chi nhánh khác",
         "tags": [
           "staff"
         ]
@@ -3802,7 +3828,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Assign role to staff",
@@ -3903,7 +3930,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Remove role from staff",
@@ -4016,7 +4044,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Create or update staff permission override",
@@ -4117,7 +4146,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Remove staff permission override",
@@ -4206,7 +4236,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Assign branch to staff",
@@ -4303,7 +4334,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Remove staff branch assignment",
@@ -4392,7 +4424,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Activate staff branch assignment",
@@ -4491,7 +4524,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Deactivate staff branch assignment",
@@ -4580,7 +4614,8 @@
         "security": [
           {
             "accessToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Set staff primary branch",
@@ -4647,7 +4682,8 @@
         },
         "security": [
           {
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Đăng ký tài khoản",
@@ -4713,7 +4749,8 @@
         },
         "security": [
           {
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Đăng nhập",
@@ -4791,7 +4828,8 @@
           {
             "accessToken": [],
             "refreshToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Đăng xuất",
@@ -4858,7 +4896,8 @@
         "security": [
           {
             "refreshToken": [],
-            "csrf": []
+            "csrfCookie": [],
+            "csrfHeader": []
           }
         ],
         "summary": "Làm mới phiên đăng nhập",
@@ -5112,17 +5151,26 @@
       "accessToken": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "accessToken"
+        "name": "accessToken",
+        "description": "Cookie accessToken dùng để xác thực request cần user."
       },
       "refreshToken": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "refreshToken"
+        "name": "refreshToken",
+        "description": "Cookie refreshToken dùng cho refresh/logout phiên."
       },
-      "csrf": {
+      "csrfCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "csrfToken",
+        "description": "Cookie csrfToken trong cơ chế CSRF double-submit. Phải đi cùng header X-CSRF-Token trên mutation cần CSRF."
+      },
+      "csrfHeader": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-CSRF-Token"
+        "name": "X-CSRF-Token",
+        "description": "Header CSRF double-submit. Giá trị phải trùng cookie csrfToken trên mutation cần CSRF."
       }
     },
     "schemas": {
@@ -5154,7 +5202,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "example": "01JVCY8VZ10XWBQ9M3B0EG9D7K",
             "format": "ulid",
             "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "minLength": 26,
@@ -5771,7 +5819,9 @@
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "minItems": 1,
+            "uniqueItems": true
           }
         },
         "required": [
@@ -5792,7 +5842,9 @@
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "minItems": 1,
+            "uniqueItems": true
           }
         },
         "required": [
@@ -5889,7 +5941,9 @@
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "minItems": 1,
+            "uniqueItems": true
           },
           "permissionIds": {
             "type": "array",
@@ -5899,7 +5953,8 @@
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "uniqueItems": true
           }
         },
         "required": [
@@ -5955,7 +6010,9 @@
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "minItems": 1,
+            "uniqueItems": true
           },
           "permissions": {
             "type": "array",
@@ -5989,35 +6046,37 @@
         "properties": {
           "fromBranchId": {
             "type": "string",
-            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
-            "description": "Active source branch assignment to deactivate atomically.",
             "format": "ulid",
-            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "minLength": 26,
-            "maxLength": 26
+            "maxLength": 26,
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "example": "01K10000000000000000000001",
+            "description": "ULID của chi nhánh nguồn đang active. Assignment này sẽ bị deactivate trong cùng transaction."
           },
           "toBranchId": {
             "type": "string",
-            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
-            "description": "Active destination branch assignment to create or reactivate.",
             "format": "ulid",
-            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "minLength": 26,
-            "maxLength": 26
+            "maxLength": 26,
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "example": "01K10000000000000000000002",
+            "description": "ULID của chi nhánh đích đang active. Assignment đích sẽ được tạo mới hoặc reactivate trong cùng transaction."
           },
           "destinationRoleIds": {
-            "example": [
-              "01K1000000000000000000000A"
-            ],
-            "description": "Explicit active STAFF role ids for the destination branch. Existing direct permissions at the destination are cleared.",
             "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
             "items": {
               "type": "string",
               "format": "ulid",
               "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
               "minLength": 26,
               "maxLength": 26
-            }
+            },
+            "example": [
+              "01K1000000000000000000000A"
+            ],
+            "description": "Danh sách ULID role STAFF active sẽ được gán rõ ràng tại chi nhánh đích. Không được rỗng, không được trùng; direct permission cũ tại assignment đích sẽ được xóa để tránh hồi sinh quyền cũ."
           }
         },
         "required": [
@@ -6100,17 +6159,29 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "format": "email",
+            "example": "customer@example.com",
+            "description": "Email dùng để đăng ký tài khoản."
           },
           "fullName": {
-            "type": "string"
+            "type": "string",
+            "minLength": 2,
+            "example": "Nguyen Van A",
+            "description": "Họ tên hiển thị của user. Tối thiểu 2 ký tự."
           },
           "password": {
-            "type": "string"
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            "example": "Password1",
+            "description": "Mật khẩu đăng ký. Tối thiểu 8 ký tự và phải có ít nhất một chữ cái cùng một chữ số."
           },
           "turnstileToken": {
             "type": "string",
-            "description": "Token lấy từ Cloudflare Turnstile widget frontend."
+            "example": "0.M4AA-example-turnstile-token",
+            "description": "Token lấy từ Cloudflare Turnstile widget trên frontend. Trường này là optional ở schema, nhưng bắt buộc khi Turnstile được bật trên server."
           }
         },
         "required": [
@@ -6123,14 +6194,23 @@
         "type": "object",
         "properties": {
           "email": {
-            "type": "string"
+            "type": "string",
+            "format": "email",
+            "example": "customer@example.com",
+            "description": "Email dùng để đăng nhập."
           },
           "password": {
-            "type": "string"
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "pattern": "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            "example": "Password1",
+            "description": "Mật khẩu đăng nhập. Tối thiểu 8 ký tự và phải có ít nhất một chữ cái cùng một chữ số."
           },
           "turnstileToken": {
             "type": "string",
-            "description": "Token lấy từ Cloudflare Turnstile widget frontend."
+            "example": "0.M4AA-example-turnstile-token",
+            "description": "Token lấy từ Cloudflare Turnstile widget trên frontend. Trường này là optional ở schema, nhưng bắt buộc khi Turnstile được bật trên server."
           }
         },
         "required": [

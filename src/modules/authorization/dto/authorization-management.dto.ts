@@ -213,25 +213,45 @@ export class UpdateStaffDto {
 
 export class TransferStaffBranchDto {
   @ApiProperty({
+    type: String,
+    format: 'ulid',
+    minLength: 26,
+    maxLength: 26,
+    pattern: '^[0-7][0-9A-HJKMNP-TV-Z]{25}$',
     example: '01K10000000000000000000001',
-    description: 'Active source branch assignment to deactivate atomically.',
+    description:
+      'ULID của chi nhánh nguồn đang active. Assignment này sẽ bị deactivate trong cùng transaction.',
   })
   @Matches(ULID_PATTERN)
   fromBranchId!: string;
 
   @ApiProperty({
+    type: String,
+    format: 'ulid',
+    minLength: 26,
+    maxLength: 26,
+    pattern: '^[0-7][0-9A-HJKMNP-TV-Z]{25}$',
     example: '01K10000000000000000000002',
     description:
-      'Active destination branch assignment to create or reactivate.',
+      'ULID của chi nhánh đích đang active. Assignment đích sẽ được tạo mới hoặc reactivate trong cùng transaction.',
   })
   @Matches(ULID_PATTERN)
   toBranchId!: string;
 
   @ApiProperty({
-    type: [String],
+    type: 'array',
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      type: 'string',
+      format: 'ulid',
+      minLength: 26,
+      maxLength: 26,
+      pattern: '^[0-7][0-9A-HJKMNP-TV-Z]{25}$',
+    },
     example: ['01K1000000000000000000000A'],
     description:
-      'Explicit active STAFF role ids for the destination branch. Existing direct permissions at the destination are cleared.',
+      'Danh sách ULID role STAFF active sẽ được gán rõ ràng tại chi nhánh đích. Không được rỗng, không được trùng; direct permission cũ tại assignment đích sẽ được xóa để tránh hồi sinh quyền cũ.',
   })
   @IsArray()
   @ArrayMinSize(1)
