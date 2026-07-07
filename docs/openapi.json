@@ -4670,7 +4670,37 @@
             }
           },
           "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "description": "Dữ liệu validation không hợp lệ hoặc thiếu Turnstile token khi Turnstile bật. Turnstile missing token trả code TURNSTILE_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF failure trả code CSRF_INVALID. Turnstile verification/config/provider failure trả code TURNSTILE_FAILED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email đã được sử dụng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Vượt quá giới hạn đăng ký trong cửa sổ throttle.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4737,7 +4767,37 @@
             }
           },
           "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "description": "Dữ liệu validation không hợp lệ hoặc thiếu Turnstile token khi Turnstile bật. Turnstile missing token trả code TURNSTILE_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Đăng nhập không hợp lệ. Backend cố ý trả lỗi generic cho email không tồn tại, mật khẩu sai, tài khoản inactive, provider không phù hợp hoặc thiếu password hash. Không được dùng response này để trigger refresh.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF failure trả code CSRF_INVALID. Turnstile verification/config/provider failure trả code TURNSTILE_FAILED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Quá giới hạn request hoặc tạm khóa đăng nhập theo email/IP. Runtime hiện không đảm bảo machine-readable code hoặc countdown có cấu trúc.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4761,7 +4821,7 @@
     },
     "/auth/logout": {
       "post": {
-        "description": "Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập.",
+        "description": "Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập. Backend sử dụng accessToken hoặc refreshToken nếu cookie tồn tại để xác định user và revoke active sessions; chúng không phải security precondition bắt buộc.",
         "operationId": "authLogout",
         "parameters": [],
         "responses": {
@@ -4793,28 +4853,8 @@
               }
             }
           },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
           "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "description": "CSRF failure trả code CSRF_INVALID.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4826,8 +4866,6 @@
         },
         "security": [
           {
-            "accessToken": [],
-            "refreshToken": [],
             "csrfCookie": [],
             "csrfHeader": []
           }
@@ -4872,8 +4910,44 @@
               }
             }
           },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+          "401": {
+            "description": "Refresh session không hợp lệ. Có thể là missing refresh cookie, invalid/expired token, missing payload, missing/revoked/expired session, inactive user, REFRESH_TOKEN_ALREADY_ROTATED hoặc REFRESH_TOKEN_INVALID_OR_REUSED. REFRESH_TOKEN_ALREADY_ROTATED là concurrent rotation race loser; backend không revoke session và không clear cookies ở branch này. REFRESH_TOKEN_INVALID_OR_REUSED là refresh-token hash mismatch / invalid-or-reused; backend revoke matching session và clear auth cookies, không khẳng định đây là malicious reuse được xác nhận.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                },
+                "examples": {
+                  "alreadyRotated": {
+                    "summary": "Concurrent rotation race loser",
+                    "value": {
+                      "statusCode": 401,
+                      "message": "Refresh token đã được xoay vòng bởi một yêu cầu khác",
+                      "error": "Unauthorized",
+                      "code": "REFRESH_TOKEN_ALREADY_ROTATED",
+                      "path": "/api/v1/auth/refresh",
+                      "method": "POST",
+                      "timestamp": "2026-07-02T00:00:00.000Z"
+                    }
+                  },
+                  "invalidOrReused": {
+                    "summary": "Refresh-token hash mismatch / invalid-or-reused",
+                    "value": {
+                      "statusCode": 401,
+                      "message": "Refresh token không hợp lệ hoặc đã được dùng lại",
+                      "error": "Unauthorized",
+                      "code": "REFRESH_TOKEN_INVALID_OR_REUSED",
+                      "path": "/api/v1/auth/refresh",
+                      "method": "POST",
+                      "timestamp": "2026-07-02T00:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF failure trả code CSRF_INVALID.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4882,8 +4956,8 @@
               }
             }
           },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+          "429": {
+            "description": "Vượt quá giới hạn refresh trong cửa sổ throttle. Background refresh phải coi đây là transient/inconclusive, không tự động coi là session expired.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4939,28 +5013,8 @@
               }
             }
           },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
           "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "description": "Access session không hợp lệ, hết hạn hoặc thiếu. Đây là eligible access-session 401 cho refresh flow nếu request chưa retry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5015,8 +5069,8 @@
               }
             }
           },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+          "429": {
+            "description": "Không lấy được CSRF token do vượt throttle. Frontend không được gửi mutation phụ thuộc CSRF nếu bootstrap token thất bại.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5041,16 +5095,6 @@
         "responses": {
           "302": {
             "description": "Chuyển hướng sang Google OAuth và set cookie oauthState đã ký."
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
           }
         },
         "summary": "Đăng nhập bằng Google",
@@ -5076,17 +5120,7 @@
         ],
         "responses": {
           "302": {
-            "description": "Chuyển hướng về frontend sau khi xác thực Google thành công hoặc thất bại."
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
+            "description": "Chuyển hướng về frontend. Thành công: /auth/callback?success=true. Thất bại: /login?error=google_access_denied, /login?error=google_state_invalid hoặc /login?error=google_auth_failed."
           }
         },
         "summary": "Xử lý callback Google",
@@ -6481,7 +6515,7 @@
           },
           "code": {
             "type": "string",
-            "example": "VALIDATION_ERROR"
+            "example": "CSRF_INVALID"
           },
           "errors": {
             "type": "array",

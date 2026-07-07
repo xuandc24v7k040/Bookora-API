@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AUTH_ERROR_CODES } from './auth-error-codes';
 
 const TURNSTILE_FAILED_MESSAGE = 'Xác minh bảo mật thất bại, vui lòng thử lại.';
 
@@ -34,7 +35,10 @@ export class TurnstileService {
     }
 
     if (!token) {
-      throw new BadRequestException(TURNSTILE_FAILED_MESSAGE);
+      throw new BadRequestException({
+        message: TURNSTILE_FAILED_MESSAGE,
+        code: AUTH_ERROR_CODES.turnstileRequired,
+      });
     }
 
     const secret = this.configService.get<string>('auth.turnstile.secretKey');
@@ -44,7 +48,7 @@ export class TurnstileService {
 
     if (!secret) {
       this.logger.error('Turnstile secret key is not configured');
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
 
     const body = new URLSearchParams({
@@ -59,7 +63,7 @@ export class TurnstileService {
     const verification = await this.requestVerification(siteverifyUrl, body);
     if (!this.isValidVerificationResponse(verification)) {
       this.logger.warn('Turnstile returned a malformed response');
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
 
     if (!verification.success) {
@@ -68,7 +72,7 @@ export class TurnstileService {
           verification['error-codes']?.join(', ') ?? 'unknown'
         }`,
       );
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
 
     this.assertExpectedHostname(verification.hostname);
@@ -80,7 +84,7 @@ export class TurnstileService {
       this.configService.get<string>('environment.nodeEnv') === 'production'
     ) {
       this.logger.error('Turnstile bypass is not allowed in production');
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
   }
 
@@ -110,7 +114,7 @@ export class TurnstileService {
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     } finally {
       clearTimeout(timeout);
     }
@@ -142,7 +146,7 @@ export class TurnstileService {
       this.logger.warn(
         `Turnstile hostname mismatch: ${normalizedHostname ?? 'missing'}`,
       );
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
   }
 
@@ -167,7 +171,14 @@ export class TurnstileService {
           action ?? 'missing'
         }`,
       );
-      throw new ForbiddenException(TURNSTILE_FAILED_MESSAGE);
+      throw this.createFailedException();
     }
+  }
+
+  private createFailedException() {
+    return new ForbiddenException({
+      message: TURNSTILE_FAILED_MESSAGE,
+      code: AUTH_ERROR_CODES.turnstileFailed,
+    });
   }
 }

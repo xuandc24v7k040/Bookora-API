@@ -1,0 +1,4 @@
+docs/openapi.json:
+  operation-4xx-response:
+    - '#/paths/~1auth~1google/get/responses'
+    - '#/paths/~1auth~1google~1callback/get/responses'

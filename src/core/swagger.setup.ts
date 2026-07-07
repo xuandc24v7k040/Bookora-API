@@ -66,7 +66,13 @@ type OperationLike = {
 };
 type ResponseLike = {
   description?: string;
-  content?: Record<string, { schema?: SchemaLike | { $ref: string } }>;
+  content?: Record<
+    string,
+    {
+      schema?: SchemaLike | { $ref: string };
+      examples?: Record<string, { summary?: string; value: unknown }>;
+    }
+  >;
 };
 
 function createSwaggerConfig() {
@@ -184,7 +190,11 @@ function normalizeOperations(document: OpenAPIObject): void {
       operation.security = normalizeSecurity(path, method, operation.security);
       normalizeParameters(operation.parameters);
       normalizeRedirectResponses(path, operation);
+      if (isOauthRedirectPath(path)) {
+        continue;
+      }
       normalizeErrorResponses(operation);
+      normalizeAuthErrorResponses(path, method, operation);
     }
   }
 }
@@ -199,7 +209,7 @@ function addErrorResponseSchema(document: OpenAPIObject): void {
       statusCode: { type: 'number', example: 400 },
       message: { type: 'string', example: 'Dữ liệu không hợp lệ' },
       error: { type: 'string', example: 'Bad Request' },
-      code: { type: 'string', example: 'VALIDATION_ERROR' },
+      code: { type: 'string', example: 'CSRF_INVALID' },
       errors: {
         type: 'array',
         items: { type: 'string' },
@@ -233,10 +243,14 @@ function normalizeRedirectResponses(
     operation.responses = {
       '302': {
         description:
-          'Chuyển hướng về frontend sau khi xác thực Google thành công hoặc thất bại.',
+          'Chuyển hướng về frontend. Thành công: /auth/callback?success=true. Thất bại: /login?error=google_access_denied, /login?error=google_state_invalid hoặc /login?error=google_auth_failed.',
       },
     };
   }
+}
+
+function isOauthRedirectPath(path: string): boolean {
+  return path === '/auth/google' || path === '/auth/google/callback';
 }
 
 function normalizeErrorResponses(operation: OperationLike): void {
@@ -271,15 +285,128 @@ function normalizeErrorResponses(operation: OperationLike): void {
   }
 }
 
-function errorResponse(description: string): ResponseLike {
+function errorResponse(
+  description: string,
+  examples?: Record<string, { summary?: string; value: unknown }>,
+): ResponseLike {
   return {
     description,
     content: {
       'application/json': {
         schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+        ...(examples ? { examples } : {}),
       },
     },
   };
+}
+
+function normalizeAuthErrorResponses(
+  path: string,
+  method: (typeof HTTP_METHODS)[number],
+  operation: OperationLike,
+): void {
+  if (path === '/auth/register' && method === 'post') {
+    operation.responses ??= {};
+    operation.responses['400'] = errorResponse(
+      'Dữ liệu validation không hợp lệ hoặc thiếu Turnstile token khi Turnstile bật. Turnstile missing token trả code TURNSTILE_REQUIRED.',
+    );
+    operation.responses['403'] = errorResponse(
+      'CSRF failure trả code CSRF_INVALID. Turnstile verification/config/provider failure trả code TURNSTILE_FAILED.',
+    );
+    operation.responses['409'] = errorResponse('Email đã được sử dụng.');
+    operation.responses['429'] = errorResponse(
+      'Vượt quá giới hạn đăng ký trong cửa sổ throttle.',
+    );
+    return;
+  }
+
+  if (path === '/auth/login' && method === 'post') {
+    operation.responses ??= {};
+    operation.responses['400'] = errorResponse(
+      'Dữ liệu validation không hợp lệ hoặc thiếu Turnstile token khi Turnstile bật. Turnstile missing token trả code TURNSTILE_REQUIRED.',
+    );
+    operation.responses['401'] = errorResponse(
+      'Đăng nhập không hợp lệ. Backend cố ý trả lỗi generic cho email không tồn tại, mật khẩu sai, tài khoản inactive, provider không phù hợp hoặc thiếu password hash. Không được dùng response này để trigger refresh.',
+    );
+    operation.responses['403'] = errorResponse(
+      'CSRF failure trả code CSRF_INVALID. Turnstile verification/config/provider failure trả code TURNSTILE_FAILED.',
+    );
+    operation.responses['429'] = errorResponse(
+      'Quá giới hạn request hoặc tạm khóa đăng nhập theo email/IP. Runtime hiện không đảm bảo machine-readable code hoặc countdown có cấu trúc.',
+    );
+    return;
+  }
+
+  if (path === '/auth/logout' && method === 'post') {
+    operation.description =
+      `${operation.description ?? ''} Backend sử dụng accessToken hoặc refreshToken nếu cookie tồn tại để xác định user và revoke active sessions; chúng không phải security precondition bắt buộc.`.trim();
+    operation.responses ??= {};
+    delete operation.responses['400'];
+    delete operation.responses['401'];
+    operation.responses['403'] = errorResponse(
+      'CSRF failure trả code CSRF_INVALID.',
+    );
+    return;
+  }
+
+  if (path === '/auth/refresh' && method === 'post') {
+    operation.responses ??= {};
+    delete operation.responses['400'];
+    operation.responses['401'] = errorResponse(
+      'Refresh session không hợp lệ. Có thể là missing refresh cookie, invalid/expired token, missing payload, missing/revoked/expired session, inactive user, REFRESH_TOKEN_ALREADY_ROTATED hoặc REFRESH_TOKEN_INVALID_OR_REUSED. REFRESH_TOKEN_ALREADY_ROTATED là concurrent rotation race loser; backend không revoke session và không clear cookies ở branch này. REFRESH_TOKEN_INVALID_OR_REUSED là refresh-token hash mismatch / invalid-or-reused; backend revoke matching session và clear auth cookies, không khẳng định đây là malicious reuse được xác nhận.',
+      {
+        alreadyRotated: {
+          summary: 'Concurrent rotation race loser',
+          value: {
+            statusCode: 401,
+            message: 'Refresh token đã được xoay vòng bởi một yêu cầu khác',
+            error: 'Unauthorized',
+            code: 'REFRESH_TOKEN_ALREADY_ROTATED',
+            path: '/api/v1/auth/refresh',
+            method: 'POST',
+            timestamp: '2026-07-02T00:00:00.000Z',
+          },
+        },
+        invalidOrReused: {
+          summary: 'Refresh-token hash mismatch / invalid-or-reused',
+          value: {
+            statusCode: 401,
+            message: 'Refresh token không hợp lệ hoặc đã được dùng lại',
+            error: 'Unauthorized',
+            code: 'REFRESH_TOKEN_INVALID_OR_REUSED',
+            path: '/api/v1/auth/refresh',
+            method: 'POST',
+            timestamp: '2026-07-02T00:00:00.000Z',
+          },
+        },
+      },
+    );
+    operation.responses['403'] = errorResponse(
+      'CSRF failure trả code CSRF_INVALID.',
+    );
+    operation.responses['429'] = errorResponse(
+      'Vượt quá giới hạn refresh trong cửa sổ throttle. Background refresh phải coi đây là transient/inconclusive, không tự động coi là session expired.',
+    );
+    return;
+  }
+
+  if (path === '/auth/me' && method === 'get') {
+    operation.responses ??= {};
+    delete operation.responses['400'];
+    delete operation.responses['403'];
+    operation.responses['401'] = errorResponse(
+      'Access session không hợp lệ, hết hạn hoặc thiếu. Đây là eligible access-session 401 cho refresh flow nếu request chưa retry.',
+    );
+    return;
+  }
+
+  if (path === '/auth/csrf-token' && method === 'get') {
+    operation.responses ??= {};
+    delete operation.responses['400'];
+    operation.responses['429'] = errorResponse(
+      'Không lấy được CSRF token do vượt throttle. Frontend không được gửi mutation phụ thuộc CSRF nếu bootstrap token thất bại.',
+    );
+  }
 }
 
 function normalizeSecurity(
@@ -304,7 +431,7 @@ function normalizeSecurity(
   }
 
   if (path === '/auth/logout') {
-    return [csrfSecurity({ accessToken: [], refreshToken: [] })];
+    return [csrfSecurity()];
   }
 
   if (path === '/auth/refresh') {
@@ -346,7 +473,7 @@ function normalizeAuthSecurity(
   }
 
   if (path === '/auth/logout') {
-    return [csrfSecurity({ accessToken: [], refreshToken: [] })];
+    return [csrfSecurity()];
   }
 
   if (path === '/auth/refresh') {

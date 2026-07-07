@@ -148,6 +148,20 @@ assertSecurityObject(
   operations.find((operation) => operation.key === 'POST /auth/register'),
   ['csrfCookie', 'csrfHeader'],
 );
+assertSecurityObjectExact(
+  operations.find((operation) => operation.key === 'POST /auth/logout'),
+  ['csrfCookie', 'csrfHeader'],
+);
+
+assertResponses('POST /auth/login', ['200', '400', '401', '403', '429']);
+assertResponses('POST /auth/register', ['201', '400', '403', '409', '429']);
+assertResponses('GET /auth/csrf-token', ['200', '429']);
+assertResponses('POST /auth/refresh', ['200', '401', '403', '429']);
+assertResponses('POST /auth/logout', ['200', '403']);
+assertNoResponses('POST /auth/logout', ['401']);
+assertResponses('GET /auth/me', ['200', '401']);
+assertNoResponses('GET /auth/me', ['403']);
+assertRefresh401Documentation();
 
 for (const item of operations) {
   const isMutation = ['post', 'put', 'patch', 'delete'].includes(item.method);
@@ -281,13 +295,75 @@ function assertSecurityObject(item, requiredSchemes) {
 
   const security = item.operation.security;
   if (!Array.isArray(security) || security.length !== 1) {
-    failures.push(`${item.key} phải có đúng một security object để biểu diễn AND`);
+    failures.push(
+      `${item.key} phải có đúng một security object để biểu diễn AND`,
+    );
     return;
   }
 
   for (const scheme of requiredSchemes) {
     if (!(scheme in security[0])) {
       failures.push(`${item.key} thiếu security scheme ${scheme}`);
+    }
+  }
+}
+
+function assertSecurityObjectExact(item, requiredSchemes) {
+  assertSecurityObject(item, requiredSchemes);
+  if (!item?.operation.security?.[0]) {
+    return;
+  }
+
+  const actualSchemes = Object.keys(item.operation.security[0]).sort();
+  const expectedSchemes = [...requiredSchemes].sort();
+  if (JSON.stringify(actualSchemes) !== JSON.stringify(expectedSchemes)) {
+    failures.push(
+      `${item.key} security phải đúng ${expectedSchemes.join(', ')}, hiện có ${actualSchemes.join(', ')}`,
+    );
+  }
+}
+
+function assertResponses(operationKey, statuses) {
+  const item = operations.find((operation) => operation.key === operationKey);
+  if (!item) {
+    failures.push(`${operationKey} không tồn tại`);
+    return;
+  }
+
+  for (const status of statuses) {
+    if (!item.operation.responses?.[status]) {
+      failures.push(`${operationKey} thiếu response ${status}`);
+    }
+  }
+}
+
+function assertNoResponses(operationKey, statuses) {
+  const item = operations.find((operation) => operation.key === operationKey);
+  if (!item) {
+    failures.push(`${operationKey} không tồn tại`);
+    return;
+  }
+
+  for (const status of statuses) {
+    if (item.operation.responses?.[status]) {
+      failures.push(`${operationKey} không được có response ${status}`);
+    }
+  }
+}
+
+function assertRefresh401Documentation() {
+  const item = operations.find(
+    (operation) => operation.key === 'POST /auth/refresh',
+  );
+  const response = item?.operation.responses?.['401'];
+  const serialized = JSON.stringify(response);
+
+  for (const code of [
+    'REFRESH_TOKEN_ALREADY_ROTATED',
+    'REFRESH_TOKEN_INVALID_OR_REUSED',
+  ]) {
+    if (!serialized.includes(code)) {
+      failures.push(`POST /auth/refresh response 401 thiếu ${code}`);
     }
   }
 }

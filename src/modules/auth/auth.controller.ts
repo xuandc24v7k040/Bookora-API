@@ -31,6 +31,11 @@ import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { TurnstileService } from './turnstile.service';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
 import type { GoogleProfile } from './strategies/google.strategy';
+import {
+  AUTH_ERROR_CODES,
+  type GoogleOauthFailureCode,
+} from './auth-error-codes';
+import type { GoogleOauthRequest } from './guards/google-oauth.guard';
 import { ApiBaseResponse, ResponseMessage } from '../../common/decorators';
 import authConfig from '../../config/auth.config';
 
@@ -205,18 +210,32 @@ export class AuthController {
   @UseGuards(GoogleOauthGuard)
   @ApiOperation({ summary: 'Xử lý callback Google' })
   async googleCallback(
-    @Req() req: Request,
+    @Req() req: GoogleOauthRequest,
     @Query('state') state: string,
     @Res() res: Response,
   ) {
     const frontendUrl = this.configService.get<string>('app.frontendUrl');
+    if (req.googleOauthFailure) {
+      this.clearOauthState(res);
+      return this.redirectGoogleFailure(
+        res,
+        frontendUrl,
+        req.googleOauthFailure,
+      );
+    }
+
     const validState = this.authService.validateOauthState(
       req.signedCookies?.oauthState as string | undefined,
       state,
     );
 
     if (!validState) {
-      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
+      this.clearOauthState(res);
+      return this.redirectGoogleFailure(
+        res,
+        frontendUrl,
+        AUTH_ERROR_CODES.googleStateInvalid,
+      );
     }
 
     try {
@@ -228,8 +247,25 @@ export class AuthController {
       res.clearCookie('oauthState');
       return res.redirect(`${frontendUrl}/auth/callback?success=true`);
     } catch {
-      return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
+      this.clearOauthState(res);
+      return this.redirectGoogleFailure(
+        res,
+        frontendUrl,
+        AUTH_ERROR_CODES.googleAuthFailed,
+      );
     }
+  }
+
+  private redirectGoogleFailure(
+    res: Response,
+    frontendUrl: string | undefined,
+    code: GoogleOauthFailureCode,
+  ) {
+    return res.redirect(`${frontendUrl}/login?error=${code}`);
+  }
+
+  private clearOauthState(res: Response) {
+    res.clearCookie('oauthState');
   }
 
   private getRequestMetadata(req: Request) {

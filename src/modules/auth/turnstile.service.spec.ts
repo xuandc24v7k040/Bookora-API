@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AUTH_ERROR_CODES } from './auth-error-codes';
 import { TurnstileService } from './turnstile.service';
 
 describe('TurnstileService', () => {
@@ -42,18 +43,26 @@ describe('TurnstileService', () => {
   it('rejects production bypass when Turnstile is disabled', async () => {
     mockConfig({ enabled: false, nodeEnv: 'production' });
 
-    await expect(
-      service.verifyToken(undefined, '127.0.0.1'),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expectTurnstileFailure(service.verifyToken(undefined, '127.0.0.1'));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects missing token when Turnstile is enabled', async () => {
     mockConfig({ enabled: true });
 
-    await expect(service.verifyToken(undefined)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    let error: BadRequestException | undefined;
+    try {
+      await service.verifyToken(undefined);
+    } catch (caught) {
+      error = caught as BadRequestException;
+    }
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect(error?.getStatus()).toBe(400);
+    expect(error?.getResponse()).toMatchObject({
+      message: 'Xác minh bảo mật thất bại, vui lòng thử lại.',
+      code: AUTH_ERROR_CODES.turnstileRequired,
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -95,9 +104,7 @@ describe('TurnstileService', () => {
         }),
     });
 
-    await expect(service.verifyToken('invalid-token')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expectTurnstileFailure(service.verifyToken('invalid-token'));
   });
 
   it('rejects hostname mismatch', async () => {
@@ -110,9 +117,7 @@ describe('TurnstileService', () => {
         }),
     });
 
-    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expectTurnstileFailure(service.verifyToken('token'));
   });
 
   it('rejects action mismatch', async () => {
@@ -125,9 +130,9 @@ describe('TurnstileService', () => {
         }),
     });
 
-    await expect(
+    await expectTurnstileFailure(
       service.verifyToken('token', '127.0.0.1', 'login'),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    );
   });
 
   it('rejects malformed responses', async () => {
@@ -136,18 +141,14 @@ describe('TurnstileService', () => {
       json: () => Promise.resolve({ hostname: 'bookora.local' }),
     });
 
-    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expectTurnstileFailure(service.verifyToken('token'));
   });
 
   it('rejects network errors', async () => {
     mockConfig();
     fetchMock.mockRejectedValue(new Error('network down'));
 
-    await expect(service.verifyToken('token')).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expectTurnstileFailure(service.verifyToken('token'));
   });
 
   it('aborts timeout requests and cleans up the timer', async () => {
@@ -164,14 +165,28 @@ describe('TurnstileService', () => {
         }),
     );
 
-    const verification = expect(
-      service.verifyToken('token'),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    const verification = expectTurnstileFailure(service.verifyToken('token'));
     await jest.advanceTimersByTimeAsync(25);
 
     await verification;
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
+
+  async function expectTurnstileFailure(promise: Promise<void>) {
+    let error: ForbiddenException | undefined;
+    try {
+      await promise;
+    } catch (caught) {
+      error = caught as ForbiddenException;
+    }
+
+    expect(error).toBeInstanceOf(ForbiddenException);
+    expect(error?.getStatus()).toBe(403);
+    expect(error?.getResponse()).toMatchObject({
+      message: 'Xác minh bảo mật thất bại, vui lòng thử lại.',
+      code: AUTH_ERROR_CODES.turnstileFailed,
+    });
+  }
 
   function mockConfig(options?: {
     enabled?: boolean;
