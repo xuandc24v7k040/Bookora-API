@@ -1,6 +1,30 @@
 import { ConflictException } from '@nestjs/common';
-import { Prisma } from '@/generated/prisma/client';
+import { PermissionEffect, Prisma, UserType } from '@/generated/prisma/client';
 import { AuthorizationRepository } from './authorization.repository';
+import { BranchSortField } from './dto';
+
+describe('AuthorizationRepository principal profile query', () => {
+  const prisma = {
+    authSession: { findFirst: jest.fn() },
+  };
+  const repository = new AuthorizationRepository(prisma as never);
+
+  it('selects phone, gender and birthday for the authenticated principal', async () => {
+    prisma.authSession.findFirst.mockResolvedValue(null);
+
+    await repository.findActiveSessionPrincipalSource('session-id', 'user-id');
+
+    expect(
+      prisma.authSession.findFirst.mock.calls[0][0].select.user.select,
+    ).toEqual(
+      expect.objectContaining({
+        phone: true,
+        gender: true,
+        birthday: true,
+      }),
+    );
+  });
+});
 
 describe('AuthorizationRepository system protection queries', () => {
   const prisma = {
@@ -66,11 +90,109 @@ describe('AuthorizationRepository branch enforcement', () => {
       { scope: 'FILTERED', where: { branchId: { in: ['branch-id'] } } },
       0,
       10,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      BranchSortField.CODE,
+      'asc',
     );
 
     expect(prisma.branch.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: ['branch-id'] } } }),
+      expect.objectContaining({
+        where: { AND: [{ id: { in: ['branch-id'] } }] },
+      }),
     );
+  });
+
+  it('composes case-insensitive branch search with scope for data and count', async () => {
+    await repository.listBranches(
+      { scope: 'FILTERED', where: { branchId: { in: ['branch-id'] } } },
+      0,
+      10,
+      'CAN',
+      false,
+      undefined,
+      undefined,
+      BranchSortField.CREATED_AT,
+      'desc',
+    );
+
+    const where = {
+      AND: [
+        { id: { in: ['branch-id'] } },
+        {
+          OR: [
+            { code: { contains: 'CAN', mode: 'insensitive' } },
+            { name: { contains: 'CAN', mode: 'insensitive' } },
+          ],
+        },
+        { isActive: false },
+      ],
+    };
+    expect(prisma.branch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(prisma.branch.count).toHaveBeenCalledWith({ where });
+    expect(prisma.branch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('uses the same created-at range for branch data and count', async () => {
+    const createdFrom = new Date('2026-06-01T00:00:00.000Z');
+    const createdToExclusive = new Date('2026-07-01T00:00:00.000Z');
+
+    await repository.listBranches(
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      undefined,
+      true,
+      createdFrom,
+      createdToExclusive,
+      BranchSortField.CREATED_AT,
+      'desc',
+    );
+
+    const where = {
+      AND: [
+        {},
+        { isActive: true },
+        { createdAt: { gte: createdFrom, lt: createdToExclusive } },
+      ],
+    };
+    expect(prisma.branch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(prisma.branch.count).toHaveBeenCalledWith({ where });
+  });
+
+  it('loads all Staff assignments without a selected-branch filter or secrets', async () => {
+    await repository.findStaffAssignments('staff-id');
+
+    const query = prisma.user.findFirst.mock.calls[0][0];
+    expect(query).toEqual(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'staff-id',
+          type: UserType.BRANCH,
+        }),
+        select: expect.objectContaining({
+          userBranches: expect.objectContaining({
+            orderBy: [
+              { isPrimary: 'desc' },
+              { isActive: 'desc' },
+              { branch: { code: 'asc' } },
+              { id: 'asc' },
+            ],
+          }),
+        }),
+      }),
+    );
+    expect(query.select).not.toHaveProperty('passwordHash');
   });
 
   it('filters staff through active UserBranch and active Branch', async () => {
@@ -152,6 +274,7 @@ describe('AuthorizationRepository management transactions', () => {
       create: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
+      findUnique: jest.fn(),
       upsert: jest.fn(),
       count: jest.fn(),
     },
@@ -178,7 +301,7 @@ describe('AuthorizationRepository management transactions', () => {
     tx.role.findFirst.mockResolvedValue({ id: 'branch-admin-role' });
     tx.permission.count.mockResolvedValue(1);
     tx.branch.count.mockResolvedValue(1);
-    tx.branch.findFirst.mockResolvedValue({ id: 'branch-id' });
+    tx.branch.findFirst.mockResolvedValue({ id: 'branch-id', isActive: true });
     tx.branch.update.mockResolvedValue({ id: 'branch-id', isActive: false });
     tx.user.create.mockResolvedValue({ id: 'staff-id' });
     tx.userBranch.create.mockResolvedValue({ id: 'user-branch-id' });
@@ -355,6 +478,39 @@ describe('AuthorizationRepository management transactions', () => {
     expect(tx.userPermission.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'customer-id' },
     });
+    expect(tx.permission.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: { in: ['inventory-update', 'payments-create'] },
+        guardName: 'web',
+        code: expect.objectContaining({ notIn: expect.any(Array) }),
+      }),
+    });
+  });
+
+  it('rolls back the full conversion when permission revalidation rejects an override', async () => {
+    tx.permission.count.mockResolvedValue(0);
+
+    await expect(
+      repository.convertCustomerToStaff({
+        userId: 'customer-id',
+        assignedBy: 'actor-id',
+        branchAssignments: [
+          {
+            branchId: 'branch-id',
+            isPrimary: true,
+            roleIds: ['staff-role'],
+            permissions: [
+              { permissionId: 'dangerous-id', effect: PermissionEffect.DENY },
+            ],
+          },
+        ],
+      }),
+    ).rejects.toThrow('permission');
+
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.userBranch.create).not.toHaveBeenCalled();
+    expect(tx.userBranchRole.createMany).not.toHaveBeenCalled();
+    expect(tx.userBranchPermission.createMany).not.toHaveBeenCalled();
   });
 
   it('revokes sessions and disables the user in the same transaction', async () => {
@@ -449,6 +605,59 @@ describe('AuthorizationRepository management transactions', () => {
       select: expect.any(Object),
     });
   });
+
+  it('uses the same lifecycle invariant for update active to inactive', async () => {
+    tx.userBranch.count.mockResolvedValue(1);
+
+    await expect(
+      repository.updateBranchInScope(
+        'branch-id',
+        { scope: 'UNRESTRICTED' },
+        { name: 'Updated', isActive: false },
+      ),
+    ).rejects.toThrow('assignment active');
+
+    expect(tx.branch.update).not.toHaveBeenCalled();
+  });
+
+  it('reactivates an inactive branch without changing assignments', async () => {
+    tx.branch.findFirst.mockResolvedValue({ id: 'branch-id', isActive: false });
+
+    await repository.updateBranchInScope(
+      'branch-id',
+      { scope: 'UNRESTRICTED' },
+      { name: 'Reactivated', isActive: true },
+    );
+
+    expect(tx.userBranch.count).not.toHaveBeenCalled();
+    expect(tx.branch.update).toHaveBeenCalledWith({
+      where: { id: 'branch-id' },
+      data: { name: 'Reactivated', isActive: true },
+      select: expect.any(Object),
+    });
+  });
+
+  it.each([
+    { current: true, requested: true },
+    { current: false, requested: false },
+  ])(
+    'keeps lifecycle writes idempotent for $current → $requested',
+    async ({ current, requested }) => {
+      tx.branch.findFirst.mockResolvedValue({
+        id: 'branch-id',
+        isActive: current,
+      });
+
+      await repository.updateBranchInScope(
+        'branch-id',
+        { scope: 'UNRESTRICTED' },
+        { isActive: requested },
+      );
+
+      expect(tx.userBranch.count).not.toHaveBeenCalled();
+      expect(tx.branch.update).toHaveBeenCalled();
+    },
+  );
 
   it('transfers primary staff branch to a new destination without revoking sessions', async () => {
     tx.userBranch.findFirst.mockResolvedValue({
@@ -683,5 +892,50 @@ describe('AuthorizationRepository management transactions', () => {
     expect(tx.userBranch.create).not.toHaveBeenCalled();
     expect(tx.userBranchRole.createMany).not.toHaveBeenCalled();
     expect(tx.userBranchPermission.createMany).not.toHaveBeenCalled();
+  });
+
+  it('blocks removing the last qualifying role and preserves the mapping', async () => {
+    tx.userBranchRole.findUnique.mockResolvedValue({
+      id: 'mapping-id',
+      role: {
+        code: 'STAFF',
+        type: UserType.BRANCH,
+        guardName: 'web',
+        isActive: true,
+      },
+    });
+    tx.userBranchRole.count.mockResolvedValue(1);
+
+    await expect(
+      repository.removeUserRole('user-branch-id', 'role-id', tx as never),
+    ).rejects.toThrow('Staff cuối cùng');
+    expect(tx.userBranchRole.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('removes one qualifying role when another remains', async () => {
+    tx.userBranchRole.findUnique.mockResolvedValue({
+      id: 'mapping-id',
+      role: {
+        code: 'STAFF',
+        type: UserType.BRANCH,
+        guardName: 'web',
+        isActive: true,
+      },
+    });
+    tx.userBranchRole.count.mockResolvedValue(2);
+    tx.userBranchRole.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      repository.removeUserRole('user-branch-id', 'role-id', tx as never),
+    ).resolves.toEqual({ count: 1 });
+  });
+
+  it('keeps missing role removal idempotent', async () => {
+    tx.userBranchRole.findUnique.mockResolvedValue(null);
+
+    await expect(
+      repository.removeUserRole('user-branch-id', 'role-id', tx as never),
+    ).resolves.toEqual({ count: 0 });
+    expect(tx.userBranchRole.deleteMany).not.toHaveBeenCalled();
   });
 });

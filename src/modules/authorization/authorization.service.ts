@@ -166,6 +166,9 @@ export class AuthorizationService {
       id: source.user.id,
       email: source.user.email,
       fullName: source.user.fullName ?? '',
+      phone: source.user.phone,
+      gender: source.user.gender,
+      birthday: source.user.birthday?.toISOString().slice(0, 10) ?? null,
       type: source.user.type,
       roles: activeRoles.map((role) => ({
         id: role.id,

@@ -24,6 +24,7 @@ describe('UsersController authentication', () => {
     ['findOne', 'users.read'],
     ['create', 'users.create'],
     ['update', 'users.update'],
+    ['activate', 'users.update'],
     ['remove', 'users.delete'],
   ])('requires %s permission mapping', (method, permission) => {
     const handler = UsersController.prototype[

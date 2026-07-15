@@ -8,6 +8,8 @@ const publicUserSelect = {
   email: true,
   fullName: true,
   phone: true,
+  gender: true,
+  birthday: true,
   type: true,
   provider: true,
   isActive: true,
@@ -22,9 +24,24 @@ export class CustomerRoleConfigurationError extends Error {
   }
 }
 
+export class UserActivationRequiresActiveBranchError extends Error {
+  constructor() {
+    super(
+      'BRANCH user requires an active assignment and one active primary branch',
+    );
+  }
+}
+
 export type CreateCustomerForAuthInput = Pick<
   Prisma.UserUncheckedCreateInput,
-  'email' | 'fullName' | 'phone' | 'passwordHash' | 'provider' | 'googleId'
+  | 'email'
+  | 'fullName'
+  | 'phone'
+  | 'gender'
+  | 'birthday'
+  | 'passwordHash'
+  | 'provider'
+  | 'googleId'
 >;
 
 @Injectable()
@@ -79,7 +96,9 @@ export class UsersRepository {
     where?: Prisma.UserWhereInput;
     skip?: number;
     take?: number;
-    orderBy?: Prisma.UserOrderByWithRelationInput;
+    orderBy?:
+      | Prisma.UserOrderByWithRelationInput
+      | Prisma.UserOrderByWithRelationInput[];
   }) {
     return this.prisma.user.findMany({ ...args, select: publicUserSelect });
   }
@@ -120,6 +139,42 @@ export class UsersRepository {
       return tx.user.update({
         where: { id },
         data: { isActive: false },
+        select: publicUserSelect,
+      });
+    });
+  }
+
+  activate(id: string) {
+    return runSerializableTransaction(this.prisma, async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id },
+        select: { id: true, type: true, isActive: true },
+      });
+      if (!user) {
+        return null;
+      }
+      if (user.type === UserType.BRANCH) {
+        const [activeAssignmentCount, activePrimaryCount] = await Promise.all([
+          tx.userBranch.count({
+            where: { userId: id, isActive: true, branch: { isActive: true } },
+          }),
+          tx.userBranch.count({
+            where: {
+              userId: id,
+              isActive: true,
+              isPrimary: true,
+              branch: { isActive: true },
+            },
+          }),
+        ]);
+        if (activeAssignmentCount === 0 || activePrimaryCount !== 1) {
+          throw new UserActivationRequiresActiveBranchError();
+        }
+      }
+
+      return tx.user.update({
+        where: { id },
+        data: { isActive: true },
         select: publicUserSelect,
       });
     });

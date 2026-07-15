@@ -4,6 +4,8 @@ model User {
   passwordHash String?      @map("password_hash")
   fullName     String?      @map("full_name")
   phone        String?
+  gender       String?      @db.VarChar(20)
+  birthday     DateTime?    @db.Date
   type         UserType     @default(CUSTOMER)
   provider     AuthProvider @default(LOCAL)
   googleId     String?      @unique @map("google_id")
@@ -89,7 +91,6 @@ model Branch {
   phone     String?
   address   String
   province  String?
-  district  String?
   ward      String?
   latitude  Decimal? @db.Decimal(10, 7)
   longitude Decimal? @db.Decimal(10, 7)
@@ -122,11 +123,9 @@ model UserAddress {
   receiverName  String   @map("receiver_name")
   receiverPhone String   @map("receiver_phone")
   province      String
-  district      String
   ward          String
   detail        String
   ghnProvinceId Int?     @map("ghn_province_id")
-  ghnDistrictId Int?     @map("ghn_district_id")
   ghnWardCode   String?  @map("ghn_ward_code")
   latitude      Decimal? @db.Decimal(10, 7)
   longitude     Decimal? @db.Decimal(10, 7)

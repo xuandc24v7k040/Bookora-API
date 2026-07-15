@@ -23,6 +23,8 @@ const activeUser = {
   passwordHash: 'password-hash',
   fullName: 'User',
   phone: null,
+  gender: null,
+  birthday: null,
   type: UserType.CUSTOMER,
   provider: AuthProvider.LOCAL,
   googleId: null,

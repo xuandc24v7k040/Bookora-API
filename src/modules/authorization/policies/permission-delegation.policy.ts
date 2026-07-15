@@ -159,6 +159,9 @@ export class PermissionDelegationPolicy {
         permissionId,
         transaction,
       );
+    if (permission && DANGEROUS_PERMISSION_CODES.has(permission.code)) {
+      this.throwDangerousPermissionDenied();
+    }
     if (!permission) {
       throw authorizationNotFound(
         AUTHORIZATION_ERROR_CODES.permissionDenied,

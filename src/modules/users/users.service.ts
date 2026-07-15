@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@/generated/prisma/client';
+import { AuthProvider, Prisma } from '@/generated/prisma/client';
 import { PaginatedResponseDto } from '@/common/dto';
 import {
   getPaginationOptions,
@@ -19,9 +20,9 @@ import {
 import {
   CustomerRoleConfigurationError,
   type CreateCustomerForAuthInput,
+  UserActivationRequiresActiveBranchError,
   UsersRepository,
 } from './users.repository';
-import { AuthProvider } from '@/generated/prisma/client';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { SystemProtectionPolicy } from '../authorization';
 
@@ -37,6 +38,7 @@ export class UsersService {
     const user = await this.createCustomerForAuth({
       ...createUserDto,
       email: createUserDto.email.toLowerCase(),
+      birthday: this.parseDateOnly(createUserDto.birthday),
       provider: AuthProvider.LOCAL,
     });
     return this.findOne(actor, user.id);
@@ -73,9 +75,13 @@ export class UsersService {
     const { page, limit, skip } = getPaginationOptions(query);
     const where = this.buildUserFilter(query);
     const sortBy = query.sortBy ?? UsersSortField.CREATED_AT;
-    const orderBy: Prisma.UserOrderByWithRelationInput = {
+    const primaryOrder: Prisma.UserOrderByWithRelationInput = {
       [sortBy]: getPrismaSortOrder(query.sortOrder),
     };
+    const orderBy: Prisma.UserOrderByWithRelationInput[] = [
+      primaryOrder,
+      { id: 'asc' },
+    ];
 
     const [users, total] = await Promise.all([
       this.usersRepository.findMany({
@@ -87,7 +93,12 @@ export class UsersService {
       this.usersRepository.count(where),
     ]);
 
-    return new PaginatedResponseDto(users, total, page, limit);
+    return new PaginatedResponseDto(
+      users.map((user) => this.toPublicUserResponse(user)),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findOne(actor: AuthenticatedUser, id: string) {
@@ -97,7 +108,7 @@ export class UsersService {
       throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
     }
 
-    return user;
+    return this.toPublicUserResponse(user);
   }
 
   async update(
@@ -106,15 +117,49 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
   ) {
     await this.findOne(actor, id);
-    return this.usersRepository.update(id, updateUserDto);
+    const data: Prisma.UserUpdateInput = {
+      ...updateUserDto,
+      ...(updateUserDto.email !== undefined
+        ? { email: updateUserDto.email.toLowerCase() }
+        : {}),
+      ...(updateUserDto.birthday !== undefined
+        ? { birthday: this.parseDateOnly(updateUserDto.birthday) }
+        : {}),
+    };
+    const user = await this.usersRepository.update(id, data);
+    return this.toPublicUserResponse(user);
   }
 
   async remove(actor: AuthenticatedUser, id: string) {
     this.assertSuperAdmin(actor);
     await this.findOne(actor, id);
-    return this.usersRepository.disableWithSessions(id, async (tx) => {
-      await this.systemProtectionPolicy.assertCanRemoveSuperAdmin(id, tx);
-    });
+    const user = await this.usersRepository.disableWithSessions(
+      id,
+      async (tx) => {
+        await this.systemProtectionPolicy.assertCanRemoveSuperAdmin(id, tx);
+      },
+    );
+    return this.toPublicUserResponse(user);
+  }
+
+  async activate(actor: AuthenticatedUser, id: string) {
+    this.assertSuperAdmin(actor);
+    try {
+      const user = await this.usersRepository.activate(id);
+      if (!user) {
+        throw new NotFoundException(`Không tìm thấy người dùng có id ${id}`);
+      }
+      return this.toPublicUserResponse(user);
+    } catch (error) {
+      if (error instanceof UserActivationRequiresActiveBranchError) {
+        throw new BadRequestException({
+          code: 'USER_ACTIVATION_REQUIRES_ACTIVE_BRANCH',
+          message:
+            'Người dùng BRANCH cần có assignment active và đúng một primary branch active',
+        });
+      }
+      throw error;
+    }
   }
 
   private assertSuperAdmin(actor: AuthenticatedUser): void {
@@ -124,15 +169,36 @@ export class UsersService {
   }
 
   private buildUserFilter(query: UsersQueryDto): Prisma.UserWhereInput {
-    if (!query.search) {
-      return {};
+    const filters: Prisma.UserWhereInput[] = [];
+    const search = query.search?.trim();
+    if (search) {
+      filters.push({
+        OR: [
+          { email: { contains: search, mode: 'insensitive' } },
+          { fullName: { contains: search, mode: 'insensitive' } },
+        ],
+      });
     }
+    if (query.type !== undefined) filters.push({ type: query.type });
+    if (query.isActive !== undefined) {
+      filters.push({ isActive: query.isActive });
+    }
+    return filters.length > 0 ? { AND: filters } : {};
+  }
 
+  private parseDateOnly(
+    value: string | null | undefined,
+  ): Date | null | undefined {
+    if (value === undefined || value === null) return value;
+    return new Date(`${value}T00:00:00.000Z`);
+  }
+
+  private toPublicUserResponse(
+    user: NonNullable<Awaited<ReturnType<UsersRepository['findById']>>>,
+  ) {
     return {
-      OR: [
-        { email: { contains: query.search, mode: 'insensitive' } },
-        { fullName: { contains: query.search, mode: 'insensitive' } },
-      ],
+      ...user,
+      birthday: user.birthday?.toISOString().slice(0, 10) ?? null,
     };
   }
 }

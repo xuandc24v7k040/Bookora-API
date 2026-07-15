@@ -38,8 +38,8 @@ import {
   type BranchContext,
 } from '../types/branch-context.type';
 import {
-  AssignmentResponseDto,
   BranchResponseDto,
+  BranchListQueryDto,
   CatalogQueryDto,
   ChangePrimaryBranchDto,
   ConvertBranchAdminDto,
@@ -51,15 +51,22 @@ import {
   CreateStaffDto,
   ManagedUserResponseDto,
   MutationCountResponseDto,
+  PermissionDetailResponseDto,
   PermissionResponseDto,
+  RoleDetailResponseDto,
   RolePermissionResponseDto,
   RoleResponseDto,
+  StaffAssignmentsResponseDto,
   TransferStaffBranchDto,
   UpdateBranchDto,
   UpdatePermissionDto,
   UpdateRoleDto,
   UpdateStaffDto,
   UpsertUserPermissionDto,
+  UserBranchCreateResponseDto,
+  UserBranchPermissionResponseDto,
+  UserBranchRoleResponseDto,
+  UserBranchStateResponseDto,
 } from '../dto';
 
 const guards = [JwtAccessGuard, CsrfGuard, BranchScopeGuard, PermissionsGuard];
@@ -68,11 +75,28 @@ const ApiAuthorizationErrors = () =>
     ApiResponse({
       status: 400,
       description: 'Invalid request or branch selection',
+      schema: { $ref: '#/components/schemas/ErrorResponseDto' },
     }),
-    ApiResponse({ status: 401, description: 'Authentication required' }),
-    ApiResponse({ status: 403, description: 'Permission or scope denied' }),
-    ApiResponse({ status: 404, description: 'Resource not found in scope' }),
-    ApiResponse({ status: 409, description: 'Conflicting authorization data' }),
+    ApiResponse({
+      status: 401,
+      description: 'Authentication required',
+      schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Permission or scope denied',
+      schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Resource not found in scope',
+      schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Conflicting authorization data',
+      schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+    }),
   );
 
 @ApiTags('roles')
@@ -94,7 +118,7 @@ export class RolesController {
   @Get(':id')
   @Permissions('roles.read')
   @ApiOperation({ summary: 'Get role detail' })
-  @ApiBaseResponse(RoleResponseDto, { description: 'Role retrieved' })
+  @ApiBaseResponse(RoleDetailResponseDto, { description: 'Role retrieved' })
   get(@UlidParam() id: string) {
     return this.service.getRole(id);
   }
@@ -193,7 +217,7 @@ export class PermissionsController {
   @Get(':id')
   @Permissions('permissions.read')
   @ApiOperation({ summary: 'Get permission detail' })
-  @ApiBaseResponse(PermissionResponseDto, {
+  @ApiBaseResponse(PermissionDetailResponseDto, {
     description: 'Permission retrieved',
   })
   get(@UlidParam() id: string) {
@@ -231,7 +255,7 @@ export class PermissionsController {
   @Permissions('permissions.delete')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Delete unused permission' })
-  @ApiBaseResponse(MutationCountResponseDto, {
+  @ApiBaseResponse(PermissionDetailResponseDto, {
     description: 'Permission deleted',
   })
   remove(@CurrentUser() actor: AuthenticatedUser, @UlidParam() id: string) {
@@ -254,7 +278,7 @@ export class BranchesController {
   @ApiPaginatedResponse(BranchResponseDto, 'Branches retrieved')
   list(
     @CurrentBranchContext() context: BranchContext,
-    @Query() query: CatalogQueryDto,
+    @Query() query: BranchListQueryDto,
   ) {
     return this.service.listBranches(context, query);
   }
@@ -371,7 +395,7 @@ export class BranchAdminsController {
   @Permissions('branch_admin.assign', 'branches.assign')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Assign branch to Branch Admin' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchCreateResponseDto, {
     status: 201,
     description: 'Branch assigned',
   })
@@ -386,7 +410,7 @@ export class BranchAdminsController {
   @Permissions('branch_admin.assign', 'branches.assign')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Activate Branch Admin branch assignment' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Branch assignment activated',
   })
   activateBranch(
@@ -400,7 +424,7 @@ export class BranchAdminsController {
   @Permissions('branch_admin.assign', 'branches.assign')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Deactivate Branch Admin branch assignment' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Branch assignment deactivated',
   })
   deactivateBranch(
@@ -441,7 +465,7 @@ export class BranchAdminsController {
   @Permissions('branch_admin.assign', 'branches.assign')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Set Branch Admin primary branch' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Primary branch changed',
   })
   primary(
@@ -471,6 +495,18 @@ export class StaffController {
     @Query() query: CatalogQueryDto,
   ) {
     return this.service.listStaff(context, query);
+  }
+  @Get(':id/assignments')
+  @Permissions('staff.read')
+  @ApiOperation({ summary: 'Get all branch assignments for a Staff user' })
+  @ApiBaseResponse(StaffAssignmentsResponseDto, {
+    description: 'Staff assignments retrieved',
+  })
+  assignments(
+    @CurrentUser() actor: AuthenticatedUser,
+    @UlidParam() id: string,
+  ) {
+    return this.service.getStaffAssignments(actor, id);
   }
   @Get(':id')
   @Permissions('staff.read')
@@ -529,19 +565,27 @@ export class StaffController {
   @ApiResponse({
     status: 400,
     description: 'Dữ liệu chi nhánh hoặc role không hợp lệ',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
   })
-  @ApiResponse({ status: 401, description: 'Thiếu hoặc sai cookie xác thực' })
+  @ApiResponse({
+    status: 401,
+    description: 'Thiếu hoặc sai cookie xác thực',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+  })
   @ApiResponse({
     status: 403,
     description: 'Chỉ Super Admin được chuyển chi nhánh Staff',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
   })
   @ApiResponse({
     status: 404,
     description: 'Không tìm thấy assignment nguồn active',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
   })
   @ApiResponse({
     status: 409,
     description: 'Assignment chi nhánh đích đã active',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
   })
   transferBranch(
     @CurrentUser() actor: AuthenticatedUser,
@@ -585,7 +629,7 @@ export class StaffController {
   @ApiHeader({ name: 'X-Branch-Id', required: true })
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Assign role to staff' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchRoleResponseDto, {
     status: 201,
     description: 'Role assigned',
   })
@@ -620,7 +664,7 @@ export class StaffController {
   @ApiHeader({ name: 'X-Branch-Id', required: true })
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Create or update staff permission override' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchPermissionResponseDto, {
     description: 'Permission override saved',
   })
   permission(
@@ -659,7 +703,7 @@ export class StaffController {
   @Permissions('staff.assign_branch')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Assign branch to staff' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchCreateResponseDto, {
     status: 201,
     description: 'Branch assigned',
   })
@@ -674,7 +718,7 @@ export class StaffController {
   @Permissions('staff.assign_branch')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Activate staff branch assignment' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Branch assignment activated',
   })
   activateBranch(
@@ -688,7 +732,7 @@ export class StaffController {
   @Permissions('staff.assign_branch')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Deactivate staff branch assignment' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Branch assignment deactivated',
   })
   deactivateBranch(
@@ -729,7 +773,7 @@ export class StaffController {
   @Permissions('staff.assign_branch')
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Set staff primary branch' })
-  @ApiBaseResponse(AssignmentResponseDto, {
+  @ApiBaseResponse(UserBranchStateResponseDto, {
     description: 'Primary branch changed',
   })
   primary(

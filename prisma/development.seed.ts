@@ -9,37 +9,33 @@ export const DEVELOPMENT_BRANCHES = [
     code: 'can-tho',
     name: 'Chi nhánh Cần Thơ',
     phone: '0292 000 0001',
-    address: 'Đường 30/4, phường Xuân Khánh, quận Ninh Kiều, Cần Thơ',
+    address: 'Đường 30/4, phường Ninh Kiều, Cần Thơ',
     province: 'Cần Thơ',
-    district: 'Ninh Kiều',
-    ward: 'Xuân Khánh',
+    ward: 'Ninh Kiều',
   },
   {
     code: 'hau-giang',
     name: 'Chi nhánh Hậu Giang',
     phone: '0293 000 0001',
-    address: 'Đường Trần Hưng Đạo, phường V, thành phố Vị Thanh, Hậu Giang',
-    province: 'Hậu Giang',
-    district: 'Vị Thanh',
-    ward: 'Phường V',
+    address: 'Đường Trần Hưng Đạo, phường Vị Tân, Cần Thơ',
+    province: 'Cần Thơ',
+    ward: 'Vị Tân',
   },
   {
     code: 'ho-chi-minh',
     name: 'Chi nhánh Hồ Chí Minh',
     phone: '028 0000 0001',
-    address: 'Đường Nguyễn Huệ, phường Bến Nghé, Quận 1, Hồ Chí Minh',
+    address: 'Đường Nguyễn Huệ, phường Sài Gòn, Hồ Chí Minh',
     province: 'Hồ Chí Minh',
-    district: 'Quận 1',
-    ward: 'Bến Nghé',
+    ward: 'Sài Gòn',
   },
   {
     code: 'ha-noi',
     name: 'Chi nhánh Hà Nội',
     phone: '024 0000 0001',
-    address: 'Phố Tràng Tiền, phường Tràng Tiền, quận Hoàn Kiếm, Hà Nội',
+    address: 'Phố Tràng Tiền, phường Hoàn Kiếm, Hà Nội',
     province: 'Hà Nội',
-    district: 'Hoàn Kiếm',
-    ward: 'Tràng Tiền',
+    ward: 'Hoàn Kiếm',
   },
 ] as const;
 
@@ -55,27 +51,39 @@ export const DEVELOPMENT_USERS = [
     email: 'branchadmin.hg@bookora.local',
     fullName: 'Branch Admin Hậu Giang',
     type: UserType.BRANCH,
-    branches: [{ code: 'hau-giang', role: 'BRANCH_ADMIN', isPrimary: true }],
+    branches: [{ code: 'hau-giang', roles: ['BRANCH_ADMIN'], isPrimary: true }],
   },
   {
     email: 'branchadmin.ct@bookora.local',
     fullName: 'Branch Admin Cần Thơ',
     type: UserType.BRANCH,
-    branches: [{ code: 'can-tho', role: 'BRANCH_ADMIN', isPrimary: true }],
+    branches: [{ code: 'can-tho', roles: ['BRANCH_ADMIN'], isPrimary: true }],
   },
   {
     email: 'staff.ct@bookora.local',
     fullName: 'Staff Cần Thơ',
     type: UserType.BRANCH,
-    branches: [{ code: 'can-tho', role: 'STAFF', isPrimary: true }],
+    branches: [{ code: 'can-tho', roles: ['STAFF'], isPrimary: true }],
+  },
+  {
+    email: 'cashier.hg@bookora.local',
+    fullName: 'Cashier Hậu Giang',
+    type: UserType.BRANCH,
+    branches: [
+      {
+        code: 'hau-giang',
+        roles: ['CASHIER', 'INVENTORY'],
+        isPrimary: true,
+      },
+    ],
   },
   {
     email: 'staff.multi@bookora.local',
     fullName: 'Staff Multi Branch',
     type: UserType.BRANCH,
     branches: [
-      { code: 'can-tho', role: 'STAFF', isPrimary: true },
-      { code: 'hau-giang', role: 'INVENTORY', isPrimary: false },
+      { code: 'can-tho', roles: ['STAFF'], isPrimary: true },
+      { code: 'hau-giang', roles: ['INVENTORY'], isPrimary: false },
     ],
   },
 ] as const;
@@ -147,7 +155,13 @@ export async function seedDevelopmentFixtures(
 }
 
 async function resolveRequiredRoles(tx: DevelopmentSeedClient) {
-  const requiredCodes = ['SUPER_ADMIN', 'BRANCH_ADMIN', 'STAFF', 'INVENTORY'];
+  const requiredCodes = [
+    'SUPER_ADMIN',
+    'BRANCH_ADMIN',
+    'STAFF',
+    'INVENTORY',
+    'CASHIER',
+  ];
   const roles = await tx.role.findMany({
     where: { code: { in: requiredCodes }, isActive: true },
     select: { id: true, code: true },
@@ -233,7 +247,7 @@ async function reconcileBranchUser(input: {
   rolesByCode: Map<string, { id: string; code: string }>;
   assignments: readonly {
     code: string;
-    role: string;
+    roles: readonly string[];
     isPrimary: boolean;
   }[];
 }) {
@@ -271,10 +285,12 @@ async function reconcileBranchUser(input: {
       assignment.code,
       `Fixture branch not found: ${assignment.code}`,
     );
-    const role = requiredMapValue(
-      input.rolesByCode,
-      assignment.role,
-      `Fixture role not found: ${assignment.role}`,
+    const roles = assignment.roles.map((roleCode) =>
+      requiredMapValue(
+        input.rolesByCode,
+        roleCode,
+        `Fixture role not found: ${roleCode}`,
+      ),
     );
     const userBranch = await input.tx.userBranch.upsert({
       where: {
@@ -300,22 +316,27 @@ async function reconcileBranchUser(input: {
       where: { userBranchId: userBranch.id },
     });
     await input.tx.userBranchRole.deleteMany({
-      where: { userBranchId: userBranch.id, roleId: { not: role.id } },
-    });
-    await input.tx.userBranchRole.upsert({
       where: {
-        userBranchId_roleId: {
+        userBranchId: userBranch.id,
+        roleId: { notIn: roles.map((role) => role.id) },
+      },
+    });
+    for (const role of roles) {
+      await input.tx.userBranchRole.upsert({
+        where: {
+          userBranchId_roleId: {
+            userBranchId: userBranch.id,
+            roleId: role.id,
+          },
+        },
+        create: {
           userBranchId: userBranch.id,
           roleId: role.id,
+          assignedBy: input.assignedBy,
         },
-      },
-      create: {
-        userBranchId: userBranch.id,
-        roleId: role.id,
-        assignedBy: input.assignedBy,
-      },
-      update: { assignedBy: input.assignedBy, assignedAt: new Date() },
-    });
+        update: { assignedBy: input.assignedBy, assignedAt: new Date() },
+      });
+    }
   }
 }
 
@@ -338,7 +359,7 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
   }
   if (userCount !== DEVELOPMENT_USERS.length) {
     throw new Error(
-      'Development seed invariant failed: expected 5 active users',
+      'Development seed invariant failed: expected 6 active users',
     );
   }
   if (runtimeAuthCount !== 0) {
@@ -359,6 +380,7 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
       id: true,
       email: true,
       userRoles: { select: { role: { select: { code: true } } } },
+      userPermissions: { select: { permissionId: true } },
       userBranches: {
         where: { isActive: true },
         select: { isPrimary: true },
@@ -370,6 +392,11 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
     if (user.userRoles.length > 0) {
       throw new Error(
         `Development seed invariant failed: ${user.email} has global roles`,
+      );
+    }
+    if (user.userPermissions.length > 0) {
+      throw new Error(
+        `Development seed invariant failed: ${user.email} has global permissions`,
       );
     }
     const primaryCount = user.userBranches.filter(

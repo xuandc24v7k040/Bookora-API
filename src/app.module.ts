@@ -6,6 +6,7 @@ import { getEnvFilePaths } from '@/config/env.loader';
 import { DatabaseModule } from '@/database/database.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { HealthModule } from '@/modules/health/health.module';
+import { VietMapModule } from '@/modules/integrations/vietmap/vietmap.module';
 import { UsersModule } from '@/modules/users/users.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { UsersModule } from '@/modules/users/users.module';
     ]),
     DatabaseModule,
     HealthModule,
+    VietMapModule,
     UsersModule,
     AuthModule,
   ],

@@ -1,5 +1,7 @@
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { UserType } from '@/generated/prisma/client';
 import { PaginationDto } from '../../../common/dto';
 import { SortDirection } from '../../../common/enums';
 
@@ -25,4 +27,19 @@ export class UsersQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(SortDirection)
   sortOrder?: SortDirection;
+
+  @ApiPropertyOptional({ enum: UserType })
+  @IsOptional()
+  @IsEnum(UserType)
+  type?: UserType;
+
+  @ApiPropertyOptional({ type: Boolean, example: true })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
 }

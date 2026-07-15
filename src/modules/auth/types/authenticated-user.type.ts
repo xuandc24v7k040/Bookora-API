@@ -30,6 +30,9 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   fullName: string;
+  phone: string | null;
+  gender: string | null;
+  birthday: string | null;
   type: UserType;
   roles: AuthenticatedRole[];
   permissions: string[];

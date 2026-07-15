@@ -10,6 +10,8 @@ const MIGRATION_PATHS = [
   '20260604082015_init',
   '20260621090000_authorization_phase_1',
   '20260623120000_branch_scoped_staff_assignments',
+  '20260714090000_add_user_gender_birthday',
+  '20260714170000_two_level_addresses',
 ] as const;
 
 export interface DisposablePostgresDatabase {

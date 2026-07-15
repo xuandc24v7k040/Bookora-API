@@ -8,8 +8,9 @@ describe('UsersRepository customer transaction', () => {
   const tx = {
     authSession: { updateMany: jest.fn() },
     role: { findFirst: jest.fn() },
-    user: { create: jest.fn(), update: jest.fn() },
+    user: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     userRole: { create: jest.fn() },
+    userBranch: { count: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(
@@ -122,5 +123,52 @@ describe('UsersRepository customer transaction', () => {
     await repository.disableWithSessions('user-id', jest.fn());
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it('reactivates CUSTOMER without restoring sessions', async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      type: UserType.CUSTOMER,
+      isActive: false,
+    });
+    tx.user.update.mockResolvedValue({ id: 'user-id', isActive: true });
+
+    await repository.activate('user-id');
+
+    expect(tx.userBranch.count).not.toHaveBeenCalled();
+    expect(tx.authSession.updateMany).not.toHaveBeenCalled();
+    expect(tx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { isActive: true } }),
+    );
+  });
+
+  it('requires an active assignment and exactly one active primary for BRANCH activation', async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      type: UserType.BRANCH,
+      isActive: false,
+    });
+    tx.userBranch.count.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+
+    await expect(repository.activate('user-id')).rejects.toThrow(
+      'active assignment',
+    );
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('reactivates BRANCH with a valid active primary assignment', async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      type: UserType.BRANCH,
+      isActive: false,
+    });
+    tx.userBranch.count.mockResolvedValue(1);
+    tx.user.update.mockResolvedValue({ id: 'user-id', isActive: true });
+
+    await repository.activate('user-id');
+
+    expect(tx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { isActive: true } }),
+    );
   });
 });

@@ -6,9 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PermissionEffect, UserType } from '@/generated/prisma/client';
+import { PermissionEffect, Prisma, UserType } from '@/generated/prisma/client';
 import { PaginatedResponseDto } from '@/common/dto';
-import { getPaginationOptions } from '@/common/utils/pagination.util';
+import {
+  getPaginationOptions,
+  getPrismaSortOrder,
+} from '@/common/utils/pagination.util';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { AUTHORIZATION_ERROR_CODES } from './authorization.constants';
 import { authorizationForbidden } from './authorization.errors';
@@ -17,10 +20,12 @@ import {
   AuthorizationWriteConflictError,
   AuthorizationWriteScopeError,
   AuthorizationWriteValidationError,
+  StaffLastRoleRequiredError,
 } from './authorization.repository';
 import { BranchContextService } from './branch-context.service';
 import type {
   CatalogQueryDto,
+  BranchListQueryDto,
   ConvertBranchAdminDto,
   ConvertStaffDto,
   CreateBranchDto,
@@ -34,11 +39,25 @@ import type {
   UpdateRoleDto,
   UpdateStaffDto,
 } from './dto';
+
+import { BranchSortField } from './dto';
 import { DANGEROUS_PERMISSION_CODES } from './authorization.constants';
 import { PermissionDelegationPolicy } from './policies/permission-delegation.policy';
 import { RoleLevelPolicy } from './policies/role-level.policy';
 import { SystemProtectionPolicy } from './policies/system-protection.policy';
 import type { BranchContext, BranchWhere } from './types/branch-context.type';
+
+const VIETNAM_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function startOfVietnamDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day) - VIETNAM_UTC_OFFSET_MS);
+}
+
+function startOfNextVietnamDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + 1) - VIETNAM_UTC_OFFSET_MS);
+}
 
 @Injectable()
 export class AuthorizationManagementService {
@@ -197,15 +216,26 @@ export class AuthorizationManagementService {
     return permission;
   }
 
-  async listBranches(context: BranchContext, query: CatalogQueryDto) {
+  async listBranches(context: BranchContext, query: BranchListQueryDto) {
     const { page, limit, skip } = getPaginationOptions(query);
     const where = this.branchContextService.buildBranchWhere(context);
     const [items, total] = await this.repository.listBranches(
       where,
       skip,
       limit,
+      query.search?.trim() || undefined,
+      query.isActive,
+      query.createdFrom ? startOfVietnamDate(query.createdFrom) : undefined,
+      query.createdTo ? startOfNextVietnamDate(query.createdTo) : undefined,
+      query.sortBy ?? BranchSortField.CODE,
+      query.sortOrder ? getPrismaSortOrder(query.sortOrder) : 'asc',
     );
-    return new PaginatedResponseDto(items, total, page, limit);
+    return new PaginatedResponseDto(
+      items.map((branch) => this.toBranchResponse(branch)),
+      total,
+      page,
+      limit,
+    );
   }
 
   async getBranch(context: BranchContext, id: string) {
@@ -214,12 +244,17 @@ export class AuthorizationManagementService {
       this.branchContextService.buildBranchWhere(context),
     );
     if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh');
-    return branch;
+    return this.toBranchResponse(branch);
   }
 
-  createBranch(actor: AuthenticatedUser, dto: CreateBranchDto) {
+  async createBranch(actor: AuthenticatedUser, dto: CreateBranchDto) {
     this.assertSuperAdmin(actor);
-    return this.repository.createBranch(dto);
+    return this.toBranchResponse(
+      await this.repository.createBranch({
+        ...dto,
+        isActive: dto.isActive ?? true,
+      }),
+    );
   }
 
   async updateBranch(
@@ -230,8 +265,10 @@ export class AuthorizationManagementService {
   ) {
     this.assertSuperAdmin(actor);
     const branchWhere = this.branchContextService.buildBranchWhere(context);
-    return this.runValidatedWrite(() =>
-      this.repository.updateBranchInScope(id, branchWhere, dto),
+    return this.toBranchResponse(
+      await this.runValidatedWrite(() =>
+        this.repository.updateBranchInScope(id, branchWhere, dto),
+      ),
     );
   }
 
@@ -242,8 +279,10 @@ export class AuthorizationManagementService {
   ) {
     this.assertSuperAdmin(actor);
     const branchWhere = this.branchContextService.buildBranchWhere(context);
-    return this.runValidatedWrite(() =>
-      this.repository.deactivateBranchInScope(id, branchWhere),
+    return this.toBranchResponse(
+      await this.runValidatedWrite(() =>
+        this.repository.deactivateBranchInScope(id, branchWhere),
+      ),
     );
   }
 
@@ -319,6 +358,13 @@ export class AuthorizationManagementService {
     dto: ConvertStaffDto,
   ) {
     this.assertSuperAdmin(actor);
+    const target = await this.repository.findUserPolicySubject(userId);
+    if (!target || target.type !== UserType.CUSTOMER || !target.isActive) {
+      throw new BadRequestException(
+        'Only active CUSTOMER users can be converted',
+      );
+    }
+    await this.roleLevelPolicy.assertCanManageExistingUser(actor, userId);
     const branchIds = dto.branchAssignments.map(({ branchId }) => branchId);
     if (new Set(branchIds).size !== branchIds.length) {
       throw new BadRequestException('Không được duplicate branch');
@@ -329,9 +375,23 @@ export class AuthorizationManagementService {
     if (primaryCount !== 1) {
       throw new BadRequestException('Phải có đúng một primary branch');
     }
+    await this.validateActiveBranches(branchIds);
     for (const assignment of dto.branchAssignments) {
+      for (const roleId of assignment.roleIds) {
+        await this.roleLevelPolicy.assertCanAssignRoleToNewBranchUser(
+          actor,
+          roleId,
+        );
+      }
       const permissionIds =
         assignment.permissions?.map(({ permissionId }) => permissionId) ?? [];
+      for (const permission of assignment.permissions ?? []) {
+        await this.permissionDelegationPolicy.assertCanAssignInitialPermission(
+          actor,
+          permission.permissionId,
+          permission.effect,
+        );
+      }
       if (new Set(permissionIds).size !== permissionIds.length) {
         throw new BadRequestException(
           'Không được duplicate permission trong cùng branch',
@@ -366,6 +426,22 @@ export class AuthorizationManagementService {
       'STAFF',
       this.branchContextService.buildBranchWhere(context),
     );
+  }
+
+  async getStaffAssignments(actor: AuthenticatedUser, id: string) {
+    this.assertSuperAdmin(actor);
+    const user = await this.repository.findStaffAssignments(id);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy Staff');
+    }
+    const { userBranches, ...profile } = user;
+    return {
+      user: {
+        ...profile,
+        birthday: profile.birthday?.toISOString().slice(0, 10) ?? null,
+      },
+      assignments: userBranches,
+    };
   }
 
   async createStaff(
@@ -518,50 +594,61 @@ export class AuthorizationManagementService {
     userId: string,
     roleId: string,
   ) {
-    const selectedBranchId =
-      this.branchContextService.requireSelectedBranch(context);
-    if (
-      !actor.isSuperAdmin &&
-      !actor.permissions.includes('staff.assign_role')
-    ) {
-      throw new ForbiddenException('Thiếu quyền gán role cho nhân viên');
+    try {
+      const selectedBranchId =
+        this.branchContextService.requireSelectedBranch(context);
+      if (
+        !actor.isSuperAdmin &&
+        !actor.permissions.includes('staff.assign_role')
+      ) {
+        throw new ForbiddenException('Thiếu quyền gán role cho nhân viên');
+      }
+      // Await inside the local try/catch so the invariant error keeps its machine code.
+      return await this.repository.transaction(async (tx) => {
+        const targetBranch =
+          await this.repository.findActiveUserBranchPolicySubject(
+            userId,
+            selectedBranchId,
+            tx,
+          );
+        if (!targetBranch) {
+          throw new NotFoundException('Người dùng không thuộc selected branch');
+        }
+        const role = await this.repository.findRolePolicySubject(roleId, tx);
+        if (!role) throw new NotFoundException('Không tìm thấy role');
+        if (
+          role.type !== UserType.BRANCH ||
+          role.code === 'SUPER_ADMIN' ||
+          role.code === 'BRANCH_ADMIN' ||
+          role.code === 'CUSTOMER'
+        ) {
+          throw new ForbiddenException(
+            'Không được gỡ role hệ thống qua Staff API',
+          );
+        }
+        const targetMaxRoleLevel = targetBranch.roles.reduce(
+          (maximum, assignment) => Math.max(maximum, assignment.role.level),
+          0,
+        );
+        if (
+          targetMaxRoleLevel >= actor.maxRoleLevel ||
+          role.level >= actor.maxRoleLevel
+        ) {
+          throw new ForbiddenException(
+            'Không được thao tác với role hoặc người dùng ngang hay cao cấp hơn',
+          );
+        }
+        return this.repository.removeUserRole(targetBranch.id, roleId, tx);
+      });
+    } catch (error) {
+      if (error instanceof StaffLastRoleRequiredError) {
+        throw new ConflictException({
+          code: AUTHORIZATION_ERROR_CODES.staffLastRoleRequired,
+          message: error.message,
+        });
+      }
+      throw error;
     }
-    return this.repository.transaction(async (tx) => {
-      const targetBranch =
-        await this.repository.findActiveUserBranchPolicySubject(
-          userId,
-          selectedBranchId,
-          tx,
-        );
-      if (!targetBranch) {
-        throw new NotFoundException('Người dùng không thuộc selected branch');
-      }
-      const role = await this.repository.findRolePolicySubject(roleId, tx);
-      if (!role) throw new NotFoundException('Không tìm thấy role');
-      if (
-        role.type !== UserType.BRANCH ||
-        role.code === 'SUPER_ADMIN' ||
-        role.code === 'BRANCH_ADMIN' ||
-        role.code === 'CUSTOMER'
-      ) {
-        throw new ForbiddenException(
-          'Không được gỡ role hệ thống qua Staff API',
-        );
-      }
-      const targetMaxRoleLevel = targetBranch.roles.reduce(
-        (maximum, assignment) => Math.max(maximum, assignment.role.level),
-        0,
-      );
-      if (
-        targetMaxRoleLevel >= actor.maxRoleLevel ||
-        role.level >= actor.maxRoleLevel
-      ) {
-        throw new ForbiddenException(
-          'Không được thao tác với role hoặc người dùng ngang hay cao cấp hơn',
-        );
-      }
-      return this.repository.removeUserRole(targetBranch.id, roleId, tx);
-    });
   }
 
   async upsertUserPermission(
@@ -803,6 +890,19 @@ export class AuthorizationManagementService {
         'Permission code không khớp resource/action',
       );
     }
+  }
+
+  private toBranchResponse<
+    T extends {
+      latitude: Prisma.Decimal | null;
+      longitude: Prisma.Decimal | null;
+    },
+  >(branch: T) {
+    return {
+      ...branch,
+      latitude: branch.latitude?.toNumber() ?? null,
+      longitude: branch.longitude?.toNumber() ?? null,
+    };
   }
 
   private assertSuperAdmin(actor: AuthenticatedUser): void {

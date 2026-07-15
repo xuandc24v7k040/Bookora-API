@@ -204,16 +204,19 @@ function addErrorResponseSchema(document: OpenAPIObject): void {
   document.components.schemas ??= {};
   document.components.schemas.ErrorResponseDto = {
     type: 'object',
-    required: ['statusCode', 'message', 'path', 'method', 'timestamp'],
+    required: ['statusCode', 'message', 'error', 'path', 'method', 'timestamp'],
     properties: {
       statusCode: { type: 'number', example: 400 },
       message: { type: 'string', example: 'Dữ liệu không hợp lệ' },
       error: { type: 'string', example: 'Bad Request' },
       code: { type: 'string', example: 'CSRF_INVALID' },
       errors: {
-        type: 'array',
-        items: { type: 'string' },
-        example: ['email must be an email'],
+        type: 'object',
+        additionalProperties: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        example: { email: ['email must be an email'] },
       },
       path: { type: 'string', example: '/api/v1/auth/login' },
       method: { type: 'string', example: 'POST' },

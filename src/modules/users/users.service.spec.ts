@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { UserType } from '@/generated/prisma/client';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
+import { UserActivationRequiresActiveBranchError } from './users.repository';
 import { UsersService } from './users.service';
 
 describe('UsersService authorization boundary', () => {
@@ -10,6 +11,7 @@ describe('UsersService authorization boundary', () => {
     findById: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    activate: jest.fn(),
     disableWithSessions: jest.fn(),
   };
   const systemProtectionPolicy = {
@@ -58,6 +60,7 @@ describe('UsersService authorization boundary', () => {
     ['list', () => service.findAll(branchActor(), {})],
     ['detail', () => service.findOne(branchActor(), 'super-admin-id')],
     ['update', () => service.update(branchActor(), 'super-admin-id', {})],
+    ['activate', () => service.activate(branchActor(), 'super-admin-id')],
     ['delete', () => service.remove(branchActor(), 'super-admin-id')],
   ])(
     'rejects generic %s by a non-Super Admin before target lookup',
@@ -68,6 +71,7 @@ describe('UsersService authorization boundary', () => {
       expect(repository.findMany).not.toHaveBeenCalled();
       expect(repository.count).not.toHaveBeenCalled();
       expect(repository.update).not.toHaveBeenCalled();
+      expect(repository.activate).not.toHaveBeenCalled();
       expect(repository.disableWithSessions).not.toHaveBeenCalled();
     },
   );
@@ -83,6 +87,93 @@ describe('UsersService authorization boundary', () => {
 
     expect(repository.findMany).toHaveBeenCalled();
     expect(repository.count).toHaveBeenCalled();
+  });
+
+  it('composes search, type and active filters with deterministic ordering', async () => {
+    repository.findMany.mockResolvedValue([]);
+    repository.count.mockResolvedValue(0);
+
+    await service.findAll(superAdmin(), {
+      search: ' Customer ',
+      type: UserType.CUSTOMER,
+      isActive: false,
+    });
+
+    expect(repository.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                { email: { contains: 'Customer', mode: 'insensitive' } },
+                { fullName: { contains: 'Customer', mode: 'insensitive' } },
+              ],
+            },
+            { type: UserType.CUSTOMER },
+            { isActive: false },
+          ],
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+    expect(repository.count).toHaveBeenCalledWith({
+      AND: expect.arrayContaining([
+        { type: UserType.CUSTOMER },
+        { isActive: false },
+      ]),
+    });
+  });
+
+  it('normalizes update email and persists birthday as a UTC date', async () => {
+    repository.findById.mockResolvedValue({ id: 'user-id', birthday: null });
+    repository.update.mockResolvedValue({
+      id: 'user-id',
+      birthday: new Date('1995-08-17T00:00:00.000Z'),
+    });
+
+    await expect(
+      service.update(superAdmin(), 'user-id', {
+        email: 'USER@EXAMPLE.COM',
+        birthday: '1995-08-17',
+      }),
+    ).resolves.toMatchObject({ birthday: '1995-08-17' });
+
+    expect(repository.update).toHaveBeenCalledWith(
+      'user-id',
+      expect.objectContaining({
+        email: 'user@example.com',
+        birthday: new Date('1995-08-17T00:00:00.000Z'),
+      }),
+    );
+  });
+
+  it('returns a stable activation error when a BRANCH user has no valid assignment', async () => {
+    repository.activate.mockRejectedValue(
+      new UserActivationRequiresActiveBranchError(),
+    );
+
+    await expect(
+      service.activate(superAdmin(), 'user-id'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'USER_ACTIVATION_REQUIRES_ACTIVE_BRANCH',
+      }),
+    });
+  });
+
+  it('reactivates a user without touching sessions', async () => {
+    repository.activate.mockResolvedValue({
+      id: 'user-id',
+      isActive: true,
+      birthday: null,
+    });
+
+    await expect(
+      service.activate(superAdmin(), 'user-id'),
+    ).resolves.toMatchObject({
+      isActive: true,
+    });
+    expect(repository.disableWithSessions).not.toHaveBeenCalled();
   });
 
   it('runs last Super Admin protection in the disable transaction', async () => {
@@ -123,6 +214,9 @@ function actor(overrides: Partial<AuthenticatedUser>): AuthenticatedUser {
     id: 'actor-id',
     email: 'actor@example.com',
     fullName: 'Actor',
+    phone: null,
+    gender: null,
+    birthday: null,
     type: UserType.BRANCH,
     roles: [],
     permissions: [],

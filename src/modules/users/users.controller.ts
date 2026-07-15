@@ -77,6 +77,21 @@ export class UsersController {
     return this.usersService.findOne(actor, id);
   }
 
+  @Patch(':id/activate')
+  @Permissions('users.update')
+  @ApiSecurity('csrf')
+  @ApiOperation({ summary: 'Kích hoạt lại người dùng theo id' })
+  @ApiBaseResponse(UserResponseDto, {
+    description: 'Kích hoạt người dùng thành công',
+  })
+  @ResponseMessage('Kích hoạt người dùng thành công')
+  activate(
+    @CurrentUser() actor: AuthenticatedUser,
+    @UlidParam('id') id: string,
+  ) {
+    return this.usersService.activate(actor, id);
+  }
+
   @Patch(':id')
   @Permissions('users.update')
   @ApiSecurity('csrf')

@@ -157,3 +157,19 @@ describe('branch-scoped staff authorization migration', () => {
     );
   });
 });
+
+describe('user profile date migration', () => {
+  const sql = readFileSync(
+    join(
+      process.cwd(),
+      'prisma/migrations/20260714090000_add_user_gender_birthday/migration.sql',
+    ),
+    'utf8',
+  );
+
+  it('adds nullable gender and PostgreSQL DATE columns without destructive SQL', () => {
+    expect(sql).toContain('ADD COLUMN "gender" VARCHAR(20)');
+    expect(sql).toContain('ADD COLUMN "birthday" DATE');
+    expect(sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+  });
+});

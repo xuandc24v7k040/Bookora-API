@@ -3,12 +3,13 @@
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PermissionEffect, UserType } from '@/generated/prisma/client';
+import { PermissionEffect, Prisma, UserType } from '@/generated/prisma/client';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { AuthorizationManagementService } from './authorization-management.service';
 import {
   AuthorizationWriteScopeError,
   AuthorizationWriteValidationError,
+  StaffLastRoleRequiredError,
 } from './authorization.repository';
 
 describe('AuthorizationManagementService', () => {
@@ -52,6 +53,16 @@ describe('AuthorizationManagementService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    repository.findUserPolicySubject.mockResolvedValue({
+      id: 'customer-id',
+      type: UserType.CUSTOMER,
+      isActive: true,
+      userRoles: [],
+      userBranches: [],
+    });
+    repository.findActiveBranchesByIds.mockImplementation((ids: string[]) =>
+      Promise.resolve(ids.map((id) => ({ id }))),
+    );
     repository.transaction.mockImplementation(
       (callback: (client: Record<string, unknown>) => Promise<unknown>) =>
         callback({}),
@@ -143,7 +154,140 @@ describe('AuthorizationManagementService', () => {
       },
       { page: 1, limit: 10 },
     );
-    expect(repository.listBranches).toHaveBeenCalledWith(where, 0, 10);
+    expect(repository.listBranches).toHaveBeenCalledWith(
+      where,
+      0,
+      10,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'code',
+      'asc',
+    );
+  });
+
+  it('trims branch search before passing it to the scoped repository query', async () => {
+    const where = { scope: 'UNRESTRICTED' };
+    branchContext.buildBranchWhere.mockReturnValue(where);
+    repository.listBranches.mockResolvedValue([[], 0]);
+
+    await service.listBranches(
+      { scope: 'ALL', selectedBranchId: null, allowedBranchIds: null },
+      { search: '  can tho  ' },
+    );
+
+    expect(repository.listBranches).toHaveBeenCalledWith(
+      where,
+      0,
+      10,
+      'can tho',
+      undefined,
+      undefined,
+      undefined,
+      'code',
+      'asc',
+    );
+  });
+
+  it('converts inclusive Vietnam date filters to a half-open UTC range', async () => {
+    const where = { scope: 'UNRESTRICTED' };
+    branchContext.buildBranchWhere.mockReturnValue(where);
+    repository.listBranches.mockResolvedValue([[], 0]);
+
+    await service.listBranches(
+      { scope: 'ALL', selectedBranchId: null, allowedBranchIds: null },
+      { createdFrom: '2026-06-27', createdTo: '2026-06-27' },
+    );
+
+    expect(repository.listBranches).toHaveBeenCalledWith(
+      where,
+      0,
+      10,
+      undefined,
+      undefined,
+      new Date('2026-06-26T17:00:00.000Z'),
+      new Date('2026-06-27T17:00:00.000Z'),
+      'code',
+      'asc',
+    );
+  });
+
+  it.each([
+    { requested: undefined, expected: true },
+    { requested: true, expected: true },
+    { requested: false, expected: false },
+  ])(
+    'creates a branch with status $expected when requested is $requested',
+    async ({ requested, expected }) => {
+      repository.createBranch.mockResolvedValue({
+        id: 'branch-id',
+        isActive: expected,
+      });
+
+      await service.createBranch(superAdmin(), {
+        code: 'ct-01',
+        name: 'Cần Thơ',
+        address: 'Ninh Kiều',
+        ...(requested === undefined ? {} : { isActive: requested }),
+      });
+
+      expect(repository.createBranch).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: expected }),
+      );
+    },
+  );
+
+  it('passes profile and status changes to the atomic scoped repository write', async () => {
+    const where = { scope: 'UNRESTRICTED' };
+    branchContext.buildBranchWhere.mockReturnValue(where);
+    repository.updateBranchInScope.mockResolvedValue({
+      id: 'branch-id',
+      name: 'Updated',
+      isActive: false,
+    });
+
+    await service.updateBranch(
+      superAdmin(),
+      { scope: 'ALL', selectedBranchId: null, allowedBranchIds: null },
+      'branch-id',
+      { name: 'Updated', isActive: false },
+    );
+
+    expect(repository.updateBranchInScope).toHaveBeenCalledWith(
+      'branch-id',
+      where,
+      { name: 'Updated', isActive: false },
+    );
+  });
+
+  it('returns Branch coordinates as JSON numbers', async () => {
+    branchContext.buildBranchWhere.mockReturnValue({ scope: 'UNRESTRICTED' });
+    repository.listBranches.mockResolvedValue([
+      [
+        {
+          id: 'branch-id',
+          latitude: new Prisma.Decimal('10.0452000'),
+          longitude: new Prisma.Decimal('105.7469000'),
+        },
+      ],
+      1,
+    ]);
+
+    await expect(
+      service.listBranches(
+        { scope: 'ALL', selectedBranchId: null, allowedBranchIds: null },
+        {},
+      ),
+    ).resolves.toMatchObject({
+      data: [
+        {
+          id: 'branch-id',
+          latitude: 10.0452,
+          longitude: 105.7469,
+        },
+      ],
+    });
   });
 
   it('returns 404 when branch detail is outside repository scope', async () => {
@@ -510,6 +654,99 @@ describe('AuthorizationManagementService', () => {
 
     expect(repository.convertCustomerToStaff).not.toHaveBeenCalled();
   });
+
+  it.each([PermissionEffect.ALLOW, PermissionEffect.DENY])(
+    'blocks dangerous %s overrides before Customer to Staff conversion writes',
+    async (effect) => {
+      permissionPolicy.assertCanAssignInitialPermission.mockRejectedValue(
+        new ForbiddenException('dangerous'),
+      );
+
+      await expect(
+        service.convertToStaff(superAdmin(), 'customer-id', {
+          branchAssignments: [
+            {
+              branchId: 'branch-id',
+              isPrimary: true,
+              roleIds: ['role-id'],
+              permissions: [{ permissionId: 'dangerous-id', effect }],
+            },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.convertCustomerToStaff).not.toHaveBeenCalled();
+    },
+  );
+
+  it('converts a Customer with a non-dangerous override after policy validation', async () => {
+    permissionPolicy.assertCanAssignInitialPermission.mockResolvedValue(
+      undefined,
+    );
+    repository.convertCustomerToStaff.mockResolvedValue({ id: 'customer-id' });
+
+    await service.convertToStaff(superAdmin(), 'customer-id', {
+      branchAssignments: [
+        {
+          branchId: 'branch-id',
+          isPrimary: true,
+          roleIds: ['role-id'],
+          permissions: [
+            { permissionId: 'orders-read-id', effect: PermissionEffect.ALLOW },
+          ],
+        },
+      ],
+    });
+
+    expect(
+      permissionPolicy.assertCanAssignInitialPermission,
+    ).toHaveBeenCalledWith(
+      expect.anything(),
+      'orders-read-id',
+      PermissionEffect.ALLOW,
+    );
+    expect(repository.convertCustomerToStaff).toHaveBeenCalled();
+  });
+
+  it('returns a stable conflict code when removing the last Staff role', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+    repository.findActiveUserBranchPolicySubject.mockResolvedValue({
+      id: 'user-branch-id',
+      roles: [{ role: { level: 10 } }],
+    });
+    repository.findRolePolicySubject.mockResolvedValue({
+      id: 'role-id',
+      type: UserType.BRANCH,
+      code: 'STAFF',
+      level: 10,
+    });
+    repository.removeUserRole.mockRejectedValue(
+      new StaffLastRoleRequiredError('last role'),
+    );
+
+    await expect(
+      service.removeUserRole(superAdmin(), {} as never, 'staff-id', 'role-id'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'STAFF_LAST_ROLE_REQUIRED' }),
+    });
+  });
+
+  it('returns all Staff assignments only to Super Admin', async () => {
+    repository.findStaffAssignments.mockResolvedValue({
+      id: 'staff-id',
+      birthday: new Date('1995-08-17T00:00:00.000Z'),
+      userBranches: [{ id: 'assignment-id' }],
+    });
+
+    await expect(
+      service.getStaffAssignments(superAdmin(), 'staff-id'),
+    ).resolves.toMatchObject({
+      user: { birthday: '1995-08-17' },
+      assignments: [{ id: 'assignment-id' }],
+    });
+    await expect(
+      service.getStaffAssignments(branchAdmin(), 'staff-id'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });
 
 function branchAdmin(
@@ -540,6 +777,9 @@ function actor(overrides: Partial<AuthenticatedUser>): AuthenticatedUser {
     id: 'actor-id',
     email: 'actor@example.com',
     fullName: 'Actor',
+    phone: null,
+    gender: null,
+    birthday: null,
     type: UserType.BRANCH,
     roles: [],
     permissions: [],

@@ -202,6 +202,26 @@ describe('AuthorizationService', () => {
     expect(principal.isSuperAdmin).toBe(false);
   });
 
+  it('maps profile fields and serializes birthday as a date-only string', async () => {
+    repository.findActiveSessionPrincipalSource.mockResolvedValue(
+      source({
+        phone: '0901234567',
+        gender: 'female',
+        birthday: new Date('1995-06-15T00:00:00.000Z'),
+      }),
+    );
+
+    await expect(
+      service.resolvePrincipal('session-id', 'user-id'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        phone: '0901234567',
+        gender: 'female',
+        birthday: '1995-06-15',
+      }),
+    );
+  });
+
   it('isolates roles, permissions, DENY and max level by branch', async () => {
     repository.findActiveSessionPrincipalSource.mockResolvedValue(
       source({
@@ -288,6 +308,9 @@ function source(overrides: Record<string, unknown> = {}) {
       id: 'user-id',
       email: 'user@example.com',
       fullName: 'User',
+      phone: null,
+      gender: null,
+      birthday: null,
       type,
       isActive: true,
       userRoles: [],

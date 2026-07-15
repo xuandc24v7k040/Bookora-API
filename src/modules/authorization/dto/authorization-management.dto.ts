@@ -1,13 +1,15 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   ArrayUnique,
   IsBoolean,
+  IsDateString,
   IsArray,
   IsEmail,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -15,16 +17,128 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  ValidationArguments,
+  registerDecorator,
 } from 'class-validator';
 import { PermissionEffect, UserType } from '@/generated/prisma/client';
 import { PaginationDto } from '@/common/dto';
+import { SortDirection } from '@/common/enums';
 
 export const ULID_PATTERN = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 export const PERMISSION_CODE_PATTERN = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 const ROLE_CODE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+type BranchCoordinates = {
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+function BranchCoordinatesAreValid(): ClassDecorator {
+  return (target) => {
+    registerDecorator({
+      name: 'branchCoordinatesAreValid',
+      target,
+      propertyName: 'coordinates',
+      validator: {
+        validate(_value: unknown, args: ValidationArguments): boolean {
+          const { latitude, longitude } = args.object as BranchCoordinates;
+          const hasLatitude = latitude !== undefined && latitude !== null;
+          const hasLongitude = longitude !== undefined && longitude !== null;
+          if (hasLatitude !== hasLongitude) return false;
+          return !(latitude === 0 && longitude === 0);
+        },
+        defaultMessage(args: ValidationArguments): string {
+          const { latitude, longitude } = args.object as BranchCoordinates;
+          const hasLatitude = latitude !== undefined && latitude !== null;
+          const hasLongitude = longitude !== undefined && longitude !== null;
+          return hasLatitude !== hasLongitude
+            ? 'Vui lòng nhập đầy đủ vĩ độ và kinh độ.'
+            : 'Tọa độ 0, 0 không phải vị trí hợp lệ của chi nhánh tại Việt Nam.';
+        },
+      },
+    });
+  };
+}
+
+type BranchDateRange = {
+  createdFrom?: string;
+  createdTo?: string;
+};
+
+function BranchDateRangeIsValid(): ClassDecorator {
+  return (target) => {
+    registerDecorator({
+      name: 'branchDateRangeIsValid',
+      target,
+      propertyName: 'createdRange',
+      validator: {
+        validate(_value: unknown, args: ValidationArguments): boolean {
+          const { createdFrom, createdTo } = args.object as BranchDateRange;
+          return !createdFrom || !createdTo || createdFrom <= createdTo;
+        },
+        defaultMessage: () =>
+          'Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.',
+      },
+    });
+  };
+}
 
 export class CatalogQueryDto extends PaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
+}
+
+export enum BranchSortField {
+  CODE = 'code',
+  NAME = 'name',
+  IS_ACTIVE = 'isActive',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt',
+}
+
+@BranchDateRangeIsValid()
+export class BranchListQueryDto extends CatalogQueryDto {
+  @ApiPropertyOptional({ type: Boolean, example: true })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: BranchSortField })
+  @IsOptional()
+  @IsEnum(BranchSortField)
+  sortBy?: BranchSortField;
+
+  @ApiPropertyOptional({ enum: SortDirection })
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sortOrder?: SortDirection;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date',
+    example: '2026-06-01',
+    description: 'Ngày tạo bắt đầu, inclusive theo múi giờ Việt Nam.',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdFrom?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: 'date',
+    example: '2026-06-30',
+    description: 'Ngày tạo kết thúc, inclusive theo múi giờ Việt Nam.',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdTo?: string;
 }
 
 export class CreateRoleDto {
@@ -103,15 +217,63 @@ export class UpdatePermissionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
 }
 
+@BranchCoordinatesAreValid()
 export class CreateBranchDto {
   @ApiProperty() @IsString() name!: string;
   @ApiProperty({ example: 'can-tho' })
   @Matches(/^[a-z][a-z0-9-]*$/)
   code!: string;
   @ApiProperty() @IsString() address!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  phone?: string | null;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  province?: string | null;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  ward?: string | null;
+  @ApiPropertyOptional({
+    type: Number,
+    format: 'double',
+    minimum: -90,
+    maximum: 90,
+    nullable: true,
+    example: 10.0452,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-90)
+  @Max(90)
+  latitude?: number | null;
+  @ApiPropertyOptional({
+    type: Number,
+    format: 'double',
+    minimum: -180,
+    maximum: 180,
+    nullable: true,
+    example: 105.7469,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-180)
+  @Max(180)
+  longitude?: number | null;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    default: true,
+    description: 'true = Đang hoạt động, false = Ngừng hoạt động.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
+@BranchCoordinatesAreValid()
 export class UpdateBranchDto {
   @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
   @ApiPropertyOptional()
@@ -119,7 +281,50 @@ export class UpdateBranchDto {
   @Matches(/^[a-z][a-z0-9-]*$/)
   code?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  phone?: string | null;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  province?: string | null;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @IsString()
+  ward?: string | null;
+  @ApiPropertyOptional({
+    type: Number,
+    format: 'double',
+    minimum: -90,
+    maximum: 90,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-90)
+  @Max(90)
+  latitude?: number | null;
+  @ApiPropertyOptional({
+    type: Number,
+    format: 'double',
+    minimum: -180,
+    maximum: 180,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(-180)
+  @Max(180)
+  longitude?: number | null;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'true = Đang hoạt động, false = Ngừng hoạt động.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CreateInternalUserDto {
@@ -155,7 +360,10 @@ export class ConvertStaffPermissionDto {
 }
 
 export class ConvertStaffBranchAssignmentDto {
-  @ApiProperty()
+  @ApiProperty({
+    description:
+      'Mỗi branchId chỉ được xuất hiện một lần trong toàn bộ payload.',
+  })
   @Matches(ULID_PATTERN)
   branchId!: string;
 
@@ -170,7 +378,11 @@ export class ConvertStaffBranchAssignmentDto {
   @Matches(ULID_PATTERN, { each: true })
   roleIds!: string[];
 
-  @ApiPropertyOptional({ type: [ConvertStaffPermissionDto] })
+  @ApiPropertyOptional({
+    type: [ConvertStaffPermissionDto],
+    description:
+      'permissionId phải unique trong assignment; dangerous permissions bị backend từ chối cho cả ALLOW và DENY.',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -179,7 +391,11 @@ export class ConvertStaffBranchAssignmentDto {
 }
 
 export class ConvertStaffDto {
-  @ApiProperty({ type: [ConvertStaffBranchAssignmentDto] })
+  @ApiProperty({
+    type: [ConvertStaffBranchAssignmentDto],
+    description:
+      'Danh sách branch phải unique và phải có đúng một assignment isPrimary=true. OpenAPI không biểu diễn đầy đủ cross-field invariant này; client vẫn phải validate bổ sung.',
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
@@ -304,7 +520,25 @@ export class BranchResponseDto {
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
   @ApiProperty() address!: string;
-  @ApiPropertyOptional() phone?: string | null;
+  @ApiProperty({ nullable: true, type: String }) phone!: string | null;
+  @ApiProperty({ nullable: true, type: String }) province!: string | null;
+  @ApiProperty({ nullable: true, type: String }) ward!: string | null;
+  @ApiProperty({
+    type: Number,
+    format: 'double',
+    minimum: -90,
+    maximum: 90,
+    nullable: true,
+  })
+  latitude!: number | null;
+  @ApiProperty({
+    type: Number,
+    format: 'double',
+    minimum: -180,
+    maximum: 180,
+    nullable: true,
+  })
+  longitude!: number | null;
   @ApiProperty() isActive!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
@@ -320,12 +554,24 @@ export class ManagedUserPermissionResponseDto {
   permission!: PermissionResponseDto;
 }
 
+export class ManagedUserBranchSummaryResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() address!: string;
+  @ApiProperty({ nullable: true, type: String }) phone!: string | null;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty() createdAt!: string;
+  @ApiProperty() updatedAt!: string;
+}
+
 export class ManagedUserBranchResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() branchId!: string;
   @ApiProperty() isPrimary!: boolean;
   @ApiProperty() isActive!: boolean;
-  @ApiProperty({ type: BranchResponseDto }) branch!: BranchResponseDto;
+  @ApiProperty({ type: ManagedUserBranchSummaryResponseDto })
+  branch!: ManagedUserBranchSummaryResponseDto;
   @ApiProperty({ type: [ManagedUserRoleResponseDto] })
   roles!: ManagedUserRoleResponseDto[];
   @ApiProperty({ type: [ManagedUserPermissionResponseDto] })
@@ -352,6 +598,130 @@ export class ManagedUserResponseDto {
 export class RolePermissionResponseDto {
   @ApiProperty({ type: PermissionResponseDto })
   permission!: PermissionResponseDto;
+}
+
+export class RoleDetailResponseDto extends RoleResponseDto {
+  @ApiProperty({ type: [RolePermissionResponseDto] })
+  rolePermissions!: RolePermissionResponseDto[];
+}
+
+export class PermissionUsageCountResponseDto {
+  @ApiProperty() rolePermissions!: number;
+  @ApiProperty() userPermissions!: number;
+  @ApiProperty() userBranchPermissions!: number;
+}
+
+export class PermissionDetailResponseDto extends PermissionResponseDto {
+  @ApiProperty({ type: PermissionUsageCountResponseDto })
+  _count!: PermissionUsageCountResponseDto;
+}
+
+export class UserBranchCreateResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() userId!: string;
+  @ApiProperty() branchId!: string;
+  @ApiProperty() isPrimary!: boolean;
+  @ApiProperty() isActive!: boolean;
+}
+
+export class UserBranchStateResponseDto extends UserBranchCreateResponseDto {
+  @ApiProperty({ nullable: true, type: String })
+  assignedBy!: string | null;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: string;
+}
+
+export class UserBranchRoleResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() userBranchId!: string;
+  @ApiProperty() roleId!: string;
+  @ApiProperty({ nullable: true, type: String })
+  assignedBy!: string | null;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: string;
+}
+
+export class UserBranchPermissionResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() userBranchId!: string;
+  @ApiProperty() permissionId!: string;
+  @ApiProperty({ enum: PermissionEffect }) effect!: PermissionEffect;
+  @ApiProperty({ nullable: true, type: String })
+  assignedBy!: string | null;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: string;
+}
+
+export class StaffAssignmentsUserResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty({ nullable: true, type: String }) fullName!: string | null;
+  @ApiProperty({ nullable: true, type: String }) phone!: string | null;
+  @ApiProperty({ nullable: true, type: String }) gender!: string | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date' })
+  birthday!: string | null;
+  @ApiProperty({ enum: UserType }) type!: UserType;
+  @ApiProperty() isActive!: boolean;
+}
+
+export class StaffAssignmentBranchResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() isActive!: boolean;
+}
+
+export class StaffAssignmentRoleResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() level!: number;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty() isSystem!: boolean;
+  @ApiProperty({ enum: UserType }) type!: UserType;
+  @ApiProperty() guardName!: string;
+}
+
+export class StaffAssignmentRoleMappingResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ type: StaffAssignmentRoleResponseDto })
+  role!: StaffAssignmentRoleResponseDto;
+}
+
+export class StaffAssignmentPermissionResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() resource!: string;
+  @ApiProperty() action!: string;
+  @ApiProperty() guardName!: string;
+}
+
+export class StaffAssignmentPermissionMappingResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ enum: PermissionEffect }) effect!: PermissionEffect;
+  @ApiProperty({ type: StaffAssignmentPermissionResponseDto })
+  permission!: StaffAssignmentPermissionResponseDto;
+}
+
+export class StaffBranchAssignmentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() branchId!: string;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty() isPrimary!: boolean;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: string;
+  @ApiProperty({ nullable: true, type: String })
+  assignedBy!: string | null;
+  @ApiProperty({ type: StaffAssignmentBranchResponseDto })
+  branch!: StaffAssignmentBranchResponseDto;
+  @ApiProperty({ type: [StaffAssignmentRoleMappingResponseDto] })
+  roles!: StaffAssignmentRoleMappingResponseDto[];
+  @ApiProperty({ type: [StaffAssignmentPermissionMappingResponseDto] })
+  permissions!: StaffAssignmentPermissionMappingResponseDto[];
+}
+
+export class StaffAssignmentsResponseDto {
+  @ApiProperty({ type: StaffAssignmentsUserResponseDto })
+  user!: StaffAssignmentsUserResponseDto;
+  @ApiProperty({ type: [StaffBranchAssignmentResponseDto] })
+  assignments!: StaffBranchAssignmentResponseDto[];
 }
 
 export class AssignmentResponseDto {

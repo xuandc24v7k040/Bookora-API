@@ -140,6 +140,158 @@ if (
   failures.push('POST /staff/{id}/transfer-branch không được có X-Branch-Id');
 }
 
+const userActivation = operations.find(
+  (operation) => operation.key === 'PATCH /users/{id}/activate',
+);
+if (!userActivation) {
+  failures.push('PATCH /users/{id}/activate is missing');
+} else if (userActivation.operation.requestBody) {
+  failures.push('PATCH /users/{id}/activate must not have a request body');
+}
+
+const staffAssignments = operations.find(
+  (operation) => operation.key === 'GET /staff/{id}/assignments',
+);
+if (!staffAssignments) {
+  failures.push('GET /staff/{id}/assignments is missing');
+} else if (
+  staffAssignments.operation.parameters?.some(
+    (parameter) => parameter.name === 'X-Branch-Id',
+  )
+) {
+  failures.push('GET /staff/{id}/assignments must not have X-Branch-Id');
+}
+
+const errorSchema = schemas.ErrorResponseDto;
+if (
+  errorSchema?.properties?.message?.type !== 'string' ||
+  errorSchema?.properties?.errors?.type !== 'object' ||
+  errorSchema?.properties?.errors?.additionalProperties?.type !== 'array'
+) {
+  failures.push(
+    'ErrorResponseDto must use string message and a field-map errors object',
+  );
+}
+
+for (const item of operations.filter((operation) =>
+  /^(roles|permissions|branches|branch-admins|staff)(\/|$)/.test(
+    operation.path.replace(/^\//, ''),
+  ),
+)) {
+  for (const [status, response] of Object.entries(
+    item.operation.responses ?? {},
+  )) {
+    if (!status.startsWith('4')) continue;
+    const ref = response.content?.['application/json']?.schema?.$ref;
+    if (ref !== '#/components/schemas/ErrorResponseDto') {
+      failures.push(
+        `${item.key} response ${status} is missing ErrorResponseDto`,
+      );
+    }
+  }
+}
+
+for (const field of ['provider', 'gender', 'birthday']) {
+  if (!schemas.UserResponseDto?.properties?.[field]) {
+    failures.push(`UserResponseDto is missing ${field}`);
+  }
+}
+
+const authMeSchema = schemas.AuthMeResponseDto;
+for (const field of ['phone', 'gender']) {
+  assertNullableStringProperty(authMeSchema, field, 'AuthMeResponseDto');
+}
+assertNullableStringProperty(authMeSchema, 'birthday', 'AuthMeResponseDto', {
+  format: 'date',
+});
+for (const field of ['phone', 'gender', 'birthday']) {
+  if (!authMeSchema?.required?.includes(field)) {
+    failures.push(`AuthMeResponseDto must require nullable field ${field}`);
+  }
+}
+
+for (const schemaName of [
+  'CreateBranchDto',
+  'UpdateBranchDto',
+  'BranchResponseDto',
+]) {
+  const schema = schemas[schemaName];
+  if (!schema) {
+    failures.push(`${schemaName} is missing`);
+    continue;
+  }
+  for (const field of [
+    'district',
+    'districtCode',
+    'districtId',
+    'longtitude',
+  ]) {
+    if (schema.properties?.[field]) {
+      failures.push(`${schemaName} must not expose ${field}`);
+    }
+  }
+  assertCoordinateProperty(schema, 'latitude', -90, 90, schemaName);
+  assertCoordinateProperty(schema, 'longitude', -180, 180, schemaName);
+  for (const field of ['province', 'ward']) {
+    assertNullableStringProperty(schema, field, schemaName);
+  }
+  if (schemaName === 'BranchResponseDto') {
+    for (const field of [
+      'phone',
+      'province',
+      'ward',
+      'latitude',
+      'longitude',
+    ]) {
+      if (!schema.required?.includes(field)) {
+        failures.push(`BranchResponseDto must require nullable field ${field}`);
+      }
+    }
+  }
+}
+
+for (const schemaName of ['CreateBranchDto', 'UpdateBranchDto']) {
+  const status = schemas[schemaName]?.properties?.isActive;
+  if (status?.type !== 'boolean') {
+    failures.push(`${schemaName}.isActive must be a boolean`);
+  }
+  if (schemas[schemaName]?.required?.includes('isActive')) {
+    failures.push(`${schemaName}.isActive must remain optional`);
+  }
+}
+if (schemas.CreateBranchDto?.properties?.isActive?.default !== true) {
+  failures.push('CreateBranchDto.isActive must document the true default');
+}
+
+const branchesList = operations.find(
+  (operation) => operation.key === 'GET /branches',
+);
+for (const name of ['createdFrom', 'createdTo']) {
+  const parameter = branchesList?.operation.parameters?.find(
+    (candidate) => candidate.name === name && candidate.in === 'query',
+  );
+  if (parameter?.schema?.type !== 'string' || parameter.schema.format !== 'date') {
+    failures.push(`GET /branches ${name} must be an optional date query parameter`);
+  }
+}
+
+for (const [schemaName, schema] of Object.entries(schemas)) {
+  assertNoObsoleteAddressProperties(schemaName, schema);
+}
+
+const usersList = operations.find(
+  (operation) => operation.key === 'GET /users',
+);
+for (const field of ['type', 'isActive']) {
+  if (
+    !usersList?.operation.parameters?.some(
+      (parameter) => parameter.name === field,
+    )
+  ) {
+    failures.push(`GET /users is missing query parameter ${field}`);
+  }
+}
+
 assertSecurityObject(
   operations.find((operation) => operation.key === 'POST /auth/login'),
   ['csrfCookie', 'csrfHeader'],
@@ -223,6 +375,53 @@ function requireArray(value, message) {
   }
 }
 
+function assertNullableStringProperty(schema, field, schemaName, options = {}) {
+  const property = schema?.properties?.[field];
+  if (
+    property?.type !== 'string' ||
+    property.nullable !== true ||
+    (options.format && property.format !== options.format)
+  ) {
+    failures.push(
+      `${schemaName}.${field} must be a nullable string${options.format ? ` with format ${options.format}` : ''}`,
+    );
+  }
+}
+
+function assertCoordinateProperty(schema, field, minimum, maximum, schemaName) {
+  const property = schema?.properties?.[field];
+  if (
+    property?.type !== 'number' ||
+    property.format !== 'double' ||
+    property.minimum !== minimum ||
+    property.maximum !== maximum ||
+    property.nullable !== true
+  ) {
+    failures.push(`${schemaName}.${field} must be a nullable bounded double`);
+  }
+}
+
+function assertNoObsoleteAddressProperties(schemaName, schema) {
+  if (!schema || typeof schema !== 'object') return;
+  const obsoleteFields = new Set([
+    'district',
+    'districtId',
+    'districtCode',
+    'districtName',
+    'longtitude',
+    'lattitude',
+  ]);
+  for (const [field, property] of Object.entries(schema.properties ?? {})) {
+    if (obsoleteFields.has(field)) {
+      failures.push(`${schemaName} exposes obsolete address field ${field}`);
+    }
+    assertNoObsoleteAddressProperties(schemaName, property);
+  }
+  if (schema.items) {
+    assertNoObsoleteAddressProperties(schemaName, schema.items);
+  }
+}
+
 function inspectSchema(schemaName, schema, location) {
   if (!schema || typeof schema !== 'object') {
     return;
@@ -231,6 +430,7 @@ function inspectSchema(schemaName, schema, location) {
   if (
     schema.type === 'object' &&
     !schema.properties &&
+    !schema.additionalProperties &&
     !schema.allOf &&
     !schema.oneOf &&
     !schema.anyOf

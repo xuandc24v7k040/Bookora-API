@@ -1,4 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { AuthProvider, UserType } from '@/generated/prisma/client';
 
 export class UserResponseDto {
   @ApiProperty({ example: '01JVCY8VZ10XWBQ9M3B0EG9D7K' })
@@ -7,20 +8,38 @@ export class UserResponseDto {
   @ApiProperty({ example: 'admin@example.com' })
   email!: string;
 
-  @ApiProperty({ example: 'Admin' })
-  fullName!: string;
+  @ApiProperty({ example: 'Admin', nullable: true, type: String })
+  fullName!: string | null;
 
-  @ApiPropertyOptional({ example: '0900000000' })
-  phone?: string;
+  @ApiProperty({ example: '0900000000', nullable: true, type: String })
+  phone!: string | null;
+
+  @ApiProperty({ example: 'female', nullable: true, type: String })
+  gender!: string | null;
+
+  @ApiProperty({
+    example: '1995-08-17',
+    nullable: true,
+    type: String,
+    format: 'date',
+  })
+  birthday!: string | null;
 
   @ApiProperty({ example: true })
   isActive!: boolean;
 
-  @ApiProperty({ enum: ['SYSTEM', 'BRANCH', 'CUSTOMER'], example: 'CUSTOMER' })
-  type!: 'SYSTEM' | 'BRANCH' | 'CUSTOMER';
+  @ApiProperty({ enum: UserType, example: UserType.CUSTOMER })
+  type!: UserType;
 
-  @ApiPropertyOptional({ example: '2026-06-21T00:00:00.000Z' })
-  lastLoginAt?: string;
+  @ApiProperty({ enum: AuthProvider, example: AuthProvider.LOCAL })
+  provider!: AuthProvider;
+
+  @ApiProperty({
+    example: '2026-06-21T00:00:00.000Z',
+    nullable: true,
+    type: String,
+  })
+  lastLoginAt!: string | null;
 
   @ApiProperty({ example: '2026-05-13T00:00:00.000Z' })
   createdAt!: string;

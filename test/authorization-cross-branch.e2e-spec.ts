@@ -68,6 +68,7 @@ const IDS = {
   staffAssignPermission: '01K1000000000000000000000G',
   staffAssignBranch: '01K1000000000000000000000H',
   branchesAssign: '01K1000000000000000000000J',
+  branchesRead: '01K10000000000000000000013',
   staffCreate: '01K1000000000000000000000K',
   usersUpdate: '01K1000000000000000000000M',
   usersDelete: '01K1000000000000000000000N',
@@ -210,6 +211,13 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
       .get(`${API}/auth/me`)
       .set('Cookie', staffAuth.cookie)
       .expect(200);
+    expect(me.body.data).toEqual(
+      expect.objectContaining({
+        phone: null,
+        gender: null,
+        birthday: null,
+      }),
+    );
     expect(me.body.data.globalRoles).toEqual([]);
     expect(me.body.data.globalPermissions).toEqual([]);
     expect(me.body.data.branchAssignments).toEqual(
@@ -226,6 +234,109 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
         }),
       ]),
     );
+  });
+
+  it('searches branches server-side without escaping branch scope', async () => {
+    const byCode = await request(app.getHttpServer())
+      .get(`${API}/branches`)
+      .query({ search: 'CAN-THO' })
+      .set('Cookie', superAdminAuth.cookie)
+      .expect(200);
+    expect(byCode.body.data).toEqual([
+      expect.objectContaining({ id: IDS.canTho, code: 'can-tho' }),
+    ]);
+
+    const byName = await request(app.getHttpServer())
+      .get(`${API}/branches`)
+      .query({ search: 'Cần' })
+      .set('Cookie', superAdminAuth.cookie)
+      .expect(200);
+    expect(byName.body.data).toEqual([
+      expect.objectContaining({ id: IDS.canTho }),
+    ]);
+
+    const paginated = await request(app.getHttpServer())
+      .get(`${API}/branches`)
+      .query({ search: 'in', limit: 1 })
+      .set('Cookie', superAdminAuth.cookie)
+      .expect(200);
+    expect(paginated.body.data).toHaveLength(1);
+    expect(paginated.body.meta).toEqual(
+      expect.objectContaining({ total: 2, page: 1, limit: 1, lastPage: 2 }),
+    );
+
+    await request(app.getHttpServer())
+      .get(`${API}/branches`)
+      .query({ search: 'not-a-real-branch' })
+      .set('Cookie', superAdminAuth.cookie)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual([]);
+        expect(body.meta.total).toBe(0);
+      });
+
+    await request(app.getHttpServer())
+      .get(`${API}/branches`)
+      .query({ search: 'can-tho' })
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual([]);
+        expect(body.meta.total).toBe(0);
+      });
+  });
+
+  it('creates and updates two-level Branch coordinates without district', async () => {
+    const created = await request(app.getHttpServer())
+      .post(`${API}/branches`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .send({
+        name: 'Coordinate Branch',
+        code: 'coordinate-branch',
+        address: 'Số 1, phường Ninh Kiều, Cần Thơ',
+        province: 'Cần Thơ',
+        ward: 'Ninh Kiều',
+        latitude: 10.0452,
+        longitude: 105.7469,
+      })
+      .expect(201);
+    expect(created.body.data).toEqual(
+      expect.objectContaining({
+        province: 'Cần Thơ',
+        ward: 'Ninh Kiều',
+        latitude: 10.0452,
+        longitude: 105.7469,
+      }),
+    );
+    expect(created.body.data).not.toHaveProperty('district');
+
+    const branchId = created.body.data.id as string;
+    await request(app.getHttpServer())
+      .patch(`${API}/branches/${branchId}`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .send({ latitude: -90, longitude: 180 })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual(
+          expect.objectContaining({ latitude: -90, longitude: 180 }),
+        );
+      });
+
+    await request(app.getHttpServer())
+      .patch(`${API}/branches/${branchId}`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .send({ district: 'Legacy district' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .delete(`${API}/branches/${branchId}`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .expect(200);
   });
 
   it('enforces staff visibility, selected-branch writes, headers, and no cross-admin overwrite', async () => {
@@ -444,6 +555,44 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
       .set('X-CSRF-Token', CSRF)
       .set('X-Branch-Id', IDS.hauGiang)
       .expect(403);
+  });
+
+  it('preserves one qualifying staff role under concurrent removals', async () => {
+    const assignment = await prisma.userBranch.findFirstOrThrow({
+      where: {
+        userId: IDS.staffLastBranch,
+        branchId: IDS.hauGiang,
+      },
+      select: { id: true },
+    });
+    await prisma.userBranchRole.create({
+      data: {
+        userBranchId: assignment.id,
+        roleId: IDS.cashierRole,
+      },
+    });
+
+    const responses = await Promise.all([
+      request(app.getHttpServer())
+        .delete(`${API}/staff/${IDS.staffLastBranch}/roles/${IDS.staffRole}`)
+        .set('Cookie', withCsrf(adminHauGiangAuth))
+        .set('X-CSRF-Token', CSRF)
+        .set('X-Branch-Id', IDS.hauGiang),
+      request(app.getHttpServer())
+        .delete(`${API}/staff/${IDS.staffLastBranch}/roles/${IDS.cashierRole}`)
+        .set('Cookie', withCsrf(adminHauGiangAuth))
+        .set('X-CSRF-Token', CSRF)
+        .set('X-Branch-Id', IDS.hauGiang),
+    ]);
+
+    expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+    const conflict = responses.find(({ status }) => status === 409);
+    expect(conflict?.body.code).toBe('STAFF_LAST_ROLE_REQUIRED');
+    await expect(
+      prisma.userBranchRole.count({
+        where: { userBranchId: assignment.id },
+      }),
+    ).resolves.toBe(1);
   });
 
   it('keeps direct permission writes branch-local and applies delegation symmetrically', async () => {
@@ -1400,6 +1549,7 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
         'assign_branch',
       ),
       permission(IDS.branchesAssign, 'branches.assign', 'branches', 'assign'),
+      permission(IDS.branchesRead, 'branches.read', 'branches', 'read'),
       permission(IDS.staffCreate, 'staff.create', 'staff', 'create'),
       permission(IDS.usersUpdate, 'users.update', 'users', 'update'),
       permission(IDS.usersDelete, 'users.delete', 'users', 'delete'),
@@ -1557,6 +1707,10 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
                 },
                 {
                   permissionId: IDS.staffAssignBranch,
+                  effect: PermissionEffect.ALLOW,
+                },
+                {
+                  permissionId: IDS.branchesRead,
                   effect: PermissionEffect.ALLOW,
                 },
               ],

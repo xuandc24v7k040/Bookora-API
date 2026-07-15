@@ -31,6 +31,28 @@ export class AuthMeResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() email!: string;
   @ApiProperty() fullName!: string;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '0901234567',
+    description: 'Số điện thoại hồ sơ, null nếu chưa cập nhật.',
+  })
+  phone!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'female',
+    description: 'Giới tính dạng chuỗi hồ sơ, null nếu chưa cập nhật.',
+  })
+  gender!: string | null;
+  @ApiProperty({
+    type: String,
+    format: 'date',
+    nullable: true,
+    example: '1995-06-15',
+    description: 'Ngày sinh theo lịch, định dạng YYYY-MM-DD.',
+  })
+  birthday!: string | null;
   @ApiProperty({ enum: UserType }) type!: UserType;
   @ApiProperty({
     type: [AuthMeRoleDto],

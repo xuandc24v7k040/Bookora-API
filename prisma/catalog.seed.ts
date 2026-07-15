@@ -121,14 +121,33 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'staff.assign_role',
     'staff.assign_permission',
   ],
-  STAFF: [],
+  STAFF: [
+    'dashboard.read',
+
+    'orders.read',
+    'orders.create',
+    'orders.update_status',
+    'payments.create',
+
+    'products.read',
+    'products.create',
+    'products.update',
+
+    'inventory.read',
+    'inventory.update',
+
+    'stock_movements.read',
+    'stock_movements.create',
+  ],
   CASHIER: [
+    'dashboard.read',
     'orders.read',
     'orders.create',
     'orders.update_status',
     'payments.create',
   ],
   INVENTORY: [
+    'dashboard.read',
     'products.read',
     'inventory.read',
     'inventory.update',

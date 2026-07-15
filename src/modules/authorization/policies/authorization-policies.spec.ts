@@ -52,6 +52,23 @@ describe('PermissionDelegationPolicy', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it.each([PermissionEffect.ALLOW, PermissionEffect.DENY])(
+    'rejects dangerous %s during initial Staff permission validation',
+    async (effect) => {
+      repository.findPermissionPolicySubject.mockResolvedValue(
+        permission('branches.assign'),
+      );
+
+      await expect(
+        policy.assertCanAssignInitialPermission(
+          superAdmin(['branches.assign']),
+          'permission-id',
+          effect,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
   it.each([UserType.BRANCH, UserType.CUSTOMER])(
     'rejects dangerous permission mapping for a %s role',
     async (type) => {
@@ -188,6 +205,9 @@ function actor(overrides: Partial<AuthenticatedUser>): AuthenticatedUser {
     id: 'actor-id',
     email: 'actor@example.com',
     fullName: 'Actor',
+    phone: null,
+    gender: null,
+    birthday: null,
     type: UserType.BRANCH,
     roles: [],
     permissions: [],

@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, UserType } from '../src/generated/prisma/client';
 import {
   DEVELOPMENT_PASSWORD,
+  DEVELOPMENT_BRANCHES,
   DEVELOPMENT_USERS,
   assertDevelopmentSeedAllowed,
   seedDevelopmentFixtures,
@@ -60,10 +61,12 @@ describe('development seed fixtures (e2e)', () => {
       await expectBranchAdminHauGiang(prisma);
       await expectBranchAdminCanTho(prisma);
       await expectStaffCanTho(prisma);
+      await expectCashierHauGiang(prisma);
       await expectStaffMulti(prisma);
       await expectPasswords(prisma);
       await expectNoRuntimeAuthData(prisma);
       await expectNoUnwantedBranchAdmins(prisma);
+      await expectTwoLevelBranches(prisma);
 
       await expect(
         prisma.user.findUniqueOrThrow({
@@ -97,22 +100,90 @@ async function expectCommonFixtures(prisma: PrismaClient): Promise<void> {
     prisma.user.count({
       where: { email: { in: FIXTURE_EMAILS }, isActive: true },
     }),
-  ).resolves.toBe(5);
+  ).resolves.toBe(6);
   await expect(
     prisma.userBranch.count({
       where: { user: { email: { in: FIXTURE_EMAILS } } },
     }),
-  ).resolves.toBe(5);
+  ).resolves.toBe(6);
   await expect(
     prisma.userBranchRole.count({
       where: { userBranch: { user: { email: { in: FIXTURE_EMAILS } } } },
     }),
-  ).resolves.toBe(5);
+  ).resolves.toBe(7);
   await expect(
     prisma.userBranchPermission.count({
       where: { userBranch: { user: { email: { in: FIXTURE_EMAILS } } } },
     }),
   ).resolves.toBe(0);
+
+  const mappings = await prisma.userBranchRole.findMany({
+    where: { userBranch: { user: { email: { in: FIXTURE_EMAILS } } } },
+    select: {
+      userBranch: {
+        select: {
+          user: { select: { email: true } },
+          branch: { select: { code: true } },
+        },
+      },
+      role: { select: { code: true } },
+    },
+  });
+  const exactMappings = mappings
+    .map(({ userBranch, role }) => ({
+      email: userBranch.user.email,
+      branch: userBranch.branch.code,
+      role: role.code,
+    }))
+    .sort((left, right) =>
+      `${left.email}:${left.branch}:${left.role}`.localeCompare(
+        `${right.email}:${right.branch}:${right.role}`,
+      ),
+    );
+  expect(exactMappings).toEqual([
+    {
+      email: 'branchadmin.ct@bookora.local',
+      branch: 'can-tho',
+      role: 'BRANCH_ADMIN',
+    },
+    {
+      email: 'branchadmin.hg@bookora.local',
+      branch: 'hau-giang',
+      role: 'BRANCH_ADMIN',
+    },
+    {
+      email: 'cashier.hg@bookora.local',
+      branch: 'hau-giang',
+      role: 'CASHIER',
+    },
+    {
+      email: 'cashier.hg@bookora.local',
+      branch: 'hau-giang',
+      role: 'INVENTORY',
+    },
+    {
+      email: 'staff.ct@bookora.local',
+      branch: 'can-tho',
+      role: 'STAFF',
+    },
+    {
+      email: 'staff.multi@bookora.local',
+      branch: 'can-tho',
+      role: 'STAFF',
+    },
+    {
+      email: 'staff.multi@bookora.local',
+      branch: 'hau-giang',
+      role: 'INVENTORY',
+    },
+  ]);
+  expect(
+    new Set(
+      exactMappings.map(
+        ({ email, branch, role }) => `${email}:${branch}:${role}`,
+      ),
+    ).size,
+  ).toBe(exactMappings.length);
 }
 
 async function expectSuperAdmin(prisma: PrismaClient): Promise<void> {
@@ -134,7 +205,7 @@ async function expectBranchAdminHauGiang(prisma: PrismaClient): Promise<void> {
   await expectSingleBranchUser(prisma, {
     email: 'branchadmin.hg@bookora.local',
     branchCode: 'hau-giang',
-    roleCode: 'BRANCH_ADMIN',
+    roleCodes: ['BRANCH_ADMIN'],
   });
 }
 
@@ -142,7 +213,7 @@ async function expectBranchAdminCanTho(prisma: PrismaClient): Promise<void> {
   await expectSingleBranchUser(prisma, {
     email: 'branchadmin.ct@bookora.local',
     branchCode: 'can-tho',
-    roleCode: 'BRANCH_ADMIN',
+    roleCodes: ['BRANCH_ADMIN'],
   });
 }
 
@@ -150,13 +221,21 @@ async function expectStaffCanTho(prisma: PrismaClient): Promise<void> {
   await expectSingleBranchUser(prisma, {
     email: 'staff.ct@bookora.local',
     branchCode: 'can-tho',
-    roleCode: 'STAFF',
+    roleCodes: ['STAFF'],
+  });
+}
+
+async function expectCashierHauGiang(prisma: PrismaClient): Promise<void> {
+  await expectSingleBranchUser(prisma, {
+    email: 'cashier.hg@bookora.local',
+    branchCode: 'hau-giang',
+    roleCodes: ['CASHIER', 'INVENTORY'],
   });
 }
 
 async function expectSingleBranchUser(
   prisma: PrismaClient,
-  input: { email: string; branchCode: string; roleCode: string },
+  input: { email: string; branchCode: string; roleCodes: string[] },
 ): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { email: input.email },
@@ -182,9 +261,13 @@ async function expectSingleBranchUser(
     isActive: true,
     branch: { code: input.branchCode },
   });
-  expect(user.userBranches[0].roles.map(({ role }) => role.code)).toEqual([
-    input.roleCode,
-  ]);
+  expect(
+    user.userBranches[0].roles
+      .map(({ role }) => role.code)
+      .sort((left, right) => left.localeCompare(right)),
+  ).toEqual(
+    [...input.roleCodes].sort((left, right) => left.localeCompare(right)),
+  );
 }
 
 async function expectStaffMulti(prisma: PrismaClient): Promise<void> {
@@ -235,7 +318,7 @@ async function expectPasswords(prisma: PrismaClient): Promise<void> {
     select: { email: true, passwordHash: true },
   });
 
-  expect(users).toHaveLength(5);
+  expect(users).toHaveLength(6);
   for (const user of users) {
     expect(user.passwordHash).toEqual(expect.any(String));
     await expect(
@@ -276,4 +359,31 @@ async function expectNoUnwantedBranchAdmins(
       },
     }),
   ).resolves.toBe(0);
+}
+
+async function expectTwoLevelBranches(prisma: PrismaClient): Promise<void> {
+  const branches = await prisma.branch.findMany({
+    where: { code: { in: BRANCH_CODES } },
+    orderBy: { code: 'asc' },
+    select: {
+      code: true,
+      address: true,
+      province: true,
+      ward: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+  expect(branches).toEqual(
+    [...DEVELOPMENT_BRANCHES]
+      .sort((left, right) => left.code.localeCompare(right.code))
+      .map((branch) => ({
+        code: branch.code,
+        address: branch.address,
+        province: branch.province,
+        ward: branch.ward,
+        latitude: null,
+        longitude: null,
+      })),
+  );
 }

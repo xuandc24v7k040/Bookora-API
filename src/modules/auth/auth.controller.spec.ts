@@ -34,6 +34,9 @@ describe('AuthController client IP', () => {
       id: 'user-id',
       email: 'user@example.com',
       fullName: 'User',
+      phone: '0901234567',
+      gender: 'female',
+      birthday: '1995-06-15',
       type: UserType.BRANCH,
       roles: [],
       permissions: ['orders.read'],
@@ -58,11 +61,44 @@ describe('AuthController client IP', () => {
     expect(result).toMatchObject({
       id: 'user-id',
       type: UserType.BRANCH,
+      phone: '0901234567',
+      gender: 'female',
+      birthday: '1995-06-15',
       permissions: ['orders.read'],
       primaryBranchId: 'branch-id',
     });
     expect(result).not.toHaveProperty('sessionId');
     expect(result).not.toHaveProperty('allowedBranchIds');
+  });
+
+  it('keeps nullable profile keys in /auth/me', () => {
+    const result = controller.me({
+      id: 'user-id',
+      email: 'user@example.com',
+      fullName: 'User',
+      phone: null,
+      gender: null,
+      birthday: null,
+      type: UserType.CUSTOMER,
+      roles: [],
+      permissions: [],
+      globalRoles: [],
+      globalPermissions: [],
+      branchAssignments: [],
+      allowedBranchIds: [],
+      branches: [],
+      primaryBranchId: null,
+      maxRoleLevel: 0,
+      isSuperAdmin: false,
+      sessionId: 'session-id',
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({ phone: null, gender: null, birthday: null }),
+    );
+    expect(Object.keys(result)).toEqual(
+      expect.arrayContaining(['phone', 'gender', 'birthday']),
+    );
   });
 });
 

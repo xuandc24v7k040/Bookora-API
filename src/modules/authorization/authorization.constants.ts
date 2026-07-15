@@ -14,6 +14,7 @@ export const AUTHORIZATION_ERROR_CODES = {
   systemRoleProtected: 'SYSTEM_ROLE_PROTECTED',
   dangerousPermissionDenied: 'DANGEROUS_PERMISSION_DENIED',
   lastSuperAdminProtected: 'LAST_SUPER_ADMIN_PROTECTED',
+  staffLastRoleRequired: 'STAFF_LAST_ROLE_REQUIRED',
 } as const;
 
 export const AUTHORIZATION_GUARD_NAME = 'web';

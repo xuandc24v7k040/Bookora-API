@@ -10,6 +10,7 @@ import {
 import type { AuthorizationTransactionClient } from './types/authorization-transaction.type';
 import type { BranchWhere } from './types/branch-context.type';
 import { DANGEROUS_PERMISSION_CODES } from './authorization.constants';
+import type { BranchSortField } from './dto';
 
 const roleSelect = {
   id: true,
@@ -38,6 +39,25 @@ const permissionSelect = {
 } satisfies Prisma.PermissionSelect;
 
 const branchSelect = {
+  id: true,
+  code: true,
+  name: true,
+  address: true,
+  phone: true,
+  province: true,
+  ward: true,
+  latitude: true,
+  longitude: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.BranchSelect;
+
+type BranchLifecycleUpdate = Omit<Prisma.BranchUpdateInput, 'isActive'> & {
+  isActive?: boolean;
+};
+
+const managedUserBranchSelect = {
   id: true,
   code: true,
   name: true,
@@ -81,7 +101,7 @@ function managedUserSelect(
         branchId: true,
         isPrimary: true,
         isActive: true,
-        branch: { select: branchSelect },
+        branch: { select: managedUserBranchSelect },
         roles: {
           where: { role: { isActive: true } },
           select: { role: { select: roleSelect } },
@@ -100,6 +120,7 @@ function managedUserSelect(
 export class AuthorizationWriteValidationError extends Error {}
 export class AuthorizationWriteScopeError extends Error {}
 export class AuthorizationWriteConflictError extends Error {}
+export class StaffLastRoleRequiredError extends AuthorizationWriteConflictError {}
 
 @Injectable()
 export class AuthorizationRepository {
@@ -124,6 +145,9 @@ export class AuthorizationRepository {
             id: true,
             email: true,
             fullName: true,
+            phone: true,
+            gender: true,
+            birthday: true,
             type: true,
             isActive: true,
             userRoles: {
@@ -512,14 +536,43 @@ export class AuthorizationRepository {
     });
   }
 
-  listBranches(branchWhere: BranchWhere, skip: number, take: number) {
-    const where = this.toBranchWhere(branchWhere);
+  listBranches(
+    branchWhere: BranchWhere,
+    skip: number,
+    take: number,
+    search: string | undefined,
+    isActive: boolean | undefined,
+    createdFrom: Date | undefined,
+    createdToExclusive: Date | undefined,
+    sortBy: BranchSortField,
+    sortOrder: 'asc' | 'desc',
+  ) {
+    const scopeWhere = this.toBranchWhere(branchWhere);
+    const filters: Prisma.BranchWhereInput[] = [scopeWhere];
+    if (search) {
+      filters.push({
+        OR: [
+          { code: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (isActive !== undefined) filters.push({ isActive });
+    if (createdFrom || createdToExclusive) {
+      filters.push({
+        createdAt: {
+          ...(createdFrom ? { gte: createdFrom } : {}),
+          ...(createdToExclusive ? { lt: createdToExclusive } : {}),
+        },
+      });
+    }
+    const where: Prisma.BranchWhereInput = { AND: filters };
     return Promise.all([
       this.prisma.branch.findMany({
         where,
         skip,
         take,
-        orderBy: { code: 'asc' },
+        orderBy: [{ [sortBy]: sortOrder }, { id: 'asc' }],
         select: branchSelect,
       }),
       this.prisma.branch.count({ where }),
@@ -548,43 +601,32 @@ export class AuthorizationRepository {
   updateBranchInScope(
     id: string,
     branchWhere: BranchWhere,
-    data: Prisma.BranchUpdateInput,
+    data: BranchLifecycleUpdate,
   ) {
     return this.transaction(async (tx) => {
       const branch = await tx.branch.findFirst({
         where: { id, ...this.toBranchWhere(branchWhere) },
-        select: { id: true },
+        select: { id: true, isActive: true },
       });
       if (!branch) {
         throw new AuthorizationWriteScopeError('Branch nằm ngoài phạm vi');
+      }
+      if (branch.isActive && data.isActive === false) {
+        const activeAssignments = await tx.userBranch.count({
+          where: { branchId: id, isActive: true },
+        });
+        if (activeAssignments > 0) {
+          throw new AuthorizationWriteConflictError(
+            'Không thể deactivate branch khi còn user assignment active',
+          );
+        }
       }
       return tx.branch.update({ where: { id }, data, select: branchSelect });
     });
   }
 
   deactivateBranchInScope(id: string, branchWhere: BranchWhere) {
-    return this.transaction(async (tx) => {
-      const branch = await tx.branch.findFirst({
-        where: { id, ...this.toBranchWhere(branchWhere) },
-        select: { id: true },
-      });
-      if (!branch) {
-        throw new AuthorizationWriteScopeError('Branch nằm ngoài phạm vi');
-      }
-      const activeAssignments = await tx.userBranch.count({
-        where: { branchId: id, isActive: true },
-      });
-      if (activeAssignments > 0) {
-        throw new AuthorizationWriteConflictError(
-          'Không thể deactivate branch khi còn user assignment active',
-        );
-      }
-      return tx.branch.update({
-        where: { id },
-        data: { isActive: false },
-        select: branchSelect,
-      });
-    });
+    return this.updateBranchInScope(id, branchWhere, { isActive: false });
   }
 
   listManagedUsers(
@@ -625,6 +667,93 @@ export class AuthorizationRepository {
     return this.prisma.user.findFirst({
       where: { id, ...this.managedUserWhere(kind, branchWhere) },
       select: managedUserSelect(branchWhere),
+    });
+  }
+
+  findStaffAssignments(userId: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        type: UserType.BRANCH,
+        userBranches: {
+          some: {
+            roles: {
+              some: {
+                role: {
+                  type: UserType.BRANCH,
+                  guardName: 'web',
+                  isActive: true,
+                  code: { notIn: ['BRANCH_ADMIN', 'SUPER_ADMIN', 'CUSTOMER'] },
+                },
+              },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        gender: true,
+        birthday: true,
+        type: true,
+        isActive: true,
+        userBranches: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { isActive: 'desc' },
+            { branch: { code: 'asc' } },
+            { id: 'asc' },
+          ],
+          select: {
+            id: true,
+            branchId: true,
+            isActive: true,
+            isPrimary: true,
+            assignedAt: true,
+            assignedBy: true,
+            branch: {
+              select: { id: true, code: true, name: true, isActive: true },
+            },
+            roles: {
+              orderBy: { role: { code: 'asc' } },
+              select: {
+                id: true,
+                role: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    level: true,
+                    isActive: true,
+                    isSystem: true,
+                    type: true,
+                    guardName: true,
+                  },
+                },
+              },
+            },
+            permissions: {
+              orderBy: { permission: { code: 'asc' } },
+              select: {
+                id: true,
+                effect: true,
+                permission: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    resource: true,
+                    action: true,
+                    guardName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -887,7 +1016,11 @@ export class AuthorizationRepository {
             },
           }),
           tx.permission.count({
-            where: { id: { in: permissionIds }, guardName: 'web' },
+            where: {
+              id: { in: permissionIds },
+              guardName: 'web',
+              code: { notIn: [...DANGEROUS_PERMISSION_CODES] },
+            },
           }),
         ]);
       if (!target) {
@@ -1084,11 +1217,46 @@ export class AuthorizationRepository {
     });
   }
 
-  removeUserRole(
+  async removeUserRole(
     userBranchId: string,
     roleId: string,
     client: AuthorizationTransactionClient = this.prisma,
   ) {
+    const mapping = await client.userBranchRole.findUnique({
+      where: { userBranchId_roleId: { userBranchId, roleId } },
+      select: {
+        id: true,
+        role: {
+          select: { code: true, type: true, guardName: true, isActive: true },
+        },
+      },
+    });
+    if (!mapping) return { count: 0 };
+
+    const isQualifyingStaffRole =
+      mapping.role.type === UserType.BRANCH &&
+      mapping.role.guardName === 'web' &&
+      mapping.role.isActive &&
+      !['BRANCH_ADMIN', 'SUPER_ADMIN', 'CUSTOMER'].includes(mapping.role.code);
+    if (isQualifyingStaffRole) {
+      const qualifyingRoleCount = await client.userBranchRole.count({
+        where: {
+          userBranchId,
+          role: {
+            type: UserType.BRANCH,
+            guardName: 'web',
+            isActive: true,
+            code: { notIn: ['BRANCH_ADMIN', 'SUPER_ADMIN', 'CUSTOMER'] },
+          },
+        },
+      });
+      if (qualifyingRoleCount <= 1) {
+        throw new StaffLastRoleRequiredError(
+          'Không thể gỡ role Staff cuối cùng khỏi assignment đang active',
+        );
+      }
+    }
+
     return client.userBranchRole.deleteMany({
       where: { userBranchId, roleId },
     });

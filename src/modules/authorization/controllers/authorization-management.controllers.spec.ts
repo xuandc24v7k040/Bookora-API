@@ -59,6 +59,15 @@ describe('Authorization management controller metadata', () => {
     );
   });
 
+  it('exposes global Staff assignment history without selected branch scope', () => {
+    expect(metadata(StaffController, 'assignments', 'permissions')).toEqual([
+      'staff.read',
+    ]);
+    expect(metadata(StaffController, 'assignments', 'branchScope')).toBe(
+      undefined,
+    );
+  });
+
   it('exposes Branch Admin activate and deactivate assignment permissions', () => {
     expect(
       metadata(BranchAdminsController, 'activateBranch', 'permissions'),
