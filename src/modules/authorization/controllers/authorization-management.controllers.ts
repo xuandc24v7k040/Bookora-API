@@ -52,8 +52,10 @@ import {
   ManagedUserResponseDto,
   MutationCountResponseDto,
   PermissionDetailResponseDto,
+  PermissionListQueryDto,
   PermissionResponseDto,
   RoleDetailResponseDto,
+  RoleListQueryDto,
   RolePermissionResponseDto,
   RoleResponseDto,
   StaffAssignmentsResponseDto,
@@ -111,7 +113,7 @@ export class RolesController {
   @Permissions('roles.read')
   @ApiOperation({ summary: 'List roles' })
   @ApiPaginatedResponse(RoleResponseDto, 'Roles retrieved')
-  list(@Query() query: CatalogQueryDto) {
+  list(@Query() query: RoleListQueryDto) {
     return this.service.listRoles(query);
   }
 
@@ -211,7 +213,7 @@ export class PermissionsController {
   @Permissions('permissions.read')
   @ApiOperation({ summary: 'List permissions' })
   @ApiPaginatedResponse(PermissionResponseDto, 'Permissions retrieved')
-  list(@Query() query: CatalogQueryDto) {
+  list(@Query() query: PermissionListQueryDto) {
     return this.service.listPermissions(query);
   }
   @Get(':id')

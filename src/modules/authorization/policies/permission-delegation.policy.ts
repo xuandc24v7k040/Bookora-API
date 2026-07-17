@@ -106,6 +106,9 @@ export class PermissionDelegationPolicy {
         'Không tìm thấy role hoặc permission',
       );
     }
+    if (role.isSystem) {
+      this.throwSystemRoleProtected();
+    }
     if (!role.isActive) {
       throw authorizationBadRequest(
         AUTHORIZATION_ERROR_CODES.roleInactive,
@@ -200,6 +203,9 @@ export class PermissionDelegationPolicy {
         'Không tìm thấy role hoặc permission',
       );
     }
+    if (role.isSystem) {
+      this.throwSystemRoleProtected();
+    }
     if (role.guardName !== permission.guardName) {
       throw authorizationBadRequest(
         AUTHORIZATION_ERROR_CODES.roleTypeMismatch,
@@ -242,6 +248,13 @@ export class PermissionDelegationPolicy {
     throw authorizationForbidden(
       AUTHORIZATION_ERROR_CODES.dangerousPermissionDenied,
       'Không được phép ủy quyền permission nguy hiểm',
+    );
+  }
+
+  private throwSystemRoleProtected(): never {
+    throw authorizationForbidden(
+      AUTHORIZATION_ERROR_CODES.systemRoleProtected,
+      'Role hệ thống được bảo vệ và không thể thay đổi permission',
     );
   }
 }

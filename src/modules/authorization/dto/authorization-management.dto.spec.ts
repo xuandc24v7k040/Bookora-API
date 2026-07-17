@@ -4,6 +4,7 @@ import {
   ConvertBranchAdminDto,
   CreatePermissionDto,
   CreateStaffDto,
+  UpdatePermissionDto,
 } from './authorization-management.dto';
 
 describe('Authorization management DTOs', () => {
@@ -49,5 +50,50 @@ describe('Authorization management DTOs', () => {
     expect(errors).toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'code' })]),
     );
+  });
+
+  it('trims permission fields and rejects an empty permission name', async () => {
+    const dto = plainToInstance(CreatePermissionDto, {
+      code: '  shipments.read  ',
+      name: '  Xem vận chuyển  ',
+      resource: '  shipments  ',
+      action: '  read  ',
+      guardName: '  web  ',
+      description: '  Mô tả  ',
+    });
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto).toMatchObject({
+      code: 'shipments.read',
+      name: 'Xem vận chuyển',
+      resource: 'shipments',
+      action: 'read',
+      guardName: 'web',
+      description: 'Mô tả',
+    });
+
+    const invalid = plainToInstance(CreatePermissionDto, {
+      code: 'shipments.read',
+      name: '  ',
+      resource: 'shipments',
+      action: 'read',
+    });
+    const errors = await validate(invalid);
+    expect(errors.some((error) => error.property === 'name')).toBe(true);
+  });
+
+  it('accepts null permission descriptions for create and partial update', async () => {
+    const create = plainToInstance(CreatePermissionDto, {
+      code: 'shipments.read',
+      name: 'Xem vận chuyển',
+      resource: 'shipments',
+      action: 'read',
+      description: null,
+    });
+    const update = plainToInstance(UpdatePermissionDto, {
+      description: null,
+    });
+
+    await expect(validate(create)).resolves.toHaveLength(0);
+    await expect(validate(update)).resolves.toHaveLength(0);
   });
 });

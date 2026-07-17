@@ -10,7 +10,40 @@ import {
 import type { AuthorizationTransactionClient } from './types/authorization-transaction.type';
 import type { BranchWhere } from './types/branch-context.type';
 import { DANGEROUS_PERMISSION_CODES } from './authorization.constants';
-import type { BranchSortField } from './dto';
+import type {
+  BranchSortField,
+  PermissionSortField,
+  RoleSortField,
+} from './dto';
+
+type RoleListQuery = {
+  skip: number;
+  take: number;
+  search?: string;
+  type?: UserType;
+  isActive?: boolean;
+  isSystem?: boolean;
+  guardName?: string;
+  levelFrom?: number;
+  levelTo?: number;
+  createdFrom?: Date;
+  createdTo?: Date;
+  sortBy: RoleSortField;
+  sortOrder: Prisma.SortOrder;
+};
+
+type PermissionListQuery = {
+  skip: number;
+  take: number;
+  search?: string;
+  resource?: string;
+  action?: string;
+  guardName?: string;
+  createdFrom?: Date;
+  createdTo?: Date;
+  sortBy: PermissionSortField;
+  sortOrder: Prisma.SortOrder;
+};
 
 const roleSelect = {
   id: true,
@@ -396,21 +429,55 @@ export class AuthorizationRepository {
     return runSerializableTransaction(this.prisma, callback);
   }
 
-  listRoles(skip: number, take: number, search?: string) {
-    const where: Prisma.RoleWhereInput = search
-      ? {
-          OR: [
-            { code: { contains: search, mode: 'insensitive' } },
-            { name: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+  listRoles(query: RoleListQuery) {
+    const where: Prisma.RoleWhereInput = {
+      ...(query.search
+        ? {
+            OR: [
+              {
+                code: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                name: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                description: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+      ...(query.type ? { type: query.type } : {}),
+      ...(query.isActive === undefined ? {} : { isActive: query.isActive }),
+      ...(query.isSystem === undefined ? {} : { isSystem: query.isSystem }),
+      ...(query.guardName ? { guardName: query.guardName } : {}),
+      ...(query.levelFrom === undefined && query.levelTo === undefined
+        ? {}
+        : {
+            level: {
+              ...(query.levelFrom === undefined
+                ? {}
+                : { gte: query.levelFrom }),
+              ...(query.levelTo === undefined ? {} : { lte: query.levelTo }),
+            },
+          }),
+      ...(query.createdFrom === undefined && query.createdTo === undefined
+        ? {}
+        : {
+            createdAt: {
+              ...(query.createdFrom ? { gte: query.createdFrom } : {}),
+              ...(query.createdTo ? { lt: query.createdTo } : {}),
+            },
+          }),
+    };
     return Promise.all([
       this.prisma.role.findMany({
         where,
-        skip,
-        take,
-        orderBy: [{ level: 'desc' }, { code: 'asc' }],
+        skip: query.skip,
+        take: query.take,
+        orderBy: [{ [query.sortBy]: query.sortOrder }, { id: 'asc' }],
         select: roleSelect,
       }),
       this.prisma.role.count({ where }),
@@ -476,21 +543,56 @@ export class AuthorizationRepository {
     });
   }
 
-  listPermissions(skip: number, take: number, search?: string) {
-    const where: Prisma.PermissionWhereInput = search
-      ? {
-          OR: [
-            { code: { contains: search, mode: 'insensitive' } },
-            { name: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+  listPermissions(query: PermissionListQuery) {
+    const where: Prisma.PermissionWhereInput = {
+      ...(query.search
+        ? {
+            OR: [
+              {
+                code: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                name: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                resource: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                action: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                description: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+      ...(query.resource ? { resource: query.resource } : {}),
+      ...(query.action ? { action: query.action } : {}),
+      ...(query.guardName ? { guardName: query.guardName } : {}),
+      ...(query.createdFrom === undefined && query.createdTo === undefined
+        ? {}
+        : {
+            createdAt: {
+              ...(query.createdFrom ? { gte: query.createdFrom } : {}),
+              ...(query.createdTo ? { lt: query.createdTo } : {}),
+            },
+          }),
+    };
     return Promise.all([
       this.prisma.permission.findMany({
         where,
-        skip,
-        take,
-        orderBy: { code: 'asc' },
+        skip: query.skip,
+        take: query.take,
+        orderBy: [{ [query.sortBy]: query.sortOrder }, { id: 'asc' }],
         select: permissionSelect,
       }),
       this.prisma.permission.count({ where }),
@@ -513,8 +615,11 @@ export class AuthorizationRepository {
     });
   }
 
-  createPermission(data: Prisma.PermissionUncheckedCreateInput) {
-    return this.prisma.permission.create({ data, select: permissionSelect });
+  createPermission(
+    data: Prisma.PermissionUncheckedCreateInput,
+    client: AuthorizationTransactionClient = this.prisma,
+  ) {
+    return client.permission.create({ data, select: permissionSelect });
   }
 
   updatePermission(id: string, data: Prisma.PermissionUpdateInput) {
@@ -782,6 +887,16 @@ export class AuthorizationRepository {
     return this.prisma.role.findFirst({
       where: { code, isActive: true },
       select: roleSelect,
+    });
+  }
+
+  findActiveSystemRoleByCode(
+    code: string,
+    client: AuthorizationTransactionClient = this.prisma,
+  ) {
+    return client.role.findFirst({
+      where: { code, isActive: true, isSystem: true },
+      select: { id: true },
     });
   }
 

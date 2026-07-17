@@ -1,4 +1,5 @@
 ﻿import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -13,6 +14,7 @@ import {
 } from './authorization.repository';
 
 describe('AuthorizationManagementService', () => {
+  const transactionClient = {};
   const repository = new Proxy<Record<string, jest.Mock>>(
     {},
     {
@@ -65,14 +67,53 @@ describe('AuthorizationManagementService', () => {
     );
     repository.transaction.mockImplementation(
       (callback: (client: Record<string, unknown>) => Promise<unknown>) =>
-        callback({}),
+        callback(transactionClient),
     );
+    repository.findActiveSystemRoleByCode.mockResolvedValue({
+      id: 'super-admin-role-id',
+    });
     service = new AuthorizationManagementService(
       repository as never,
       branchContext as never,
       rolePolicy as never,
       systemPolicy as never,
       permissionPolicy as never,
+    );
+  });
+
+  it('normalizes and forwards the complete server-side role query', async () => {
+    repository.listRoles.mockResolvedValue([[], 0]);
+
+    await service.listRoles({
+      page: 2,
+      limit: 25,
+      search: '  sales  ',
+      type: UserType.BRANCH,
+      isActive: false,
+      isSystem: false,
+      guardName: 'web',
+      levelFrom: 10,
+      levelTo: 30,
+      createdFrom: '2026-07-01',
+      createdTo: '2026-07-02',
+    });
+
+    expect(repository.listRoles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 25,
+        take: 25,
+        search: 'sales',
+        type: UserType.BRANCH,
+        isActive: false,
+        isSystem: false,
+        guardName: 'web',
+        levelFrom: 10,
+        levelTo: 30,
+        createdFrom: new Date('2026-06-30T17:00:00.000Z'),
+        createdTo: new Date('2026-07-02T17:00:00.000Z'),
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }),
     );
   });
 
@@ -92,6 +133,212 @@ describe('AuthorizationManagementService', () => {
         guardName: 'web',
       }),
     );
+  });
+
+  it('normalizes and forwards the complete server-side permission query', async () => {
+    repository.listPermissions.mockResolvedValue([[], 0]);
+
+    await service.listPermissions({
+      page: 2,
+      limit: 25,
+      search: '  role  ',
+      resource: 'roles',
+      action: 'read',
+      guardName: 'web',
+      createdFrom: '2026-07-01',
+      createdTo: '2026-07-02',
+    });
+
+    expect(repository.listPermissions).toHaveBeenCalledWith({
+      skip: 25,
+      take: 25,
+      search: 'role',
+      resource: 'roles',
+      action: 'read',
+      guardName: 'web',
+      createdFrom: new Date('2026-06-30T17:00:00.000Z'),
+      createdTo: new Date('2026-07-02T17:00:00.000Z'),
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    });
+  });
+
+  it('creates a consistent permission with the default web guard and null description', async () => {
+    const created = {
+      id: 'permission-id',
+      code: 'shipments.read',
+      name: 'Xem vận chuyển',
+      resource: 'shipments',
+      action: 'read',
+      guardName: 'web',
+      description: null,
+    };
+    repository.createPermission.mockResolvedValue(created);
+
+    await expect(
+      service.createPermission(superAdmin(), {
+        code: 'shipments.read',
+        name: 'Xem vận chuyển',
+        resource: 'shipments',
+        action: 'read',
+        description: null,
+      }),
+    ).resolves.toEqual(created);
+    expect(repository.createPermission).toHaveBeenCalledWith(
+      {
+        code: 'shipments.read',
+        name: 'Xem vận chuyển',
+        resource: 'shipments',
+        action: 'read',
+        guardName: 'web',
+        description: null,
+      },
+      transactionClient,
+    );
+    expect(repository.findActiveSystemRoleByCode).toHaveBeenCalledWith(
+      'SUPER_ADMIN',
+      transactionClient,
+    );
+    expect(repository.assignRolePermission).toHaveBeenCalledWith(
+      'super-admin-role-id',
+      'permission-id',
+      transactionClient,
+    );
+  });
+
+  it('rejects create when code does not match resource.action', () => {
+    expect(() =>
+      service.createPermission(superAdmin(), {
+        code: 'test.test',
+        name: 'Thực hiện test',
+        resource: 'test',
+        action: 'create',
+      }),
+    ).toThrow(BadRequestException);
+    expect(repository.createPermission).not.toHaveBeenCalled();
+  });
+
+  it('prevents updating or deleting a dangerous permission', async () => {
+    repository.findPermissionDetail.mockResolvedValue({
+      id: 'permission-id',
+      code: 'permissions.delete',
+      resource: 'permissions',
+      action: 'delete',
+      _count: {
+        rolePermissions: 0,
+        userPermissions: 0,
+        userBranchPermissions: 0,
+      },
+    });
+
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {
+        name: 'Changed',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.deletePermission(superAdmin(), 'permission-id'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repository.updatePermission).not.toHaveBeenCalled();
+    expect(repository.deletePermissionIfUnused).not.toHaveBeenCalled();
+  });
+
+  it('allows a description-only update for a referenced non-dangerous permission', async () => {
+    const current = {
+      id: 'permission-id',
+      code: 'orders.read',
+      name: 'Xem đơn hàng',
+      resource: 'orders',
+      action: 'read',
+      guardName: 'web',
+      description: 'Mô tả cũ',
+      _count: {
+        rolePermissions: 2,
+        userPermissions: 1,
+        userBranchPermissions: 0,
+      },
+    };
+    repository.findPermissionDetail.mockResolvedValue(current);
+    repository.updatePermission.mockResolvedValue({
+      ...current,
+      description: 'Mô tả mới',
+    });
+
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {
+        description: 'Mô tả mới',
+      }),
+    ).resolves.toMatchObject({ description: 'Mô tả mới' });
+    expect(repository.updatePermission).toHaveBeenCalledWith('permission-id', {
+      description: 'Mô tả mới',
+    });
+  });
+
+  it('supports name-only, clear-description and empty partial updates', async () => {
+    const current = {
+      id: 'permission-id',
+      code: 'orders.read_own',
+      name: 'Xem đơn hàng của mình',
+      resource: 'orders',
+      action: 'read_own',
+      guardName: 'web',
+      description: 'Mô tả cũ',
+      _count: {
+        rolePermissions: 1,
+        userPermissions: 0,
+        userBranchPermissions: 0,
+      },
+    };
+    repository.findPermissionDetail.mockResolvedValue(current);
+    repository.updatePermission.mockImplementation(
+      (_id: string, data: Record<string, unknown>) =>
+        Promise.resolve({ ...current, ...data }),
+    );
+
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {
+        name: 'Tên mới',
+      }),
+    ).resolves.toMatchObject({ name: 'Tên mới' });
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {
+        description: null,
+      }),
+    ).resolves.toMatchObject({ description: null });
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {}),
+    ).resolves.toMatchObject(current);
+    expect(repository.updatePermission).toHaveBeenNthCalledWith(
+      2,
+      'permission-id',
+      { description: null },
+    );
+    expect(repository.updatePermission).toHaveBeenNthCalledWith(
+      3,
+      'permission-id',
+      {},
+    );
+  });
+
+  it('rejects an identity update that breaks code/resource/action consistency', async () => {
+    repository.findPermissionDetail.mockResolvedValue({
+      id: 'permission-id',
+      code: 'orders.read_own',
+      resource: 'orders',
+      action: 'read_own',
+      _count: {
+        rolePermissions: 0,
+        userPermissions: 0,
+        userBranchPermissions: 0,
+      },
+    });
+
+    await expect(
+      service.updatePermission(superAdmin(), 'permission-id', {
+        action: 'update',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.updatePermission).not.toHaveBeenCalled();
   });
 
   it('prevents deletion of a referenced permission', async () => {

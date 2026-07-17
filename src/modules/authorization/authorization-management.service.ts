@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -13,7 +14,10 @@ import {
   getPrismaSortOrder,
 } from '@/common/utils/pagination.util';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
-import { AUTHORIZATION_ERROR_CODES } from './authorization.constants';
+import {
+  AUTHORIZATION_ERROR_CODES,
+  SUPER_ADMIN_ROLE_CODE,
+} from './authorization.constants';
 import { authorizationForbidden } from './authorization.errors';
 import {
   AuthorizationRepository,
@@ -33,6 +37,8 @@ import type {
   CreatePermissionDto,
   CreateRoleDto,
   CreateStaffDto,
+  PermissionListQueryDto,
+  RoleListQueryDto,
   TransferStaffBranchDto,
   UpdateBranchDto,
   UpdatePermissionDto,
@@ -40,7 +46,7 @@ import type {
   UpdateStaffDto,
 } from './dto';
 
-import { BranchSortField } from './dto';
+import { BranchSortField, PermissionSortField, RoleSortField } from './dto';
 import { DANGEROUS_PERMISSION_CODES } from './authorization.constants';
 import { PermissionDelegationPolicy } from './policies/permission-delegation.policy';
 import { RoleLevelPolicy } from './policies/role-level.policy';
@@ -69,13 +75,27 @@ export class AuthorizationManagementService {
     private readonly permissionDelegationPolicy: PermissionDelegationPolicy,
   ) {}
 
-  async listRoles(query: CatalogQueryDto) {
+  async listRoles(query: RoleListQueryDto) {
     const { page, limit, skip } = getPaginationOptions(query);
-    const [items, total] = await this.repository.listRoles(
+    const [items, total] = await this.repository.listRoles({
       skip,
-      limit,
-      query.search,
-    );
+      take: limit,
+      search: query.search?.trim() || undefined,
+      type: query.type,
+      isActive: query.isActive,
+      isSystem: query.isSystem,
+      guardName: query.guardName,
+      levelFrom: query.levelFrom,
+      levelTo: query.levelTo,
+      createdFrom: query.createdFrom
+        ? startOfVietnamDate(query.createdFrom)
+        : undefined,
+      createdTo: query.createdTo
+        ? startOfNextVietnamDate(query.createdTo)
+        : undefined,
+      sortBy: query.sortBy ?? RoleSortField.CREATED_AT,
+      sortOrder: getPrismaSortOrder(query.sortOrder),
+    });
     return new PaginatedResponseDto(items, total, page, limit);
   }
 
@@ -151,13 +171,24 @@ export class AuthorizationManagementService {
     });
   }
 
-  async listPermissions(query: CatalogQueryDto) {
+  async listPermissions(query: PermissionListQueryDto) {
     const { page, limit, skip } = getPaginationOptions(query);
-    const [items, total] = await this.repository.listPermissions(
+    const [items, total] = await this.repository.listPermissions({
       skip,
-      limit,
-      query.search,
-    );
+      take: limit,
+      search: query.search?.trim() || undefined,
+      resource: query.resource?.trim() || undefined,
+      action: query.action?.trim() || undefined,
+      guardName: query.guardName?.trim() || undefined,
+      createdFrom: query.createdFrom
+        ? startOfVietnamDate(query.createdFrom)
+        : undefined,
+      createdTo: query.createdTo
+        ? startOfNextVietnamDate(query.createdTo)
+        : undefined,
+      sortBy: query.sortBy ?? PermissionSortField.CREATED_AT,
+      sortOrder: getPrismaSortOrder(query.sortOrder),
+    });
     return new PaginatedResponseDto(items, total, page, limit);
   }
 
@@ -170,9 +201,29 @@ export class AuthorizationManagementService {
   createPermission(actor: AuthenticatedUser, dto: CreatePermissionDto) {
     this.systemProtectionPolicy.assertCanCreatePermission(actor);
     this.assertPermissionCodeConsistency(dto.code, dto.resource, dto.action);
-    return this.repository.createPermission({
-      ...dto,
-      guardName: dto.guardName ?? 'web',
+    return this.repository.transaction(async (tx) => {
+      const permission = await this.repository.createPermission(
+        {
+          ...dto,
+          guardName: dto.guardName ?? 'web',
+        },
+        tx,
+      );
+      const superAdmin = await this.repository.findActiveSystemRoleByCode(
+        SUPER_ADMIN_ROLE_CODE,
+        tx,
+      );
+      if (!superAdmin) {
+        throw new InternalServerErrorException(
+          'Không thể duy trì catalog: vai trò hệ thống SUPER_ADMIN không tồn tại hoặc không hoạt động',
+        );
+      }
+      await this.repository.assignRolePermission(
+        superAdmin.id,
+        permission.id,
+        tx,
+      );
+      return permission;
     });
   }
 
@@ -183,6 +234,12 @@ export class AuthorizationManagementService {
   ) {
     this.systemProtectionPolicy.assertCanUpdatePermission(actor);
     const current = await this.getPermission(id);
+    if (DANGEROUS_PERMISSION_CODES.has(current.code)) {
+      throw authorizationForbidden(
+        AUTHORIZATION_ERROR_CODES.dangerousPermissionDenied,
+        'Quyền nhạy cảm được hệ thống bảo vệ và không thể thay đổi',
+      );
+    }
     const code = dto.code ?? current.code;
     const resource = dto.resource ?? current.resource;
     const action = dto.action ?? current.action;
@@ -202,6 +259,12 @@ export class AuthorizationManagementService {
   async deletePermission(actor: AuthenticatedUser, id: string) {
     this.systemProtectionPolicy.assertCanDeletePermission(actor);
     const permission = await this.getPermission(id);
+    if (DANGEROUS_PERMISSION_CODES.has(permission.code)) {
+      throw authorizationForbidden(
+        AUTHORIZATION_ERROR_CODES.dangerousPermissionDenied,
+        'Quyền nhạy cảm được hệ thống bảo vệ và không thể xóa',
+      );
+    }
     if (
       permission._count.rolePermissions > 0 ||
       permission._count.userPermissions > 0 ||

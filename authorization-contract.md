@@ -220,11 +220,46 @@ Query chung: `page >= 1`, `limit = 1..100`, pagination meta tính trên cùng fi
 - Data và count dùng cùng `where`.
 - Ordering: `code ASC`.
 
-### 4.2. Staff
+### 4.2. Roles
+
+`GET /roles?page&limit&search&type&isActive&isSystem&guardName&levelFrom&levelTo&createdFrom&createdTo&sortBy&sortOrder`
+
+- `search` được trim; chuỗi rỗng tương đương không search và tìm kiếm
+  case-insensitive `contains` trên `code`, `name`, `description`.
+- `type?: SYSTEM | BRANCH | CUSTOMER`; `isActive?: boolean`;
+  `isSystem?: boolean`; `guardName?: web`.
+- `levelFrom`/`levelTo` là số nguyên trong `[1, 99]`, có thể truyền riêng;
+  nếu có cả hai thì `levelFrom <= levelTo`.
+- `createdFrom`/`createdTo` dùng `YYYY-MM-DD` theo ngày Việt Nam (UTC+7),
+  có thể truyền riêng; `createdFrom` inclusive và `createdTo` được query bằng
+  mốc `< startOfNextDay`.
+- `sortBy?: code | name | description | type | guardName | level | isSystem |
+  isActive | createdAt | updatedAt`; `sortOrder?: asc | desc`.
+- Mặc định `createdAt DESC`; mọi sort thêm `id ASC` làm tie-break ổn định.
+- Search và filter compose bằng AND; data và count dùng cùng một `where`.
+- Đây là global catalog, không yêu cầu `X-Branch-Id`.
+
+### 4.3. Permissions
+
+`GET /permissions?page&limit&search&resource&action&guardName&createdFrom&createdTo&sortBy&sortOrder`
+
+- `search` được trim; chuỗi rỗng tương đương không search và tìm kiếm
+  case-insensitive `contains` trên `code`, `name`, `resource`, `action`, `description`.
+- `resource`, `action` và `guardName` lọc exact; catalog hiện dùng guard `web`.
+- `createdFrom`/`createdTo` dùng `YYYY-MM-DD` theo ngày Việt Nam (UTC+7),
+  có thể truyền riêng; `createdFrom` inclusive và `createdTo` được query bằng
+  mốc `< startOfNextDay`.
+- `sortBy?: code | name | resource | action | guardName | description |
+  createdAt | updatedAt`; `sortOrder?: asc | desc`.
+- Mặc định `createdAt DESC`; mọi sort thêm `id ASC` làm tie-break ổn định.
+- Search và filter compose bằng AND; data và count dùng cùng một `where`.
+- Đây là global catalog, không yêu cầu `X-Branch-Id`.
+
+### 4.4. Staff
 
 `GET /staff?page&limit&search` giữ search và branch scope hiện hữu. Branch actor chỉ thấy assignment thuộc selected/allowed branch; Super Admin giữ quyền xem theo contract route.
 
-### 4.3. Users
+### 4.5. Users
 
 `GET /users?page&limit&search&sortBy&sortOrder&type&isActive`
 

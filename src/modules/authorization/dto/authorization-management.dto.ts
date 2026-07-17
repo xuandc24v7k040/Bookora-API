@@ -84,8 +84,189 @@ function BranchDateRangeIsValid(): ClassDecorator {
   };
 }
 
+type RoleQueryRanges = BranchDateRange & {
+  levelFrom?: number;
+  levelTo?: number;
+};
+
+function RoleQueryRangesAreValid(): ClassDecorator {
+  return (target) => {
+    registerDecorator({
+      name: 'roleLevelRangeIsValid',
+      target,
+      propertyName: 'levelRange',
+      validator: {
+        validate(_value: unknown, args: ValidationArguments): boolean {
+          const { levelFrom, levelTo } = args.object as RoleQueryRanges;
+          return (
+            levelFrom === undefined ||
+            levelTo === undefined ||
+            levelFrom <= levelTo
+          );
+        },
+        defaultMessage: () =>
+          'Cấp độ bắt đầu phải nhỏ hơn hoặc bằng cấp độ kết thúc.',
+      },
+    });
+    registerDecorator({
+      name: 'roleCreatedRangeIsValid',
+      target,
+      propertyName: 'createdRange',
+      validator: {
+        validate(_value: unknown, args: ValidationArguments): boolean {
+          const { createdFrom, createdTo } = args.object as RoleQueryRanges;
+          return !createdFrom || !createdTo || createdFrom <= createdTo;
+        },
+        defaultMessage: () =>
+          'Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.',
+      },
+    });
+  };
+}
+
 export class CatalogQueryDto extends PaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
+}
+
+export enum PermissionSortField {
+  CODE = 'code',
+  NAME = 'name',
+  RESOURCE = 'resource',
+  ACTION = 'action',
+  GUARD_NAME = 'guardName',
+  DESCRIPTION = 'description',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt',
+}
+
+@BranchDateRangeIsValid()
+export class PermissionListQueryDto extends CatalogQueryDto {
+  @ApiPropertyOptional({ example: 'roles' })
+  @IsOptional()
+  @Matches(/^[a-z][a-z0-9_]*$/)
+  resource?: string;
+
+  @ApiPropertyOptional({ example: 'read' })
+  @IsOptional()
+  @Matches(/^[a-z][a-z0-9_]*$/)
+  action?: string;
+
+  @ApiPropertyOptional({ example: 'web' })
+  @IsOptional()
+  @Matches(/^web$/)
+  guardName?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date' })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdFrom?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date' })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdTo?: string;
+
+  @ApiPropertyOptional({
+    enum: PermissionSortField,
+    default: PermissionSortField.CREATED_AT,
+  })
+  @IsOptional()
+  @IsEnum(PermissionSortField)
+  sortBy?: PermissionSortField;
+
+  @ApiPropertyOptional({ enum: SortDirection, default: SortDirection.DESC })
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sortOrder?: SortDirection;
+}
+
+export enum RoleSortField {
+  CODE = 'code',
+  NAME = 'name',
+  DESCRIPTION = 'description',
+  TYPE = 'type',
+  GUARD_NAME = 'guardName',
+  LEVEL = 'level',
+  IS_SYSTEM = 'isSystem',
+  IS_ACTIVE = 'isActive',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt',
+}
+
+@RoleQueryRangesAreValid()
+export class RoleListQueryDto extends CatalogQueryDto {
+  @ApiPropertyOptional({ enum: UserType })
+  @IsOptional()
+  @IsEnum(UserType)
+  type?: UserType;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isSystem?: boolean;
+
+  @ApiPropertyOptional({ example: 'web' })
+  @IsOptional()
+  @Matches(/^web$/)
+  guardName?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 99 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(99)
+  levelFrom?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 99 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(99)
+  levelTo?: number;
+
+  @ApiPropertyOptional({ type: String, format: 'date' })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdFrom?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date' })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(DATE_ONLY_PATTERN)
+  createdTo?: string;
+
+  @ApiPropertyOptional({
+    enum: RoleSortField,
+    default: RoleSortField.CREATED_AT,
+  })
+  @IsOptional()
+  @IsEnum(RoleSortField)
+  sortBy?: RoleSortField;
+
+  @ApiPropertyOptional({ enum: SortDirection, default: SortDirection.DESC })
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sortOrder?: SortDirection;
 }
 
 export enum BranchSortField {
@@ -161,7 +342,7 @@ export class CreateRoleDto {
 }
 
 export class UpdateRoleDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @Matches(ROLE_CODE_PATTERN)
   code?: string;
@@ -183,38 +364,90 @@ export class UpdateRoleDto {
 
 export class CreatePermissionDto {
   @ApiProperty({ example: 'orders.read' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(PERMISSION_CODE_PATTERN)
   code!: string;
-  @ApiProperty() @IsString() name!: string;
+  @ApiProperty()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  name!: string;
   @ApiProperty({ example: 'orders' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^[a-z][a-z0-9_]*$/)
   resource!: string;
   @ApiProperty({ example: 'read' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^[a-z][a-z0-9_]*$/)
   action!: string;
   @ApiPropertyOptional({ default: 'web' })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^web$/)
   guardName?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  description?: string | null;
 }
 
 export class UpdatePermissionDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(PERMISSION_CODE_PATTERN)
   code?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @MinLength(1)
+  name?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^[a-z][a-z0-9_]*$/)
   resource?: string;
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @Matches(/^[a-z][a-z0-9_]*$/)
   action?: string;
-  @ApiPropertyOptional() @IsOptional() @Matches(/^web$/) guardName?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @Matches(/^web$/)
+  guardName?: string;
+  @ApiPropertyOptional({ nullable: true, type: String })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  description?: string | null;
 }
 
 @BranchCoordinatesAreValid()

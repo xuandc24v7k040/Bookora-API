@@ -215,6 +215,29 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
     permissionIds.set(permission.code, permission.id);
   }
 
+  const superAdminRoleId = roleIds.get('SUPER_ADMIN');
+  if (!superAdminRoleId) {
+    throw new Error('Seeded role not found: SUPER_ADMIN');
+  }
+  const allPermissions = await tx.permission.findMany({
+    select: { id: true },
+  });
+  for (const permission of allPermissions) {
+    await tx.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: superAdminRoleId,
+          permissionId: permission.id,
+        },
+      },
+      create: {
+        roleId: superAdminRoleId,
+        permissionId: permission.id,
+      },
+      update: {},
+    });
+  }
+
   for (const [roleCode, codes] of Object.entries(rolePermissionCodes)) {
     const roleId = roleIds.get(roleCode);
     if (!roleId) {

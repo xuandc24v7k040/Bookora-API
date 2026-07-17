@@ -52,9 +52,21 @@ describe('development seed fixtures (e2e)', () => {
         },
         select: { id: true, email: true, passwordHash: true },
       });
+      const runtimePermission = await prisma.permission.create({
+        data: {
+          code: 'runtime.audit',
+          name: 'Runtime Audit',
+          resource: 'runtime',
+          action: 'audit',
+          guardName: 'web',
+        },
+        select: { id: true },
+      });
 
       await seedDevelopmentFixtures(prisma);
+      await expectRuntimePermissionReconciled(prisma, runtimePermission.id);
       await seedDevelopmentFixtures(prisma);
+      await expectRuntimePermissionReconciled(prisma, runtimePermission.id);
 
       await expectCommonFixtures(prisma);
       await expectSuperAdmin(prisma);
@@ -191,7 +203,18 @@ async function expectSuperAdmin(prisma: PrismaClient): Promise<void> {
     where: { email: 'superadmin@bookora.local' },
     select: {
       type: true,
-      userRoles: { select: { role: { select: { code: true } } } },
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              code: true,
+              rolePermissions: {
+                select: { permission: { select: { code: true } } },
+              },
+            },
+          },
+        },
+      },
       userBranches: true,
     },
   });
@@ -199,6 +222,37 @@ async function expectSuperAdmin(prisma: PrismaClient): Promise<void> {
   expect(user.type).toBe(UserType.SYSTEM);
   expect(user.userRoles.map(({ role }) => role.code)).toEqual(['SUPER_ADMIN']);
   expect(user.userBranches).toEqual([]);
+
+  const superAdminPermissionCodes = user.userRoles[0].role.rolePermissions
+    .map(({ permission }) => permission.code)
+    .sort((left, right) => left.localeCompare(right));
+  const catalogPermissionCodes = (
+    await prisma.permission.findMany({ select: { code: true } })
+  )
+    .map(({ code }) => code)
+    .sort((left, right) => left.localeCompare(right));
+  expect(superAdminPermissionCodes).toEqual(catalogPermissionCodes);
+  expect(new Set(superAdminPermissionCodes).size).toBe(
+    superAdminPermissionCodes.length,
+  );
+}
+
+async function expectRuntimePermissionReconciled(
+  prisma: PrismaClient,
+  permissionId: string,
+): Promise<void> {
+  const mappings = await prisma.rolePermission.findMany({
+    where: { permissionId },
+    select: { role: { select: { code: true } } },
+    orderBy: { role: { code: 'asc' } },
+  });
+
+  expect(mappings.map(({ role }) => role.code)).toEqual(['SUPER_ADMIN']);
+  await expect(
+    prisma.rolePermission.count({
+      where: { permissionId, role: { code: 'SUPER_ADMIN' } },
+    }),
+  ).resolves.toBe(1);
 }
 
 async function expectBranchAdminHauGiang(prisma: PrismaClient): Promise<void> {

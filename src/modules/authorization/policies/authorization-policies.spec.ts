@@ -87,6 +87,31 @@ describe('PermissionDelegationPolicy', () => {
     },
   );
 
+  it.each(['assign', 'remove'] as const)(
+    'rejects %s permission mappings for a system role',
+    async (operation) => {
+      repository.findRolePolicySubject.mockResolvedValue({
+        ...role(UserType.SYSTEM),
+        isSystem: true,
+      });
+
+      const assertion =
+        operation === 'assign'
+          ? policy.assertCanAssignRolePermission(
+              superAdmin(['orders.read']),
+              'role-id',
+              'permission-id',
+            )
+          : policy.assertCanRemoveRolePermission(
+              superAdmin(['orders.read']),
+              'role-id',
+              'permission-id',
+            );
+
+      await expect(assertion).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
   it('rejects UserPermission overrides for an active Super Admin', async () => {
     repository.findUserPolicySubject.mockResolvedValue(
       target({ roleCode: 'SUPER_ADMIN', roleLevel: 100 }),
