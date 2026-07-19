@@ -1,6 +1,0 @@
-enum NotificationType {
-  ORDER_STATUS
-  PROMOTION
-  SYSTEM
-  PREORDER
-}

@@ -1,0 +1,59 @@
+model BranchProductStock {
+  id                String   @id @default(ulid())
+  branchId          String   @map("branch_id")
+  variantId         String   @map("variant_id")
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(5) @map("low_stock_threshold")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  branch  Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, variantId])
+  @@index([branchId])
+  @@index([variantId])
+  @@index([branchId, quantity])
+  @@map("branch_product_stocks")
+}
+
+model StockReceipt {
+  id            String             @id @default(ulid())
+  branchId      String             @map("branch_id")
+  code          String             @unique
+  status        StockReceiptStatus @default(DRAFT)
+  note          String?
+  createdById   String?            @map("created_by_id")
+  confirmedById String?            @map("confirmed_by_id")
+  confirmedAt   DateTime?          @map("confirmed_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy   User?              @relation("StockReceiptCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  confirmedBy User?              @relation("StockReceiptConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  items       StockReceiptItem[]
+
+  @@index([branchId, status])
+  @@index([createdById])
+  @@index([confirmedById])
+  @@index([createdAt])
+  @@map("stock_receipts")
+}
+
+model StockReceiptItem {
+  id        String   @id @default(ulid())
+  receiptId String   @map("receipt_id")
+  variantId String   @map("variant_id")
+  quantity  Int
+  costPrice Decimal? @map("cost_price") @db.Decimal(15, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  receipt StockReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([receiptId, variantId])
+  @@index([variantId])
+  @@map("stock_receipt_items")
+}

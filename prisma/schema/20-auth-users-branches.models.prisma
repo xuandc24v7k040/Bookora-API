@@ -25,19 +25,10 @@ model User {
   carts                         Cart[]
   orders                        Order[]
   reviews                       Review[]
+  reviewsReplied                Review[]               @relation("ReviewRepliedBy")
   wishlists                     Wishlist[]
-  notifications                 Notification[]
-  couponUsages                  CouponUsage[]
-  preorders                     Preorder[]
-  stockMovements                StockMovement[]        @relation("StockMovementPerformedBy")
-  stockTransfersRequested       StockTransfer[]        @relation("StockTransferRequestedBy")
-  stockTransfersApproved        StockTransfer[]        @relation("StockTransferApprovedBy")
-  stockTransfersShipped         StockTransfer[]        @relation("StockTransferShippedBy")
-  stockTransfersReceived        StockTransfer[]        @relation("StockTransferReceivedBy")
-  stockTransfersCancelled       StockTransfer[]        @relation("StockTransferCancelledBy")
-  orderStatusChanges            OrderStatusHistory[]   @relation("OrderStatusChangedBy")
-  reviewReplies                 ReviewReply[]          @relation("ReviewReplyAdmin")
-  auditLogs                     AuditLog[]
+  stockReceiptsCreated          StockReceipt[]         @relation("StockReceiptCreatedBy")
+  stockReceiptsConfirmed        StockReceipt[]         @relation("StockReceiptConfirmedBy")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -96,18 +87,12 @@ model Branch {
   longitude Decimal? @db.Decimal(10, 7)
   isActive  Boolean  @default(true) @map("is_active")
 
-  userBranches       UserBranch[]
-  carts              Cart[]
-  orders             Order[]
-  stocks             BranchProductStock[]
-  prices             BranchProductPrice[]
-  stockMovements     StockMovement[]
-  stockTransfersFrom StockTransfer[]      @relation("StockTransferFromBranch")
-  stockTransfersTo   StockTransfer[]      @relation("StockTransferToBranch")
-  comboBranches      ComboBranch[]
-  couponBranches     CouponBranch[]
-  preorders          Preorder[]
-  reviews            Review[]
+  userBranches  UserBranch[]
+  carts         Cart[]
+  orders        Order[]
+  stocks        BranchProductStock[]
+  stockReceipts StockReceipt[]
+  reviews       Review[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -129,8 +114,7 @@ model UserAddress {
   ghnWardCode   String?  @map("ghn_ward_code")
   latitude      Decimal? @db.Decimal(10, 7)
   longitude     Decimal? @db.Decimal(10, 7)
-
-  isDefault Boolean @default(false) @map("is_default")
+  isDefault     Boolean  @default(false) @map("is_default")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

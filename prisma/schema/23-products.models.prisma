@@ -55,10 +55,6 @@ model ProductAuthor {
 }
 
 model Product {
-  /// Service rules:
-  /// - ACTIVE products must have at least one active ProductVariant.
-  /// - Single products still create one default ProductVariant.
-  /// - Cart, order, stock and price flows always work through ProductVariant.
   id               String        @id @default(ulid())
   name             String
   slug             String        @unique
@@ -66,12 +62,6 @@ model Product {
   shortDescription String?       @map("short_description")
   supplierId       String?       @map("supplier_id")
   publisherId      String?       @map("publisher_id")
-  isbn             String?
-  publicationYear  Int?          @map("publication_year")
-  pageCount        Int?          @map("page_count")
-  weightGram       Int?          @map("weight_gram")
-  packageSize      String?       @map("package_size")
-  coverType        String?       @map("cover_type")
   status           ProductStatus @default(DRAFT)
   releaseDate      DateTime?     @map("release_date")
 
@@ -81,15 +71,11 @@ model Product {
   categories      ProductCategory[]
   authors         ProductAuthor[]
   media           ProductMedia[]
+  options         ProductOption[]
   variants        ProductVariant[]
   attributeValues ProductAttributeValue[]
   reviews         Review[]
   wishlists       Wishlist[]
-  relatedFrom     RelatedProduct[]        @relation("RelatedFrom")
-  relatedTo       RelatedProduct[]        @relation("RelatedTo")
-  seriesItems     BookSeriesItem[]
-  previews        BookPreview[]
-  couponProducts  CouponProduct[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -104,31 +90,39 @@ model Product {
 model ProductMedia {
   id        String           @id @default(ulid())
   productId String           @map("product_id")
+  variantId String?          @map("variant_id")
   type      ProductMediaType @default(IMAGE)
   url       String
   altText   String?          @map("alt_text")
   sortOrder Int              @default(0) @map("sort_order")
   isPrimary Boolean          @default(false) @map("is_primary")
   createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  @@index([productId])
-  @@index([isPrimary, sortOrder])
+  @@index([productId, sortOrder])
+  @@index([variantId, sortOrder])
   @@map("product_media")
 }
 
 model ProductOption {
   id        String @id @default(ulid())
+  productId String @map("product_id")
   name      String
-  code      String @unique
+  code      String
   sortOrder Int    @default(0) @map("sort_order")
 
-  values ProductOptionValue[]
+  product Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  ProductOptionValue[]
+  links   ProductVariantOptionValue[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([productId, code])
+  @@index([productId, sortOrder])
   @@map("product_options")
 }
 
@@ -145,39 +139,42 @@ model ProductOptionValue {
   variantLinks ProductVariantOptionValue[]
 
   @@unique([optionId, value])
-  @@index([optionId])
+  @@index([optionId, sortOrder])
   @@map("product_option_values")
 }
 
 model ProductVariant {
-  /// Service layer enforces a single default variant per product and creates it for single products.
-  id         String  @id @default(ulid())
-  productId  String  @map("product_id")
-  name       String
-  sku        String  @unique
-  barcode    String?
-  imageUrl   String? @map("image_url")
-  weightGram Int?    @map("weight_gram")
-  isDefault  Boolean @default(false) @map("is_default")
-  isActive   Boolean @default(true) @map("is_active")
+  id              String    @id @default(ulid())
+  productId       String    @map("product_id")
+  name            String
+  sku             String    @unique
+  barcode         String?
+  combinationKey  String    @map("combination_key")
+  isbn            String?
+  publicationYear Int?      @map("publication_year")
+  pageCount       Int?      @map("page_count")
+  weightGram      Int?      @map("weight_gram")
+  packageSize     String?   @map("package_size")
+  originalPrice   Decimal   @map("original_price") @db.Decimal(15, 2)
+  salePrice       Decimal?  @map("sale_price") @db.Decimal(15, 2)
+  saleStartAt     DateTime? @map("sale_start_at")
+  saleEndAt       DateTime? @map("sale_end_at")
+  isDefault       Boolean   @default(false) @map("is_default")
+  isActive        Boolean   @default(true) @map("is_active")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  optionValues       ProductVariantOptionValue[]
-  media              ProductVariantMedia[]
-  stocks             BranchProductStock[]
-  prices             BranchProductPrice[]
-  cartItems          CartItem[]
-  orderItems         OrderItem[]
-  comboItems         ComboItem[]
-  stockMovements     StockMovement[]
-  stockTransferItems StockTransferItem[]
-  preorders          Preorder[]
-  couponProducts     CouponProduct[]
+  optionValues ProductVariantOptionValue[]
+  media        ProductMedia[]
+  stocks       BranchProductStock[]
+  receiptItems StockReceiptItem[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([productId, combinationKey])
   @@index([productId])
   @@index([productId, isDefault])
   @@index([sku])
@@ -188,31 +185,18 @@ model ProductVariant {
 model ProductVariantOptionValue {
   id            String @id @default(ulid())
   variantId     String @map("variant_id")
+  optionId      String @map("option_id")
   optionValueId String @map("option_value_id")
 
   variant     ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  option      ProductOption      @relation(fields: [optionId], references: [id], onDelete: Cascade)
   optionValue ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
 
+  @@unique([variantId, optionId])
   @@unique([variantId, optionValueId])
-  @@index([variantId])
+  @@index([optionId])
   @@index([optionValueId])
   @@map("product_variant_option_values")
-}
-
-model ProductVariantMedia {
-  id        String   @id @default(ulid())
-  variantId String   @map("variant_id")
-  url       String
-  altText   String?  @map("alt_text")
-  sortOrder Int      @default(0) @map("sort_order")
-  isPrimary Boolean  @default(false) @map("is_primary")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  @@index([variantId])
-  @@index([isPrimary, sortOrder])
-  @@map("product_variant_media")
 }
 
 model ProductAttribute {

@@ -1,0 +1,146 @@
+{
+  "generatedAt": "2026-07-19T14:25:15.009Z",
+  "database": {
+    "name": "bookora_schema_refactor_rehearsal_20260719",
+    "serverVersion": "18.4"
+  },
+  "applicationTableCount": 69,
+  "tableRowCounts": {
+    "audit_logs": 0,
+    "auth_attempts": 11,
+    "auth_sessions": 168,
+    "authors": 0,
+    "book_preview_pages": 0,
+    "book_previews": 0,
+    "book_series": 0,
+    "book_series_items": 0,
+    "branch_product_prices": 0,
+    "branch_product_stocks": 0,
+    "branches": 5,
+    "cart_items": 0,
+    "carts": 0,
+    "categories": 0,
+    "category_filter_sets": 0,
+    "combo_branches": 0,
+    "combo_items": 0,
+    "combos": 0,
+    "coupon_branches": 0,
+    "coupon_categories": 0,
+    "coupon_products": 0,
+    "coupon_usages": 0,
+    "coupons": 0,
+    "filter_definitions": 0,
+    "filter_options": 0,
+    "mega_menu_columns": 0,
+    "mega_menu_items": 0,
+    "mega_menu_sections": 0,
+    "mega_menus": 0,
+    "notifications": 0,
+    "order_items": 0,
+    "order_shipments": 0,
+    "order_status_histories": 0,
+    "orders": 0,
+    "payment_transactions": 0,
+    "payments": 0,
+    "permissions": 49,
+    "preorders": 0,
+    "product_attribute_values": 0,
+    "product_attributes": 0,
+    "product_authors": 0,
+    "product_categories": 0,
+    "product_media": 0,
+    "product_option_values": 0,
+    "product_options": 0,
+    "product_variant_media": 0,
+    "product_variant_option_values": 0,
+    "product_variants": 0,
+    "products": 0,
+    "publishers": 0,
+    "related_products": 0,
+    "review_replies": 0,
+    "reviews": 0,
+    "role_permissions": 97,
+    "roles": 10,
+    "stock_movements": 0,
+    "stock_receipt_items": 0,
+    "stock_receipts": 0,
+    "stock_transfer_items": 0,
+    "stock_transfers": 0,
+    "suppliers": 0,
+    "user_addresses": 0,
+    "user_branch_permissions": 5,
+    "user_branch_roles": 13,
+    "user_branches": 11,
+    "user_permissions": 0,
+    "user_roles": 14,
+    "users": 19,
+    "wishlists": 0
+  },
+  "coreTables": {
+    "users": {
+      "rowCount": 19,
+      "dataHash": "c6ed7e32b58e81419ef10596f07c8c1abacef94cd14d7af72586d865d9eb4190",
+      "schemaHash": "077b15d821df73e01a7780d5c04021054a15e462882a39e19a75fd8cb01cf744"
+    },
+    "auth_sessions": {
+      "rowCount": 168,
+      "dataHash": "97ae88346fb638877d754b818515a1bc6fc09c5afd4752fa2258a35dfd1cf7f8",
+      "schemaHash": "b7094c5116ba499407c9a7ee5e28b69591edd7fc0931fba95215626f4c473a4a"
+    },
+    "auth_attempts": {
+      "rowCount": 11,
+      "dataHash": "998f6c1454e7dd7fda47eee76e2bee952b184d2b64b0ba6be60483d59abebe44",
+      "schemaHash": "3d7247bcb7a3990f77cf66c1f743d8df762337e318efe7322671acfe514abd00"
+    },
+    "branches": {
+      "rowCount": 5,
+      "dataHash": "65598d36b05783dd44682abad7947144b61bfbb27572fada22c9394b0bbf9bc7",
+      "schemaHash": "7694b4bb8da75cf31d8af3fe4a37bdf729adf99c759d7f58cda8ec4086dfa393"
+    },
+    "user_addresses": {
+      "rowCount": 0,
+      "dataHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaHash": "bc6364b207e589c4a4c5de155d075f34c576d216de38aff2cbccfb2983a1fe69"
+    },
+    "roles": {
+      "rowCount": 10,
+      "dataHash": "b1723aba80a5e4ff5548b9f275123adf5c5f57759af001c701734c2df6d5cf31",
+      "schemaHash": "0172646d531fbca054c97ccaa36c7e947499cc87ecd175165915d2f02731af1f"
+    },
+    "permissions": {
+      "rowCount": 49,
+      "dataHash": "345bc027028493ba907c43d87835ab9ba492926745734a5b8c93caf675b9acde",
+      "schemaHash": "69def59fe32cc53541e9f6d9a8562ee4d5106022c7ea29ef63107d40280b0629"
+    },
+    "user_roles": {
+      "rowCount": 14,
+      "dataHash": "28f0bba19d041b7755e41342486447a85b4d3d40a0b484c3a087507f4aa228bf",
+      "schemaHash": "95fc97db50c66dd2d6e152837f1623335363ca15ead330f0934f452683eca18a"
+    },
+    "role_permissions": {
+      "rowCount": 97,
+      "dataHash": "1584f3e28beabae3a2560a986ba41741737d384194dea5c854db01d898760657",
+      "schemaHash": "b7c99be16f7222a50b46f13bdc04e6a8e046a9653dbeb64df304694431d5951f"
+    },
+    "user_permissions": {
+      "rowCount": 0,
+      "dataHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaHash": "2d9fba744593e317bbf3edc05c82bf2619f2a15a49d51f137eb49e25dfb0b0d7"
+    },
+    "user_branches": {
+      "rowCount": 11,
+      "dataHash": "040f546651d8428bad2cd2592981777a5b1081410f36e6467a1873fdb6fcae4e",
+      "schemaHash": "0a113b0fb5bc21ae3a4aa826ad6d917d644a1214d06fd17e7de490543004949c"
+    },
+    "user_branch_roles": {
+      "rowCount": 13,
+      "dataHash": "81e74dfd1f70c7903e4a1ad09394f45ae7e2856997c7c0006568a25a3d99a32d",
+      "schemaHash": "2d83d15f6519ceb270fb3a33efab16451c1b772f89c9c3badb7ab2f1976103b5"
+    },
+    "user_branch_permissions": {
+      "rowCount": 5,
+      "dataHash": "602afe02a0349b274e75eca4b5c9b9040559e4dd7230518c276be6d38aff8790",
+      "schemaHash": "bb3166c0425282c6997e02178696c7cf45ff87ce2c844f2112e2fa07820c0ee7"
+    }
+  }
+}

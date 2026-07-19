@@ -6,17 +6,10 @@ enum CategoryType {
   LANDING
 }
 
-enum MegaMenuItemType {
-  CATEGORY
-  CUSTOM_LINK
-  LABEL
-}
-
 enum ProductStatus {
   DRAFT
   ACTIVE
   INACTIVE
-  PREORDER
   DISCONTINUED
 }
 
@@ -33,23 +26,4 @@ enum ProductAttributeType {
   DATE
   SINGLE_SELECT
   MULTI_SELECT
-}
-
-enum FilterType {
-  CHECKBOX
-  RADIO
-  RANGE
-  SELECT
-  MULTI_SELECT
-}
-
-enum FilterSource {
-  ATTRIBUTE
-  VARIANT_OPTION
-  CATEGORY
-  PRICE
-  BRANCH
-  STOCK
-  RATING
-  SYSTEM
 }

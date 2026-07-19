@@ -1,0 +1,118 @@
+{
+  "generatedAt": "2026-07-19T14:09:26.146Z",
+  "status": "PASS",
+  "blockerCount": 0,
+  "checks": [
+    {
+      "name": "branch-price-conflicts",
+      "blockerCount": 0
+    },
+    {
+      "name": "reserved-stock",
+      "blockerCount": 0
+    },
+    {
+      "name": "reviews-with-multiple-replies",
+      "blockerCount": 0
+    },
+    {
+      "name": "coupon-usages-without-order",
+      "blockerCount": 0
+    },
+    {
+      "name": "coupon-usage-order-mismatch",
+      "blockerCount": 0
+    },
+    {
+      "name": "orphan-option-mappings",
+      "blockerCount": 0
+    },
+    {
+      "name": "variant-selects-multiple-values-for-option",
+      "blockerCount": 0
+    },
+    {
+      "name": "order-items-without-variant",
+      "blockerCount": 0
+    },
+    {
+      "name": "combo-order-items",
+      "blockerCount": 0
+    },
+    {
+      "name": "orphan-variant-media",
+      "blockerCount": 0
+    },
+    {
+      "name": "variant-media-primary-conflicts",
+      "blockerCount": 0
+    },
+    {
+      "name": "product-status-preorder",
+      "blockerCount": 0
+    },
+    {
+      "name": "coupon-free-shipping",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-user-role",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-role-permission",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-user-permission",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-user-branch",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-user-branch-role",
+      "blockerCount": 0
+    },
+    {
+      "name": "duplicate-user-branch-permission",
+      "blockerCount": 0
+    },
+    {
+      "name": "multiple-active-primary-branches",
+      "blockerCount": 0
+    }
+  ],
+  "legacyTableRowCounts": {
+    "mega_menus": 0,
+    "mega_menu_columns": 0,
+    "mega_menu_sections": 0,
+    "mega_menu_items": 0,
+    "filter_definitions": 0,
+    "filter_options": 0,
+    "category_filter_sets": 0,
+    "stock_movements": 0,
+    "stock_transfers": 0,
+    "stock_transfer_items": 0,
+    "coupon_branches": 0,
+    "coupon_products": 0,
+    "coupon_categories": 0,
+    "coupon_usages": 0,
+    "payment_transactions": 0,
+    "order_shipments": 0,
+    "order_status_histories": 0,
+    "notifications": 0,
+    "related_products": 0,
+    "combos": 0,
+    "combo_items": 0,
+    "combo_branches": 0,
+    "book_series": 0,
+    "book_series_items": 0,
+    "preorders": 0,
+    "book_previews": 0,
+    "book_preview_pages": 0,
+    "audit_logs": 0
+  },
+  "nonEmptyLegacyTables": []
+}

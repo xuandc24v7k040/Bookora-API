@@ -12,6 +12,10 @@ const MIGRATION_PATHS = [
   '20260623120000_branch_scoped_staff_assignments',
   '20260714090000_add_user_gender_birthday',
   '20260714170000_two_level_addresses',
+  '20260719140000_reconcile_users_phase8_indexes',
+  '20260719150000_add_schema_refactor_targets',
+  '20260719160000_enforce_schema_refactor_constraints',
+  '20260719170000_remove_deprecated_bookora_models',
 ] as const;
 
 export interface DisposablePostgresDatabase {

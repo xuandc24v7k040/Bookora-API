@@ -1,48 +1,12 @@
-enum StockMovementType {
-  IMPORT
-  EXPORT
-  SALE
-  RETURN
-  ADJUSTMENT
-  CANCEL_ORDER
-  TRANSFER_OUT
-  TRANSFER_IN
-}
-
-enum StockTransferStatus {
+enum StockReceiptStatus {
   DRAFT
-  PENDING
-  APPROVED
-  IN_TRANSIT
-  COMPLETED
+  CONFIRMED
   CANCELLED
-  REJECTED
-}
-
-enum StockTransferItemStatus {
-  PENDING
-  PARTIALLY_RECEIVED
-  RECEIVED
-  CANCELLED
-}
-
-enum CouponScope {
-  ALL_ORDER
-  BRANCH
-  PRODUCT
-  CATEGORY
-  SHIPPING
-}
-
-enum CouponTargetType {
-  INCLUDE
-  EXCLUDE
 }
 
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
-  FREE_SHIPPING
 }
 
 enum OrderStatus {
@@ -56,51 +20,15 @@ enum OrderStatus {
   RETURNED
 }
 
-enum OrderItemType {
-  PRODUCT
-  COMBO
+enum PaymentMethod {
+  COD
+  VNPAY
 }
 
-enum PreorderStatus {
+enum PaymentStatus {
   PENDING
-  CONFIRMED
-  CONVERTED
+  PAID
+  FAILED
+  REFUNDED
   CANCELLED
-}
-
-enum AuditAction {
-  CREATE
-  UPDATE
-  DELETE
-  LOGIN
-  LOGOUT
-  APPROVE
-  REJECT
-  CANCEL
-  IMPORT
-  EXPORT
-  TRANSFER
-  PAYMENT_CALLBACK
-  CHANGE_STATUS
-}
-
-enum AuditTargetType {
-  USER
-  BRANCH
-  CATEGORY
-  MEGA_MENU
-  PRODUCT
-  PRODUCT_VARIANT
-  INVENTORY
-  STOCK_TRANSFER
-  ORDER
-  PAYMENT
-  SHIPMENT
-  COUPON
-  REVIEW
-  COMBO
-  SERIES
-  PREORDER
-  BOOK_PREVIEW
-  SYSTEM
 }
