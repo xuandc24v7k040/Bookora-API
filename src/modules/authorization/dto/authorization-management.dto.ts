@@ -66,6 +66,42 @@ type BranchDateRange = {
   createdTo?: string;
 };
 
+type BranchAdminAssignmentFilters = {
+  assignedBranchId?: string;
+  excludeAssignedBranchId?: string;
+  assignmentIsActive?: boolean;
+  assignmentState?: BranchAdminAssignmentState;
+};
+
+function BranchAdminAssignmentFiltersAreValid(): ClassDecorator {
+  return (target) => {
+    registerDecorator({
+      name: 'branchAdminAssignmentFiltersAreValid',
+      target,
+      propertyName: 'assignmentFilters',
+      validator: {
+        validate(_value: unknown, args: ValidationArguments): boolean {
+          const filters = args.object as BranchAdminAssignmentFilters;
+          if (filters.assignedBranchId && filters.excludeAssignedBranchId) {
+            return false;
+          }
+          if (
+            filters.assignmentState !== undefined &&
+            filters.assignmentIsActive !== undefined
+          ) {
+            return false;
+          }
+          return (
+            filters.assignmentIsActive === undefined ||
+            Boolean(filters.assignedBranchId)
+          );
+        },
+        defaultMessage: () => 'Bộ lọc phân công chi nhánh không hợp lệ.',
+      },
+    });
+  };
+}
+
 function BranchDateRangeIsValid(): ClassDecorator {
   return (target) => {
     registerDecorator({
@@ -126,6 +162,133 @@ function RoleQueryRangesAreValid(): ClassDecorator {
 
 export class CatalogQueryDto extends PaginationDto {
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
+}
+
+export enum StaffSortField {
+  FULL_NAME = 'fullName',
+  EMAIL = 'email',
+  PHONE = 'phone',
+  USER_IS_ACTIVE = 'userIsActive',
+  ASSIGNMENT_IS_ACTIVE = 'assignmentIsActive',
+  IS_PRIMARY = 'isPrimary',
+  ASSIGNED_AT = 'assignedAt',
+  CREATED_AT = 'createdAt',
+}
+
+export class StaffListQueryDto extends CatalogQueryDto {
+  @ApiPropertyOptional({ enum: StaffSortField })
+  @IsOptional()
+  @IsEnum(StaffSortField)
+  sortBy: StaffSortField = StaffSortField.ASSIGNED_AT;
+
+  @ApiPropertyOptional({ enum: SortDirection })
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sortOrder: SortDirection = SortDirection.DESC;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  userIsActive?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  assignmentIsActive?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isPrimary?: boolean;
+
+  @ApiPropertyOptional({ type: String, format: 'ulid' })
+  @IsOptional()
+  @Matches(ULID_PATTERN)
+  roleId?: string;
+}
+
+export class StaffCandidateListQueryDto extends CatalogQueryDto {}
+
+export enum BranchAdminAssignmentState {
+  UNASSIGNED = 'UNASSIGNED',
+  ACTIVE = 'ACTIVE',
+  INACTIVE_ONLY = 'INACTIVE_ONLY',
+}
+
+export enum BranchAdminSortField {
+  FULL_NAME = 'fullName',
+  EMAIL = 'email',
+  PHONE = 'phone',
+  IS_ACTIVE = 'isActive',
+  PRIMARY_BRANCH = 'primaryBranch',
+  ASSIGNMENTS = 'assignments',
+  CREATED_AT = 'createdAt',
+}
+
+@BranchAdminAssignmentFiltersAreValid()
+export class BranchAdminListQueryDto extends CatalogQueryDto {
+  @ApiPropertyOptional({ type: String, format: 'ulid' })
+  @IsOptional()
+  @Matches(ULID_PATTERN)
+  assignedBranchId?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'ulid' })
+  @IsOptional()
+  @Matches(ULID_PATTERN)
+  excludeAssignedBranchId?: string;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  assignmentIsActive?: boolean;
+
+  @ApiPropertyOptional({ enum: BranchAdminAssignmentState })
+  @IsOptional()
+  @IsEnum(BranchAdminAssignmentState)
+  assignmentState?: BranchAdminAssignmentState;
+
+  @ApiPropertyOptional({
+    enum: BranchAdminSortField,
+    default: BranchAdminSortField.CREATED_AT,
+  })
+  @IsOptional()
+  @IsEnum(BranchAdminSortField)
+  sortBy?: BranchAdminSortField;
+
+  @ApiPropertyOptional({ enum: SortDirection, default: SortDirection.DESC })
+  @IsOptional()
+  @IsEnum(SortDirection)
+  sortOrder?: SortDirection;
 }
 
 export enum PermissionSortField {
@@ -268,6 +431,19 @@ export class RoleListQueryDto extends CatalogQueryDto {
   @IsEnum(SortDirection)
   sortOrder?: SortDirection;
 }
+
+export enum StaffAssignableRoleAction {
+  CREATE = 'CREATE',
+  ASSIGN = 'ASSIGN',
+}
+
+export class StaffAssignableRoleListQueryDto extends CatalogQueryDto {
+  @ApiProperty({ enum: StaffAssignableRoleAction })
+  @IsEnum(StaffAssignableRoleAction)
+  action!: StaffAssignableRoleAction;
+}
+
+export class StaffAssignablePermissionListQueryDto extends CatalogQueryDto {}
 
 export enum BranchSortField {
   CODE = 'code',
@@ -655,6 +831,22 @@ export class CreateStaffDto {
   permissionIds?: string[];
 }
 
+export class AssignExistingStaffDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @Matches(ULID_PATTERN, { each: true })
+  roleIds!: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Matches(ULID_PATTERN, { each: true })
+  permissionIds?: string[];
+}
+
 export class UpdateStaffDto {
   @ApiPropertyOptional() @IsOptional() @IsString() fullName?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
@@ -901,6 +1093,20 @@ export class StaffAssignmentBranchResponseDto {
   @ApiProperty() isActive!: boolean;
 }
 
+export class StaffAssignmentRolePermissionResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() resource!: string;
+  @ApiProperty() action!: string;
+  @ApiProperty() guardName!: string;
+}
+
+export class StaffAssignmentRolePermissionMappingResponseDto {
+  @ApiProperty({ type: StaffAssignmentRolePermissionResponseDto })
+  permission!: StaffAssignmentRolePermissionResponseDto;
+}
+
 export class StaffAssignmentRoleResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() code!: string;
@@ -910,6 +1116,8 @@ export class StaffAssignmentRoleResponseDto {
   @ApiProperty() isSystem!: boolean;
   @ApiProperty({ enum: UserType }) type!: UserType;
   @ApiProperty() guardName!: string;
+  @ApiProperty({ type: [StaffAssignmentRolePermissionMappingResponseDto] })
+  rolePermissions!: StaffAssignmentRolePermissionMappingResponseDto[];
 }
 
 export class StaffAssignmentRoleMappingResponseDto {
@@ -955,6 +1163,41 @@ export class StaffAssignmentsResponseDto {
   user!: StaffAssignmentsUserResponseDto;
   @ApiProperty({ type: [StaffBranchAssignmentResponseDto] })
   assignments!: StaffBranchAssignmentResponseDto[];
+}
+
+export class StaffSelectedAssignmentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() branchId!: string;
+  @ApiProperty() isPrimary!: boolean;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty({ nullable: true, type: String }) assignedBy!: string | null;
+  @ApiProperty({ format: 'date-time' }) assignedAt!: string;
+  @ApiProperty({ type: StaffAssignmentBranchResponseDto })
+  branch!: StaffAssignmentBranchResponseDto;
+  @ApiProperty({ type: [StaffAssignmentRoleResponseDto] })
+  roles!: StaffAssignmentRoleResponseDto[];
+  @ApiProperty({ type: [StaffAssignmentPermissionMappingResponseDto] })
+  permissions!: StaffAssignmentPermissionMappingResponseDto[];
+}
+
+export class StaffResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty({ nullable: true, type: String }) fullName!: string | null;
+  @ApiProperty({ nullable: true, type: String }) phone!: string | null;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty({ format: 'date-time' }) createdAt!: string;
+  @ApiProperty({ type: StaffSelectedAssignmentResponseDto })
+  assignment!: StaffSelectedAssignmentResponseDto;
+}
+
+export class StaffCandidateResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty({ nullable: true, type: String }) fullName!: string | null;
+  @ApiProperty({ nullable: true, type: String }) phone!: string | null;
+  @ApiProperty() isActive!: boolean;
+  @ApiProperty() assignmentCount!: number;
 }
 
 export class AssignmentResponseDto {

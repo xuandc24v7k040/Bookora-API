@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from '../../auth/types/authenticated-user.type
 import {
   AUTHORIZATION_ERROR_CODES,
   DANGEROUS_PERMISSION_CODES,
+  STAFF_DELEGATABLE_PERMISSION_CODES,
   SUPER_ADMIN_ROLE_CODE,
 } from '../authorization.constants';
 import {
@@ -85,6 +86,7 @@ export class PermissionDelegationPolicy {
     if (DANGEROUS_PERMISSION_CODES.has(permission.code)) {
       this.throwDangerousPermissionDenied();
     }
+    this.assertStaffPermissionCodeIsDelegatable(permission.code);
   }
 
   async assertCanAssignRolePermission(
@@ -171,6 +173,7 @@ export class PermissionDelegationPolicy {
         'Không tìm thấy permission',
       );
     }
+    this.assertStaffPermissionCodeIsDelegatable(permission.code);
     if (!actor.isSuperAdmin) {
       if (
         !actor.permissions.includes('staff.assign_permission') ||
@@ -249,6 +252,17 @@ export class PermissionDelegationPolicy {
       AUTHORIZATION_ERROR_CODES.dangerousPermissionDenied,
       'Không được phép ủy quyền permission nguy hiểm',
     );
+  }
+
+  assertStaffPermissionCodeIsDelegatable(code: string): void {
+    if (
+      !(STAFF_DELEGATABLE_PERMISSION_CODES as readonly string[]).includes(code)
+    ) {
+      throw authorizationForbidden(
+        AUTHORIZATION_ERROR_CODES.permissionDenied,
+        'Quyền quản trị catalog hoặc hệ thống không thể cấp trực tiếp cho nhân viên',
+      );
+    }
   }
 
   private throwSystemRoleProtected(): never {

@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
-import { UserType } from '@/generated/prisma/client';
+import { AuthProvider, UserType } from '@/generated/prisma/client';
 import { PaginationDto } from '../../../common/dto';
 import { SortDirection } from '../../../common/enums';
 
@@ -10,6 +10,11 @@ export enum UsersSortField {
   UPDATED_AT = 'updatedAt',
   EMAIL = 'email',
   FULL_NAME = 'fullName',
+  PHONE = 'phone',
+  TYPE = 'type',
+  PROVIDER = 'provider',
+  IS_ACTIVE = 'isActive',
+  LAST_LOGIN_AT = 'lastLoginAt',
 }
 
 export class UsersQueryDto extends PaginationDto {
@@ -32,6 +37,11 @@ export class UsersQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(UserType)
   type?: UserType;
+
+  @ApiPropertyOptional({ enum: AuthProvider })
+  @IsOptional()
+  @IsEnum(AuthProvider)
+  provider?: AuthProvider;
 
   @ApiPropertyOptional({ type: Boolean, example: true })
   @IsOptional()

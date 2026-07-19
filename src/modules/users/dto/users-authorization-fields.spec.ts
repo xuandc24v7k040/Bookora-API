@@ -50,9 +50,10 @@ describe('Generic Users DTO authorization boundary', () => {
     },
   );
 
-  it('transforms boolean query strings and validates UserType', async () => {
+  it('transforms boolean query strings and validates UserType and provider', async () => {
     const dto = plainToInstance(UsersQueryDto, {
       type: 'CUSTOMER',
+      provider: 'LOCAL',
       isActive: 'false',
     });
     await expect(validate(dto)).resolves.toHaveLength(0);

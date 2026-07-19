@@ -53,6 +53,7 @@ const IDS = {
   transferRollbackAfterWrite: '01K10000000000000000000010',
   transferConcurrent: '01K10000000000000000000011',
   transferNoHeader: '01K10000000000000000000012',
+  staffCandidate: '01K10000000000000000000014',
   customer: '01K10000000000000000000008',
   rollbackCustomer: '01K1000000000000000000000V',
   order: '01K10000000000000000000009',
@@ -236,6 +237,410 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
     );
   });
 
+  it('keeps a persistent Branch Admin registry and separates Staff-only assignments', async () => {
+    const candidateZeroId = '01K20000000000000000000001';
+    const formerAdminId = '01K20000000000000000000002';
+    const candidateStaffId = '01K20000000000000000000003';
+    const staffOnlyId = '01K20000000000000000000004';
+    const ids = [candidateZeroId, formerAdminId, candidateStaffId, staffOnlyId];
+
+    try {
+      await prisma.user.create({
+        data: {
+          id: candidateZeroId,
+          email: 'registry-hotfix-zero@bookora.local',
+          fullName: 'Registry Hotfix Zero',
+          passwordHash: 'test-only',
+          provider: AuthProvider.LOCAL,
+          type: UserType.BRANCH,
+          userRoles: {
+            create: {
+              roleId: IDS.branchAdminRole,
+              assignedBy: IDS.superAdmin,
+            },
+          },
+        },
+      });
+      await prisma.user.create({
+        data: {
+          id: formerAdminId,
+          email: 'registry-hotfix-former@bookora.local',
+          fullName: 'Registry Hotfix Former',
+          passwordHash: 'test-only',
+          provider: AuthProvider.LOCAL,
+          type: UserType.BRANCH,
+          userRoles: {
+            create: {
+              roleId: IDS.branchAdminRole,
+              assignedBy: IDS.superAdmin,
+            },
+          },
+          userBranches: {
+            create: {
+              branchId: IDS.hauGiang,
+              assignedBy: IDS.superAdmin,
+              roles: {
+                create: {
+                  roleId: IDS.branchAdminRole,
+                  assignedBy: IDS.superAdmin,
+                },
+              },
+            },
+          },
+        },
+      });
+      await prisma.userBranch.deleteMany({ where: { userId: formerAdminId } });
+      for (const [id, marker] of [
+        [candidateStaffId, true],
+        [staffOnlyId, false],
+      ] as const) {
+        await prisma.user.create({
+          data: {
+            id,
+            email: `registry-hotfix-${marker ? 'candidate-staff' : 'staff-only'}@bookora.local`,
+            fullName: marker
+              ? 'Registry Hotfix Candidate Staff'
+              : 'Registry Hotfix Staff Only',
+            passwordHash: 'test-only',
+            provider: AuthProvider.LOCAL,
+            type: UserType.BRANCH,
+            ...(marker
+              ? {
+                  userRoles: {
+                    create: {
+                      roleId: IDS.branchAdminRole,
+                      assignedBy: IDS.superAdmin,
+                    },
+                  },
+                }
+              : {}),
+            userBranches: {
+              create: {
+                branchId: IDS.hauGiang,
+                assignedBy: IDS.superAdmin,
+                isPrimary: true,
+                roles: {
+                  create: {
+                    roleId: IDS.staffRole,
+                    assignedBy: IDS.superAdmin,
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      const registry = await request(app.getHttpServer())
+        .get(`${API}/branch-admins?search=registry-hotfix&limit=20`)
+        .set('Cookie', superAdminAuth.cookie)
+        .expect(200);
+      const registryById = new Map(
+        (
+          registry.body.data as Array<{ id: string; userBranches: unknown[] }>
+        ).map((item) => [item.id, item]),
+      );
+      expect(registryById.has(staffOnlyId)).toBe(false);
+      expect(registryById.get(candidateZeroId)?.userBranches).toHaveLength(0);
+      expect(registryById.get(formerAdminId)?.userBranches).toHaveLength(0);
+      expect(registryById.get(candidateStaffId)?.userBranches).toHaveLength(0);
+
+      const detail = await request(app.getHttpServer())
+        .get(`${API}/branch-admins/${candidateStaffId}`)
+        .set('Cookie', superAdminAuth.cookie)
+        .expect(200);
+      expect(detail.body.data.userBranches).toEqual([
+        expect.objectContaining({
+          branchId: IDS.hauGiang,
+          roles: [
+            expect.objectContaining({
+              role: expect.objectContaining({ code: 'STAFF' }),
+            }),
+          ],
+        }),
+      ]);
+
+      await request(app.getHttpServer())
+        .delete(`${API}/branch-admins/${staffOnlyId}/branches/${IDS.hauGiang}`)
+        .set('Cookie', withCsrf(superAdminAuth))
+        .set('X-CSRF-Token', CSRF)
+        .send({})
+        .expect(404);
+      expect(
+        await prisma.userBranchRole.count({
+          where: {
+            userBranch: { userId: staffOnlyId, branchId: IDS.hauGiang },
+            roleId: IDS.staffRole,
+          },
+        }),
+      ).toBe(1);
+
+      await request(app.getHttpServer())
+        .post(
+          `${API}/branch-admins/${candidateStaffId}/branches/${IDS.hauGiang}`,
+        )
+        .set('Cookie', withCsrf(superAdminAuth))
+        .set('X-CSRF-Token', CSRF)
+        .expect(201);
+      expect(
+        await prisma.userBranchRole.count({
+          where: {
+            userBranch: { userId: candidateStaffId, branchId: IDS.hauGiang },
+          },
+        }),
+      ).toBe(2);
+
+      await request(app.getHttpServer())
+        .delete(
+          `${API}/branch-admins/${candidateStaffId}/branches/${IDS.hauGiang}`,
+        )
+        .set('Cookie', withCsrf(superAdminAuth))
+        .set('X-CSRF-Token', CSRF)
+        .send({})
+        .expect(200);
+      const remainingRoles = await prisma.userBranchRole.findMany({
+        where: {
+          userBranch: { userId: candidateStaffId, branchId: IDS.hauGiang },
+        },
+        select: { role: { select: { code: true } } },
+      });
+      expect(remainingRoles.map(({ role }) => role.code)).toEqual(['STAFF']);
+    } finally {
+      await prisma.user.deleteMany({ where: { id: { in: ids } } });
+    }
+  });
+
+  it('enforces effective staff.read per selected branch and inactive states', async () => {
+    const me = await request(app.getHttpServer())
+      .get(`${API}/auth/me`)
+      .set('Cookie', staffAuth.cookie)
+      .expect(200);
+    const assignments = me.body.data.branchAssignments as Array<{
+      branchId: string;
+      permissions: string[];
+    }>;
+    expect(
+      assignments.find(({ branchId }) => branchId === IDS.canTho)?.permissions,
+    ).toContain('staff.read');
+    expect(
+      assignments.find(({ branchId }) => branchId === IDS.hauGiang)
+        ?.permissions,
+    ).not.toContain('staff.read');
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff`)
+      .set('Cookie', staffAuth.cookie)
+      .set('X-Branch-Id', IDS.canTho)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`${API}/staff`)
+      .set('Cookie', staffAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`${API}/staff`)
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(200);
+
+    try {
+      await prisma.user.update({
+        where: { id: IDS.staffMulti },
+        data: { isActive: false },
+      });
+      await request(app.getHttpServer())
+        .get(`${API}/staff`)
+        .set('Cookie', staffAuth.cookie)
+        .set('X-Branch-Id', IDS.canTho)
+        .expect(401);
+    } finally {
+      await prisma.user.update({
+        where: { id: IDS.staffMulti },
+        data: { isActive: true },
+      });
+    }
+
+    try {
+      await prisma.userBranch.update({
+        where: { id: fixture.bCanThoUserBranchId },
+        data: { isActive: false },
+      });
+      await request(app.getHttpServer())
+        .get(`${API}/staff`)
+        .set('Cookie', staffAuth.cookie)
+        .set('X-Branch-Id', IDS.canTho)
+        .expect(403);
+    } finally {
+      await prisma.userBranch.update({
+        where: { id: fixture.bCanThoUserBranchId },
+        data: { isActive: true },
+      });
+    }
+
+    try {
+      await prisma.branch.update({
+        where: { id: IDS.canTho },
+        data: { isActive: false },
+      });
+      await request(app.getHttpServer())
+        .get(`${API}/staff`)
+        .set('Cookie', staffAuth.cookie)
+        .set('X-Branch-Id', IDS.canTho)
+        .expect(404);
+    } finally {
+      await prisma.branch.update({
+        where: { id: IDS.canTho },
+        data: { isActive: true },
+      });
+    }
+  });
+
+  it('allows add-existing only for Super Admin while Branch Admin can create new Staff', async () => {
+    await request(app.getHttpServer())
+      .get(`${API}/staff/candidates`)
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('PERMISSION_DENIED'));
+    await request(app.getHttpServer())
+      .post(`${API}/staff/${IDS.staffCandidate}/assign-existing`)
+      .set('Cookie', withCsrf(adminHauGiangAuth))
+      .set('X-CSRF-Token', CSRF)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .send({ roleIds: [IDS.staffRole] })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`${API}/staff`)
+      .set('Cookie', withCsrf(adminHauGiangAuth))
+      .set('X-CSRF-Token', CSRF)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .send({
+        fullName: 'Branch-created Staff',
+        email: 'branch-created.staff@example.test',
+        password: 'Password@123',
+        roleIds: [IDS.staffRole],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff/candidates`)
+      .set('Cookie', superAdminAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ id: IDS.staffCandidate }),
+          ]),
+        );
+      });
+    await request(app.getHttpServer())
+      .post(`${API}/staff/${IDS.staffCandidate}/assign-existing`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .send({ roleIds: [IDS.staffRole] })
+      .expect(201);
+  });
+
+  it('serves the actor-aware assignable Staff role catalog without roles.read', async () => {
+    for (const action of ['CREATE', 'ASSIGN']) {
+      await request(app.getHttpServer())
+        .get(`${API}/staff/assignable-roles`)
+        .query({ action, page: 1, limit: 100 })
+        .set('Cookie', adminHauGiangAuth.cookie)
+        .set('X-Branch-Id', IDS.hauGiang)
+        .expect(200)
+        .expect(({ body }) => {
+          expect(body.data).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                id: IDS.staffRole,
+                code: 'STAFF',
+                rolePermissions: expect.any(Array),
+              }),
+              expect.objectContaining({
+                id: IDS.cashierRole,
+                code: 'CASHIER',
+                rolePermissions: expect.any(Array),
+              }),
+            ]),
+          );
+          expect(
+            body.data.some((role: { code: string }) =>
+              ['SUPER_ADMIN', 'BRANCH_ADMIN', 'CUSTOMER'].includes(role.code),
+            ),
+          ).toBe(false);
+        });
+    }
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff/assignable-roles`)
+      .query({ action: 'ASSIGN' })
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.canTho)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff/assignable-roles`)
+      .query({ action: 'ASSIGN' })
+      .set('Cookie', staffAuth.cookie)
+      .set('X-Branch-Id', IDS.canTho)
+      .expect(403);
+  });
+
+  it('serves only actor-delegatable business permissions for Staff', async () => {
+    await request(app.getHttpServer())
+      .get(`${API}/staff/assignable-permissions`)
+      .query({ page: 1, limit: 100 })
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.hauGiang)
+      .expect(200)
+      .expect(({ body }) => {
+        const codes = body.data.map(({ code }: { code: string }) => code);
+        expect(codes).toContain('staff.read');
+        expect(codes).not.toEqual(
+          expect.arrayContaining([
+            'staff.assign_permission',
+            'staff.assign_role',
+            'staff.create',
+          ]),
+        );
+      });
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff/assignable-permissions`)
+      .query({ page: 1, limit: 100 })
+      .set('Cookie', superAdminAuth.cookie)
+      .set('X-Branch-Id', IDS.canTho)
+      .expect(200)
+      .expect(({ body }) => {
+        const codes = body.data.map(({ code }: { code: string }) => code);
+        expect(codes).toEqual(
+          expect.arrayContaining([
+            'staff.read',
+            'inventory.update',
+            'payments.create',
+          ]),
+        );
+        expect(codes).not.toContain('branches.read');
+      });
+
+    await request(app.getHttpServer())
+      .get(`${API}/staff/assignable-permissions`)
+      .set('Cookie', adminHauGiangAuth.cookie)
+      .set('X-Branch-Id', IDS.canTho)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .put(`${API}/staff/${IDS.staffMulti}/permissions/${IDS.branchesRead}`)
+      .set('Cookie', withCsrf(superAdminAuth))
+      .set('X-CSRF-Token', CSRF)
+      .set('X-Branch-Id', IDS.canTho)
+      .send({ effect: PermissionEffect.ALLOW })
+      .expect(403);
+  });
+
   it('searches branches server-side without escaping branch scope', async () => {
     const byCode = await request(app.getHttpServer())
       .get(`${API}/branches`)
@@ -349,14 +754,11 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
         const staff = body.data.find(
           ({ id }: { id: string }) => id === IDS.staffMulti,
         );
-        expect(staff.userBranches).toHaveLength(1);
-        expect(staff.userBranches[0].branchId).toBe(IDS.hauGiang);
-        expect(staff.userBranches[0].roles).toEqual([
-          expect.objectContaining({
-            role: expect.objectContaining({ code: 'STAFF' }),
-          }),
+        expect(staff.assignment.branchId).toBe(IDS.hauGiang);
+        expect(staff.assignment.roles).toEqual([
+          expect.objectContaining({ code: 'STAFF' }),
         ]);
-        expect(staff.userBranches[0].permissions).toEqual(
+        expect(staff.assignment.permissions).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               effect: PermissionEffect.ALLOW,
@@ -380,12 +782,9 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
       .set('X-Branch-Id', IDS.hauGiang)
       .expect(200)
       .expect(({ body }) => {
-        expect(body.data.userBranches).toHaveLength(1);
-        expect(body.data.userBranches[0].id).toBe(
-          fixture.bHauGiangUserBranchId,
-        );
-        expect(body.data.userBranches[0].branchId).toBe(IDS.hauGiang);
-        expect(body.data.userBranches[0].roles[0].role.code).toBe('STAFF');
+        expect(body.data.assignment.id).toBe(fixture.bHauGiangUserBranchId);
+        expect(body.data.assignment.branchId).toBe(IDS.hauGiang);
+        expect(body.data.assignment.roles[0].code).toBe('STAFF');
       });
 
     await request(app.getHttpServer())
@@ -394,10 +793,9 @@ describe('branch-scoped authorization API matrix (e2e)', () => {
       .set('X-Branch-Id', IDS.canTho)
       .expect(200)
       .expect(({ body }) => {
-        expect(body.data.userBranches).toHaveLength(1);
-        expect(body.data.userBranches[0].id).toBe(fixture.bCanThoUserBranchId);
-        expect(body.data.userBranches[0].branchId).toBe(IDS.canTho);
-        expect(body.data.userBranches[0].roles[0].role.code).toBe('CASHIER');
+        expect(body.data.assignment.id).toBe(fixture.bCanThoUserBranchId);
+        expect(body.data.assignment.branchId).toBe(IDS.canTho);
+        expect(body.data.assignment.roles[0].code).toBe('CASHIER');
       });
 
     await request(app.getHttpServer())
@@ -1601,6 +1999,7 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
         IDS.staffDelete,
         IDS.staffAssignRole,
         IDS.staffAssignPermission,
+        IDS.staffCreate,
       ].map((permissionId) => ({
         roleId: IDS.branchAdminRole,
         permissionId,
@@ -1608,6 +2007,10 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
       {
         roleId: IDS.staffRole,
         permissionId: IDS.paymentsCreate,
+      },
+      {
+        roleId: IDS.staffRole,
+        permissionId: IDS.staffRead,
       },
       {
         roleId: IDS.cashierRole,
@@ -1653,6 +2056,7 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
         'transfer.noheader@example.test',
         UserType.BRANCH,
       ),
+      user(IDS.staffCandidate, 'staff.candidate@example.test', UserType.BRANCH),
       user(IDS.customer, 'customer@example.test', UserType.CUSTOMER),
       user(
         IDS.rollbackCustomer,
@@ -1750,6 +2154,10 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
                   permissionId: IDS.paymentsCreate,
                   effect: PermissionEffect.DENY,
                 },
+                {
+                  permissionId: IDS.staffRead,
+                  effect: PermissionEffect.DENY,
+                },
               ],
             },
           },
@@ -1772,6 +2180,10 @@ async function seedCrossBranchFixture(prisma: PrismaService): Promise<Fixture> {
                 {
                   permissionId: IDS.inventoryUpdate,
                   effect: PermissionEffect.DENY,
+                },
+                {
+                  permissionId: IDS.staffRead,
+                  effect: PermissionEffect.ALLOW,
                 },
               ],
             },

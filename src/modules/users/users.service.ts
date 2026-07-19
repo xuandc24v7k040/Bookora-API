@@ -176,10 +176,14 @@ export class UsersService {
         OR: [
           { email: { contains: search, mode: 'insensitive' } },
           { fullName: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
         ],
       });
     }
     if (query.type !== undefined) filters.push({ type: query.type });
+    if (query.provider !== undefined) {
+      filters.push({ provider: query.provider });
+    }
     if (query.isActive !== undefined) {
       filters.push({ isActive: query.isActive });
     }

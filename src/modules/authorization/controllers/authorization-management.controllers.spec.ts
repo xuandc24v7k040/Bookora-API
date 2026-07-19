@@ -4,6 +4,8 @@ import { JwtAccessGuard } from '../../auth/guards/jwt-access.guard';
 import { AUTHORIZATION_METADATA_KEYS, BranchScopeMode } from '../index';
 import { BranchScopeGuard } from '../guards/branch-scope.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
+import { SuperAdminGuard } from '../guards/super-admin.guard';
+import { SUPER_ADMIN_ONLY_METADATA_KEY } from '../decorators/super-admin-only.decorator';
 import {
   BranchAdminsController,
   RolesController,
@@ -16,6 +18,7 @@ describe('Authorization management controller metadata', () => {
     (controller) => {
       expect(Reflect.getMetadata(GUARDS_METADATA, controller)).toEqual([
         JwtAccessGuard,
+        SuperAdminGuard,
         CsrfGuard,
         BranchScopeGuard,
         PermissionsGuard,
@@ -36,6 +39,18 @@ describe('Authorization management controller metadata', () => {
   });
 
   it('requires a selected branch for every staff-scoped read and mutation', () => {
+    expect(
+      metadata(StaffController, 'assignablePermissions', 'branchScope'),
+    ).toBe(BranchScopeMode.REQUIRED_SELECTION);
+    expect(
+      metadata(StaffController, 'assignablePermissions', 'permissions'),
+    ).toBeUndefined();
+    expect(metadata(StaffController, 'assignableRoles', 'branchScope')).toBe(
+      BranchScopeMode.REQUIRED_SELECTION,
+    );
+    expect(
+      metadata(StaffController, 'assignableRoles', 'permissions'),
+    ).toBeUndefined();
     expect(metadata(StaffController, 'list', 'branchScope')).toBe(
       BranchScopeMode.REQUIRED_SELECTION,
     );
@@ -68,6 +83,12 @@ describe('Authorization management controller metadata', () => {
     );
   });
 
+  it('marks Staff candidates and assign-existing as Super Admin-only', () => {
+    expect(superAdminOnly(StaffController, 'candidates')).toBe(true);
+    expect(superAdminOnly(StaffController, 'assignExisting')).toBe(true);
+    expect(superAdminOnly(StaffController, 'create')).toBeUndefined();
+  });
+
   it('exposes Branch Admin activate and deactivate assignment permissions', () => {
     expect(
       metadata(BranchAdminsController, 'activateBranch', 'permissions'),
@@ -89,4 +110,9 @@ function metadata(
   const handler =
     controller.prototype[method as keyof InstanceType<typeof controller>];
   return Reflect.getMetadata(AUTHORIZATION_METADATA_KEYS[key], handler);
+}
+
+function superAdminOnly(controller: typeof StaffController, method: string) {
+  const handler = controller.prototype[method as keyof StaffController];
+  return Reflect.getMetadata(SUPER_ADMIN_ONLY_METADATA_KEY, handler);
 }

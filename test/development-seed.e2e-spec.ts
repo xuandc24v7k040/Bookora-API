@@ -77,7 +77,7 @@ describe('development seed fixtures (e2e)', () => {
       await expectStaffMulti(prisma);
       await expectPasswords(prisma);
       await expectNoRuntimeAuthData(prisma);
-      await expectNoUnwantedBranchAdmins(prisma);
+      await expectBranchAdminIdentityMarkers(prisma);
       await expectTwoLevelBranches(prisma);
 
       await expect(
@@ -112,7 +112,7 @@ async function expectCommonFixtures(prisma: PrismaClient): Promise<void> {
     prisma.user.count({
       where: { email: { in: FIXTURE_EMAILS }, isActive: true },
     }),
-  ).resolves.toBe(6);
+  ).resolves.toBe(9);
   await expect(
     prisma.userBranch.count({
       where: { user: { email: { in: FIXTURE_EMAILS } } },
@@ -260,6 +260,7 @@ async function expectBranchAdminHauGiang(prisma: PrismaClient): Promise<void> {
     email: 'branchadmin.hg@bookora.local',
     branchCode: 'hau-giang',
     roleCodes: ['BRANCH_ADMIN'],
+    globalRoleCodes: ['BRANCH_ADMIN'],
   });
 }
 
@@ -268,6 +269,7 @@ async function expectBranchAdminCanTho(prisma: PrismaClient): Promise<void> {
     email: 'branchadmin.ct@bookora.local',
     branchCode: 'can-tho',
     roleCodes: ['BRANCH_ADMIN'],
+    globalRoleCodes: ['BRANCH_ADMIN'],
   });
 }
 
@@ -289,13 +291,18 @@ async function expectCashierHauGiang(prisma: PrismaClient): Promise<void> {
 
 async function expectSingleBranchUser(
   prisma: PrismaClient,
-  input: { email: string; branchCode: string; roleCodes: string[] },
+  input: {
+    email: string;
+    branchCode: string;
+    roleCodes: string[];
+    globalRoleCodes?: string[];
+  },
 ): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { email: input.email },
     select: {
       type: true,
-      userRoles: true,
+      userRoles: { select: { role: { select: { code: true } } } },
       userBranches: {
         select: {
           isPrimary: true,
@@ -308,7 +315,9 @@ async function expectSingleBranchUser(
   });
 
   expect(user.type).toBe(UserType.BRANCH);
-  expect(user.userRoles).toEqual([]);
+  expect(user.userRoles.map(({ role }) => role.code).sort()).toEqual(
+    [...(input.globalRoleCodes ?? [])].sort(),
+  );
   expect(user.userBranches).toHaveLength(1);
   expect(user.userBranches[0]).toMatchObject({
     isPrimary: true,
@@ -372,7 +381,7 @@ async function expectPasswords(prisma: PrismaClient): Promise<void> {
     select: { email: true, passwordHash: true },
   });
 
-  expect(users).toHaveLength(6);
+  expect(users).toHaveLength(DEVELOPMENT_USERS.length);
   for (const user of users) {
     expect(user.passwordHash).toEqual(expect.any(String));
     await expect(
@@ -394,7 +403,7 @@ async function expectNoRuntimeAuthData(prisma: PrismaClient): Promise<void> {
   ).resolves.toBe(0);
 }
 
-async function expectNoUnwantedBranchAdmins(
+async function expectBranchAdminIdentityMarkers(
   prisma: PrismaClient,
 ): Promise<void> {
   await expect(
@@ -409,7 +418,22 @@ async function expectNoUnwantedBranchAdmins(
     prisma.userRole.count({
       where: {
         user: { email: { in: BRANCH_USER_EMAILS } },
-        role: { code: { in: ['BRANCH_ADMIN', 'STAFF', 'INVENTORY'] } },
+        role: { code: 'BRANCH_ADMIN' },
+      },
+    }),
+  ).resolves.toBe(5);
+  await expect(
+    prisma.userBranch.count({
+      where: {
+        user: {
+          email: {
+            in: [
+              'branchadmin.unassigned01@bookora.local',
+              'branchadmin.unassigned02@bookora.local',
+              'branchadmin.unassigned03@bookora.local',
+            ],
+          },
+        },
       },
     }),
   ).resolves.toBe(0);

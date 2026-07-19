@@ -4,6 +4,7 @@ import { AuthorizationService } from './authorization.service';
 import { BranchContextService } from './branch-context.service';
 import { BranchScopeGuard } from './guards/branch-scope.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { SuperAdminGuard } from './guards/super-admin.guard';
 import { PermissionDelegationPolicy } from './policies/permission-delegation.policy';
 import { RoleLevelPolicy } from './policies/role-level.policy';
 import { SystemProtectionPolicy } from './policies/system-protection.policy';
@@ -22,6 +23,7 @@ const publicProviders = [
   AuthorizationService,
   BranchContextService,
   PermissionsGuard,
+  SuperAdminGuard,
   BranchScopeGuard,
   RoleLevelPolicy,
   SystemProtectionPolicy,

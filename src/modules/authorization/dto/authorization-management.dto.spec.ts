@@ -1,13 +1,60 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
+  BranchAdminListQueryDto,
+  BranchAdminAssignmentState,
+  BranchAdminSortField,
   ConvertBranchAdminDto,
   CreatePermissionDto,
   CreateStaffDto,
+  AssignExistingStaffDto,
+  StaffListQueryDto,
   UpdatePermissionDto,
 } from './authorization-management.dto';
 
 describe('Authorization management DTOs', () => {
+  it('validates Branch Admin assignment filters and boolean query values', async () => {
+    const valid = plainToInstance(BranchAdminListQueryDto, {
+      assignedBranchId: '01JZ0000000000000000000001',
+      isActive: 'true',
+      assignmentIsActive: 'false',
+    });
+    await expect(validate(valid)).resolves.toHaveLength(0);
+    expect(valid).toMatchObject({
+      isActive: true,
+      assignmentIsActive: false,
+    });
+    const aggregate = plainToInstance(BranchAdminListQueryDto, {
+      assignmentState: BranchAdminAssignmentState.INACTIVE_ONLY,
+      sortBy: BranchAdminSortField.PRIMARY_BRANCH,
+      sortOrder: 'asc',
+    });
+    await expect(validate(aggregate)).resolves.toHaveLength(0);
+
+    const mutuallyExclusive = plainToInstance(BranchAdminListQueryDto, {
+      assignedBranchId: '01JZ0000000000000000000001',
+      excludeAssignedBranchId: '01JZ0000000000000000000002',
+    });
+    const missingAssignedFilter = plainToInstance(BranchAdminListQueryDto, {
+      assignmentIsActive: true,
+    });
+
+    await expect(validate(mutuallyExclusive)).resolves.not.toHaveLength(0);
+    await expect(validate(missingAssignedFilter)).resolves.not.toHaveLength(0);
+
+    const conflictingState = plainToInstance(BranchAdminListQueryDto, {
+      assignedBranchId: '01JZ0000000000000000000001',
+      assignmentIsActive: true,
+      assignmentState: BranchAdminAssignmentState.ACTIVE,
+    });
+    const unassignedAtBranch = plainToInstance(BranchAdminListQueryDto, {
+      assignedBranchId: '01JZ0000000000000000000001',
+      assignmentState: BranchAdminAssignmentState.UNASSIGNED,
+    });
+    await expect(validate(conflictingState)).resolves.not.toHaveLength(0);
+    await expect(validate(unassignedAtBranch)).resolves.toHaveLength(0);
+  });
+
   it('requires at least one unique branch when converting Branch Admin', async () => {
     const empty = await validate(
       plainToInstance(ConvertBranchAdminDto, { branchIds: [] }),
@@ -35,6 +82,32 @@ describe('Authorization management DTOs', () => {
     expect(errors.map(({ property }) => property)).toEqual(
       expect.arrayContaining(['password', 'roleIds']),
     );
+  });
+
+  it('validates Staff list filters and atomic add-existing payload', async () => {
+    const query = plainToInstance(StaffListQueryDto, {
+      userIsActive: 'true',
+      assignmentIsActive: 'false',
+      isPrimary: 'true',
+      roleId: '01JZ0000000000000000000001',
+      sortBy: 'assignedAt',
+      sortOrder: 'asc',
+    });
+    await expect(validate(query)).resolves.toHaveLength(0);
+    expect(query).toMatchObject({
+      userIsActive: true,
+      assignmentIsActive: false,
+      isPrimary: true,
+    });
+
+    const emptyRoles = plainToInstance(AssignExistingStaffDto, {
+      roleIds: [],
+    });
+    const duplicateRoles = plainToInstance(AssignExistingStaffDto, {
+      roleIds: ['01JZ0000000000000000000001', '01JZ0000000000000000000001'],
+    });
+    await expect(validate(emptyRoles)).resolves.not.toHaveLength(0);
+    await expect(validate(duplicateRoles)).resolves.not.toHaveLength(0);
   });
 
   it('uses the exact resource.action permission code convention', async () => {

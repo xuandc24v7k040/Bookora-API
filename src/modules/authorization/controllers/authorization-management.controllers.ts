@@ -31,16 +31,19 @@ import { AuthorizationManagementService } from '../authorization-management.serv
 import { BranchScope } from '../decorators/branch-scope.decorator';
 import { CurrentBranchContext } from '../decorators/current-branch-context.decorator';
 import { Permissions } from '../decorators/permissions.decorator';
+import { SuperAdminOnly } from '../decorators/super-admin-only.decorator';
 import { BranchScopeGuard } from '../guards/branch-scope.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
+import { SuperAdminGuard } from '../guards/super-admin.guard';
 import {
   BranchScopeMode,
   type BranchContext,
 } from '../types/branch-context.type';
 import {
   BranchResponseDto,
+  AssignExistingStaffDto,
+  BranchAdminListQueryDto,
   BranchListQueryDto,
-  CatalogQueryDto,
   ChangePrimaryBranchDto,
   ConvertBranchAdminDto,
   ConvertStaffDto,
@@ -59,6 +62,12 @@ import {
   RolePermissionResponseDto,
   RoleResponseDto,
   StaffAssignmentsResponseDto,
+  StaffAssignablePermissionListQueryDto,
+  StaffAssignableRoleListQueryDto,
+  StaffCandidateListQueryDto,
+  StaffCandidateResponseDto,
+  StaffListQueryDto,
+  StaffResponseDto,
   TransferStaffBranchDto,
   UpdateBranchDto,
   UpdatePermissionDto,
@@ -71,7 +80,13 @@ import {
   UserBranchStateResponseDto,
 } from '../dto';
 
-const guards = [JwtAccessGuard, CsrfGuard, BranchScopeGuard, PermissionsGuard];
+const guards = [
+  JwtAccessGuard,
+  SuperAdminGuard,
+  CsrfGuard,
+  BranchScopeGuard,
+  PermissionsGuard,
+];
 const ApiAuthorizationErrors = () =>
   applyDecorators(
     ApiResponse({
@@ -110,6 +125,8 @@ export class RolesController {
   constructor(private readonly service: AuthorizationManagementService) {}
 
   @Get()
+  @BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: false })
   @Permissions('roles.read')
   @ApiOperation({ summary: 'List roles' })
   @ApiPaginatedResponse(RoleResponseDto, 'Roles retrieved')
@@ -118,6 +135,8 @@ export class RolesController {
   }
 
   @Get(':id')
+  @BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: false })
   @Permissions('roles.read')
   @ApiOperation({ summary: 'Get role detail' })
   @ApiBaseResponse(RoleDetailResponseDto, { description: 'Role retrieved' })
@@ -210,6 +229,8 @@ export class RolesController {
 export class PermissionsController {
   constructor(private readonly service: AuthorizationManagementService) {}
   @Get()
+  @BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: false })
   @Permissions('permissions.read')
   @ApiOperation({ summary: 'List permissions' })
   @ApiPaginatedResponse(PermissionResponseDto, 'Permissions retrieved')
@@ -217,6 +238,8 @@ export class PermissionsController {
     return this.service.listPermissions(query);
   }
   @Get(':id')
+  @BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: false })
   @Permissions('permissions.read')
   @ApiOperation({ summary: 'Get permission detail' })
   @ApiBaseResponse(PermissionDetailResponseDto, {
@@ -351,7 +374,7 @@ export class BranchAdminsController {
   @ApiPaginatedResponse(ManagedUserResponseDto, 'Branch Admins retrieved')
   list(
     @CurrentUser() actor: AuthenticatedUser,
-    @Query() query: CatalogQueryDto,
+    @Query() query: BranchAdminListQueryDto,
   ) {
     return this.service.listBranchAdmins(actor, query);
   }
@@ -420,7 +443,13 @@ export class BranchAdminsController {
     @UlidParam() id: string,
     @UlidParam('branchId') branchId: string,
   ) {
-    return this.service.setUserBranchActive(actor, id, branchId, true);
+    return this.service.setUserBranchActive(
+      actor,
+      id,
+      branchId,
+      true,
+      'BRANCH_ADMIN',
+    );
   }
   @Patch(':id/branches/:branchId/deactivate')
   @Permissions('branch_admin.assign', 'branches.assign')
@@ -440,6 +469,7 @@ export class BranchAdminsController {
       id,
       branchId,
       false,
+      'BRANCH_ADMIN',
       dto.replacementBranchId,
     );
   }
@@ -460,6 +490,7 @@ export class BranchAdminsController {
       actor,
       id,
       branchId,
+      'BRANCH_ADMIN',
       dto.replacementBranchId,
     );
   }
@@ -475,7 +506,12 @@ export class BranchAdminsController {
     @UlidParam() id: string,
     @UlidParam('branchId') branchId: string,
   ) {
-    return this.service.setPrimaryUserBranch(actor, id, branchId);
+    return this.service.setPrimaryUserBranch(
+      actor,
+      id,
+      branchId,
+      'BRANCH_ADMIN',
+    );
   }
 }
 
@@ -486,17 +522,77 @@ export class BranchAdminsController {
 @UseGuards(...guards)
 export class StaffController {
   constructor(private readonly service: AuthorizationManagementService) {}
+  @Get('assignable-permissions')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: true })
+  @ApiOperation({
+    summary: 'List permissions assignable to Staff in selected branch',
+    description:
+      'Actor-aware business permission subset governed by staff.assign_permission; permissions.read is not required.',
+  })
+  @ApiPaginatedResponse(
+    PermissionResponseDto,
+    'Assignable Staff permissions retrieved',
+  )
+  assignablePermissions(
+    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: StaffAssignablePermissionListQueryDto,
+  ) {
+    return this.service.listAssignableStaffPermissions(actor, context, query);
+  }
+  @Get('assignable-roles')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: true })
+  @ApiOperation({
+    summary: 'List roles assignable to Staff in selected branch',
+    description:
+      'Actor-aware subset governed by staff.create or staff.assign_role; roles.read is not required.',
+  })
+  @ApiPaginatedResponse(
+    RoleDetailResponseDto,
+    'Assignable Staff roles retrieved',
+  )
+  assignableRoles(
+    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: StaffAssignableRoleListQueryDto,
+  ) {
+    return this.service.listAssignableStaffRoles(actor, context, query);
+  }
   @Get()
   @Permissions('staff.read')
   @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
   @ApiHeader({ name: 'X-Branch-Id', required: true })
   @ApiOperation({ summary: 'List staff in branch scope' })
-  @ApiPaginatedResponse(ManagedUserResponseDto, 'Staff retrieved')
+  @ApiPaginatedResponse(StaffResponseDto, 'Staff retrieved')
   list(
     @CurrentBranchContext() context: BranchContext,
-    @Query() query: CatalogQueryDto,
+    @Query() query: StaffListQueryDto,
   ) {
     return this.service.listStaff(context, query);
+  }
+  @Get('candidates')
+  @SuperAdminOnly()
+  @Permissions('staff.create')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: true })
+  @ApiOperation({
+    summary: 'List existing BRANCH users eligible for Staff',
+    description: 'Chỉ Super Admin được truy cập workflow add-existing.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Branch Admin và actor không phải Super Admin bị từ chối',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+  })
+  @ApiPaginatedResponse(StaffCandidateResponseDto, 'Candidates retrieved')
+  candidates(
+    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: StaffCandidateListQueryDto,
+  ) {
+    return this.service.listStaffCandidates(actor, context, query);
   }
   @Get(':id/assignments')
   @Permissions('staff.read')
@@ -515,7 +611,7 @@ export class StaffController {
   @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
   @ApiHeader({ name: 'X-Branch-Id', required: true })
   @ApiOperation({ summary: 'Get staff in branch scope' })
-  @ApiBaseResponse(ManagedUserResponseDto, { description: 'Staff retrieved' })
+  @ApiBaseResponse(StaffResponseDto, { description: 'Staff retrieved' })
   get(@CurrentBranchContext() context: BranchContext, @UlidParam() id: string) {
     return this.service.getStaff(context, id);
   }
@@ -525,7 +621,7 @@ export class StaffController {
   @ApiHeader({ name: 'X-Branch-Id', required: true })
   @ApiSecurity('csrf')
   @ApiOperation({ summary: 'Create staff in selected branch' })
-  @ApiBaseResponse(ManagedUserResponseDto, {
+  @ApiBaseResponse(StaffResponseDto, {
     status: 201,
     description: 'Staff created',
   })
@@ -535,6 +631,33 @@ export class StaffController {
     @Body() dto: CreateStaffDto,
   ) {
     return this.service.createStaff(actor, context, dto);
+  }
+  @Post(':id/assign-existing')
+  @SuperAdminOnly()
+  @Permissions('staff.create')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiHeader({ name: 'X-Branch-Id', required: true })
+  @ApiSecurity('csrf')
+  @ApiOperation({
+    summary: 'Assign an existing BRANCH user as Staff atomically',
+    description: 'Chỉ Super Admin được truy cập workflow add-existing.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Branch Admin và actor không phải Super Admin bị từ chối',
+    schema: { $ref: '#/components/schemas/ErrorResponseDto' },
+  })
+  @ApiBaseResponse(StaffResponseDto, {
+    status: 201,
+    description: 'Existing internal user assigned as Staff',
+  })
+  assignExisting(
+    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentBranchContext() context: BranchContext,
+    @UlidParam() id: string,
+    @Body() dto: AssignExistingStaffDto,
+  ) {
+    return this.service.assignExistingStaff(actor, context, id, dto);
   }
   @Post(':id/convert')
   @Permissions('staff.create', 'branches.assign')
@@ -728,7 +851,7 @@ export class StaffController {
     @UlidParam() id: string,
     @UlidParam('branchId') branchId: string,
   ) {
-    return this.service.setUserBranchActive(actor, id, branchId, true);
+    return this.service.setUserBranchActive(actor, id, branchId, true, 'STAFF');
   }
   @Patch(':id/branches/:branchId/deactivate')
   @Permissions('staff.assign_branch')
@@ -748,6 +871,7 @@ export class StaffController {
       id,
       branchId,
       false,
+      'STAFF',
       dto.replacementBranchId,
     );
   }
@@ -768,6 +892,7 @@ export class StaffController {
       actor,
       id,
       branchId,
+      'STAFF',
       dto.replacementBranchId,
     );
   }
@@ -783,6 +908,6 @@ export class StaffController {
     @UlidParam() id: string,
     @UlidParam('branchId') branchId: string,
   ) {
-    return this.service.setPrimaryUserBranch(actor, id, branchId);
+    return this.service.setPrimaryUserBranch(actor, id, branchId, 'STAFF');
   }
 }

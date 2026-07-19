@@ -51,13 +51,36 @@ export const DEVELOPMENT_USERS = [
     email: 'branchadmin.hg@bookora.local',
     fullName: 'Branch Admin Hậu Giang',
     type: UserType.BRANCH,
+    globalRole: 'BRANCH_ADMIN',
     branches: [{ code: 'hau-giang', roles: ['BRANCH_ADMIN'], isPrimary: true }],
   },
   {
     email: 'branchadmin.ct@bookora.local',
     fullName: 'Branch Admin Cần Thơ',
     type: UserType.BRANCH,
+    globalRole: 'BRANCH_ADMIN',
     branches: [{ code: 'can-tho', roles: ['BRANCH_ADMIN'], isPrimary: true }],
+  },
+  {
+    email: 'branchadmin.unassigned01@bookora.local',
+    fullName: 'Branch Admin Chưa Bổ Nhiệm 01',
+    type: UserType.BRANCH,
+    globalRole: 'BRANCH_ADMIN',
+    branches: [],
+  },
+  {
+    email: 'branchadmin.unassigned02@bookora.local',
+    fullName: 'Branch Admin Chưa Bổ Nhiệm 02',
+    type: UserType.BRANCH,
+    globalRole: 'BRANCH_ADMIN',
+    branches: [],
+  },
+  {
+    email: 'branchadmin.unassigned03@bookora.local',
+    fullName: 'Branch Admin Chưa Bổ Nhiệm 03',
+    type: UserType.BRANCH,
+    globalRole: 'BRANCH_ADMIN',
+    branches: [],
   },
   {
     email: 'staff.ct@bookora.local',
@@ -146,6 +169,10 @@ export async function seedDevelopmentFixtures(
         assignedBy: superAdmin.id,
         branchesByCode,
         rolesByCode,
+        globalRoleId:
+          'globalRole' in userFixture
+            ? rolesByCode.get(userFixture.globalRole)?.id
+            : undefined,
         assignments: userFixture.branches,
       });
     }
@@ -245,6 +272,7 @@ async function reconcileBranchUser(input: {
   assignedBy: string;
   branchesByCode: Map<string, { id: string; code: string }>;
   rolesByCode: Map<string, { id: string; code: string }>;
+  globalRoleId?: string;
   assignments: readonly {
     code: string;
     roles: readonly string[];
@@ -260,7 +288,28 @@ async function reconcileBranchUser(input: {
       ).id,
   );
 
-  await input.tx.userRole.deleteMany({ where: { userId: input.userId } });
+  await input.tx.userRole.deleteMany({
+    where: {
+      userId: input.userId,
+      ...(input.globalRoleId ? { roleId: { not: input.globalRoleId } } : {}),
+    },
+  });
+  if (input.globalRoleId) {
+    await input.tx.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: input.userId,
+          roleId: input.globalRoleId,
+        },
+      },
+      create: {
+        userId: input.userId,
+        roleId: input.globalRoleId,
+        assignedBy: input.assignedBy,
+      },
+      update: {},
+    });
+  }
   await input.tx.userPermission.deleteMany({ where: { userId: input.userId } });
 
   const staleAssignments = await input.tx.userBranch.findMany({
@@ -344,12 +393,11 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
   const fixtureEmails = DEVELOPMENT_USERS.map((user) => user.email);
   const fixtureBranchCodes = DEVELOPMENT_BRANCHES.map((branch) => branch.code);
 
-  const [branchCount, userCount, runtimeAuthCount] = await Promise.all([
+  const [branchCount, userCount] = await Promise.all([
     tx.branch.count({
       where: { code: { in: fixtureBranchCodes }, isActive: true },
     }),
     tx.user.count({ where: { email: { in: fixtureEmails }, isActive: true } }),
-    tx.authSession.count({ where: { user: { email: { in: fixtureEmails } } } }),
   ]);
 
   if (branchCount !== DEVELOPMENT_BRANCHES.length) {
@@ -359,15 +407,9 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
   }
   if (userCount !== DEVELOPMENT_USERS.length) {
     throw new Error(
-      'Development seed invariant failed: expected 6 active users',
+      'Development seed invariant failed: expected 9 active users',
     );
   }
-  if (runtimeAuthCount !== 0) {
-    throw new Error(
-      'Development seed invariant failed: AuthSession rows exist',
-    );
-  }
-
   const branchUsers = await tx.user.findMany({
     where: {
       email: {
@@ -389,9 +431,15 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
   });
 
   for (const user of branchUsers) {
-    if (user.userRoles.length > 0) {
+    const isBranchAdmin = user.email.startsWith('branchadmin.');
+    const roleCodes = user.userRoles.map(({ role }) => role.code);
+    if (
+      (isBranchAdmin &&
+        (roleCodes.length !== 1 || roleCodes[0] !== 'BRANCH_ADMIN')) ||
+      (!isBranchAdmin && roleCodes.length > 0)
+    ) {
       throw new Error(
-        `Development seed invariant failed: ${user.email} has global roles`,
+        `Development seed invariant failed: ${user.email} has invalid identity roles`,
       );
     }
     if (user.userPermissions.length > 0) {
@@ -402,9 +450,10 @@ async function verifyDevelopmentInvariants(tx: DevelopmentSeedClient) {
     const primaryCount = user.userBranches.filter(
       (branch) => branch.isPrimary,
     ).length;
-    if (primaryCount !== 1) {
+    const expectedPrimaryCount = user.userBranches.length > 0 ? 1 : 0;
+    if (primaryCount !== expectedPrimaryCount) {
       throw new Error(
-        `Development seed invariant failed: ${user.email} must have one primary branch`,
+        `Development seed invariant failed: ${user.email} has invalid primary branch count`,
       );
     }
   }

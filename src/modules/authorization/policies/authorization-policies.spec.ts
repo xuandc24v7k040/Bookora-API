@@ -69,6 +69,43 @@ describe('PermissionDelegationPolicy', () => {
     },
   );
 
+  it('allows a business read permission owned by Branch Admin', async () => {
+    repository.findPermissionPolicySubject.mockResolvedValue(
+      permission('orders.read'),
+    );
+
+    await expect(
+      policy.assertCanAssignUserPermission(
+        branchAdmin(['orders.read']),
+        'target-id',
+        'permission-id',
+        PermissionEffect.ALLOW,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it.each([
+    'roles.read',
+    'permissions.read',
+    'branch_admin.assign',
+    'staff.assign_permission',
+  ])(
+    'rejects global-management permission %s for direct Staff delegation',
+    async (code) => {
+      repository.findPermissionPolicySubject.mockResolvedValue(
+        permission(code),
+      );
+
+      await expect(
+        policy.assertCanAssignInitialPermission(
+          superAdmin([code]),
+          'permission-id',
+          PermissionEffect.ALLOW,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    },
+  );
+
   it.each([UserType.BRANCH, UserType.CUSTOMER])(
     'rejects dangerous permission mapping for a %s role',
     async (type) => {
@@ -271,7 +308,12 @@ function target(overrides: { roleCode?: string; roleLevel?: number } = {}) {
 }
 
 function permission(code: string) {
-  return { id: 'permission-id', code, guardName: 'web' };
+  return {
+    id: 'permission-id',
+    code,
+    resource: code.split('.')[0],
+    guardName: 'web',
+  };
 }
 
 function role(type: UserType = UserType.BRANCH) {

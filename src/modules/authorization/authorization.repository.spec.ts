@@ -1,7 +1,15 @@
 import { ConflictException } from '@nestjs/common';
 import { PermissionEffect, Prisma, UserType } from '@/generated/prisma/client';
-import { AuthorizationRepository } from './authorization.repository';
-import { BranchSortField } from './dto';
+import {
+  AuthorizationRepository,
+  AuthorizationWriteScopeError,
+} from './authorization.repository';
+import {
+  BranchAdminAssignmentState,
+  BranchAdminSortField,
+  BranchSortField,
+  StaffSortField,
+} from './dto';
 
 describe('AuthorizationRepository principal profile query', () => {
   const prisma = {
@@ -239,6 +247,279 @@ describe('AuthorizationRepository branch enforcement', () => {
       }),
     );
   });
+
+  it('filters Branch Admin candidates server-side using the identity marker', async () => {
+    await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      '  admin@example.com  '.trim(),
+      {
+        excludeAssignedBranchId: 'branch-id',
+        isActive: true,
+      },
+    );
+
+    const findWhere = prisma.user.findMany.mock.calls[0][0].where;
+    const countWhere = prisma.user.count.mock.calls[0][0].where;
+    expect(findWhere).toEqual(countWhere);
+    expect(findWhere).toEqual(
+      expect.objectContaining({
+        type: UserType.BRANCH,
+        isActive: true,
+        userRoles: {
+          some: {
+            role: expect.objectContaining({ code: 'BRANCH_ADMIN' }),
+          },
+        },
+        userBranches: {
+          none: expect.objectContaining({ branchId: 'branch-id' }),
+        },
+      }),
+    );
+    expect(findWhere).not.toHaveProperty('AND');
+    expect(findWhere.userRoles).toBeDefined();
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.userBranches.where,
+    ).toEqual(expect.objectContaining({ roles: expect.any(Object) }));
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('loads every assignment in Branch Admin detail while keeping the registry marker', async () => {
+    await repository.findManagedUserInScope('branch-admin-id', 'BRANCH_ADMIN', {
+      scope: 'UNRESTRICTED',
+    });
+
+    const query = prisma.user.findFirst.mock.calls[0][0];
+    expect(query.where).toEqual(
+      expect.objectContaining({
+        id: 'branch-admin-id',
+        userRoles: expect.any(Object),
+      }),
+    );
+    expect(query.select.userBranches.where).toEqual({});
+  });
+
+  it('filters current Branch Admin assignments and their status server-side', async () => {
+    await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      undefined,
+      { assignedBranchId: 'branch-id', assignmentIsActive: false },
+    );
+
+    expect(prisma.user.findMany.mock.calls[0][0].where.userBranches).toEqual({
+      some: expect.objectContaining({
+        branchId: 'branch-id',
+        isActive: false,
+        roles: expect.any(Object),
+      }),
+    });
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.userBranches.where,
+    ).toEqual(expect.objectContaining({ roles: expect.any(Object) }));
+  });
+
+  it('sorts authoritative Branch Admin fields in Prisma with a stable id tie-break', async () => {
+    await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      undefined,
+      undefined,
+      BranchAdminSortField.FULL_NAME,
+      'asc',
+    );
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
+  it('sorts computed primary branch over the full filtered set before pagination', async () => {
+    prisma.user.findMany.mockResolvedValueOnce([
+      {
+        id: 'admin-b',
+        userBranches: [
+          { isPrimary: true, isActive: true, branch: { name: 'Beta' } },
+        ],
+      },
+      {
+        id: 'admin-a',
+        userBranches: [
+          { isPrimary: true, isActive: true, branch: { name: 'Alpha' } },
+        ],
+      },
+    ]);
+    prisma.user.count.mockResolvedValueOnce(2);
+
+    const [items, total] = await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      1,
+      undefined,
+      undefined,
+      BranchAdminSortField.PRIMARY_BRANCH,
+      'asc',
+    );
+
+    expect(prisma.user.findMany.mock.calls[0][0]).not.toHaveProperty('take');
+    expect(items.map(({ id }) => id)).toEqual(['admin-a']);
+    expect(total).toBe(2);
+  });
+
+  it.each([
+    [BranchAdminAssignmentState.UNASSIGNED, 'none', undefined],
+    [BranchAdminAssignmentState.ACTIVE, 'some', true],
+    [BranchAdminAssignmentState.INACTIVE_ONLY, 'none', true],
+  ])(
+    'filters Branch Admin aggregate assignment state %s',
+    async (state, relation, isActive) => {
+      await repository.listManagedUsers(
+        'BRANCH_ADMIN',
+        { scope: 'UNRESTRICTED' },
+        0,
+        10,
+        undefined,
+        { assignmentState: state },
+      );
+
+      const assignmentWhere =
+        prisma.user.findMany.mock.calls[0][0].where.userBranches;
+      expect(assignmentWhere[relation]).toEqual(
+        expect.objectContaining({
+          roles: expect.any(Object),
+          ...(isActive === undefined ? {} : { isActive }),
+        }),
+      );
+    },
+  );
+
+  it('applies assignment state to the selected branch mapping', async () => {
+    await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      undefined,
+      {
+        assignedBranchId: 'branch-id',
+        assignmentState: BranchAdminAssignmentState.ACTIVE,
+      },
+    );
+
+    expect(prisma.user.findMany.mock.calls[0][0].where.userBranches).toEqual({
+      some: expect.objectContaining({
+        branchId: 'branch-id',
+        isActive: true,
+        roles: expect.any(Object),
+      }),
+    });
+  });
+
+  it('interprets unassigned with a branch as no mapping at that branch', async () => {
+    await repository.listManagedUsers(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      0,
+      10,
+      undefined,
+      {
+        assignedBranchId: 'branch-id',
+        assignmentState: BranchAdminAssignmentState.UNASSIGNED,
+      },
+    );
+
+    expect(prisma.user.findMany.mock.calls[0][0].where.userBranches).toEqual({
+      none: expect.objectContaining({
+        branchId: 'branch-id',
+        roles: expect.any(Object),
+      }),
+    });
+  });
+});
+
+describe('AuthorizationRepository Staff list and candidates', () => {
+  const prisma = {
+    userBranch: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+    user: { findMany: jest.fn(), count: jest.fn() },
+  };
+  const repository = new AuthorizationRepository(prisma as never);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.userBranch.findMany.mockResolvedValue([]);
+    prisma.userBranch.count.mockResolvedValue(0);
+    prisma.user.findMany.mockResolvedValue([]);
+    prisma.user.count.mockResolvedValue(0);
+  });
+
+  it('composes selected-branch Staff filters for data and count', async () => {
+    await repository.listStaff({
+      branchId: 'branch-id',
+      skip: 10,
+      take: 10,
+      search: 'cashier',
+      sortBy: StaffSortField.ASSIGNMENT_IS_ACTIVE,
+      sortOrder: 'asc',
+      userIsActive: true,
+      assignmentIsActive: false,
+      isPrimary: false,
+      roleId: 'role-id',
+    });
+
+    const dataQuery = prisma.userBranch.findMany.mock.calls[0][0];
+    expect(dataQuery.where).toEqual(
+      expect.objectContaining({
+        branchId: 'branch-id',
+        isActive: false,
+        isPrimary: false,
+        user: expect.objectContaining({
+          type: UserType.BRANCH,
+          isActive: true,
+          OR: expect.arrayContaining([
+            { phone: { contains: 'cashier', mode: 'insensitive' } },
+          ]),
+        }),
+        roles: {
+          some: expect.objectContaining({ roleId: 'role-id' }),
+        },
+      }),
+    );
+    expect(prisma.userBranch.count).toHaveBeenCalledWith({
+      where: dataQuery.where,
+    });
+    expect(dataQuery.orderBy).toEqual([{ isActive: 'asc' }, { id: 'asc' }]);
+  });
+
+  it('excludes every existing selected-branch assignment from candidates', async () => {
+    await repository.listStaffCandidates({
+      branchId: 'branch-id',
+      skip: 0,
+      take: 20,
+      search: 'admin',
+    });
+
+    const where = prisma.user.findMany.mock.calls[0][0].where;
+    expect(where).toEqual(
+      expect.objectContaining({
+        type: UserType.BRANCH,
+        userBranches: { none: { branchId: 'branch-id' } },
+      }),
+    );
+    expect(prisma.user.count).toHaveBeenCalledWith({ where });
+  });
 });
 
 describe('AuthorizationRepository management transactions', () => {
@@ -256,6 +537,7 @@ describe('AuthorizationRepository management transactions', () => {
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
     },
     userPermission: { createMany: jest.fn(), deleteMany: jest.fn() },
     userBranch: {
@@ -269,6 +551,7 @@ describe('AuthorizationRepository management transactions', () => {
       findUniqueOrThrow: jest.fn(),
       updateMany: jest.fn(),
       update: jest.fn(),
+      upsert: jest.fn(),
     },
     userBranchRole: {
       create: jest.fn(),
@@ -305,6 +588,13 @@ describe('AuthorizationRepository management transactions', () => {
     tx.branch.update.mockResolvedValue({ id: 'branch-id', isActive: false });
     tx.user.create.mockResolvedValue({ id: 'staff-id' });
     tx.userBranch.create.mockResolvedValue({ id: 'user-branch-id' });
+    tx.userBranch.upsert.mockResolvedValue({
+      id: 'user-branch-id',
+      userId: 'branch-admin-id',
+      branchId: 'branch-id',
+      isPrimary: false,
+      isActive: true,
+    });
     tx.userBranch.count.mockResolvedValue(1);
     tx.userBranch.findUnique.mockResolvedValue(null);
     tx.user.findFirst.mockResolvedValue({ id: 'customer-id' });
@@ -376,6 +666,109 @@ describe('AuthorizationRepository management transactions', () => {
     });
   });
 
+  it('assigns an existing BRANCH user with roles and permissions atomically', async () => {
+    tx.user.findFirst.mockResolvedValue({
+      id: 'branch-user',
+      userBranches: [],
+    });
+    tx.userBranch.findUnique.mockResolvedValue(null);
+    tx.userBranch.findUniqueOrThrow.mockResolvedValue({
+      id: 'user-branch-id',
+      user: { id: 'branch-user' },
+      roles: [],
+      permissions: [],
+    });
+
+    await repository.assignExistingStaff({
+      userId: 'branch-user',
+      branchId: 'branch-id',
+      roleIds: ['role-id'],
+      permissionIds: ['permission-id'],
+      assignedBy: 'actor-id',
+      actorMaxRoleLevel: 70,
+      allowedPermissionCodes: ['orders.read'],
+    });
+
+    expect(tx.userBranch.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'branch-user',
+        branchId: 'branch-id',
+        isPrimary: true,
+        isActive: true,
+      }),
+      select: { id: true },
+    });
+    expect(tx.userBranchRole.createMany).toHaveBeenCalledTimes(1);
+    expect(tx.userBranchPermission.createMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a global Branch Admin identity marker atomically', async () => {
+    tx.permission.count.mockResolvedValue(0);
+    await repository.createInternalUser({
+      email: 'branch-admin@example.com',
+      fullName: 'Branch Admin',
+      passwordHash: 'hash',
+      type: 'BRANCH',
+      roleIds: ['branch-admin-role'],
+      branchIds: ['branch-id'],
+      assignedBy: 'actor-id',
+      actorMaxRoleLevel: 99,
+      allowedPermissionCodes: [],
+      requiredRoleCode: 'BRANCH_ADMIN',
+    });
+
+    expect(tx.userRole.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          userId: 'staff-id',
+          roleId: 'branch-admin-role',
+          assignedBy: 'actor-id',
+        },
+      ],
+    });
+  });
+
+  it('adds Branch Admin to an existing UserBranch without replacing Staff roles', async () => {
+    await repository.assignUserBranch(
+      'branch-admin-id',
+      'branch-id',
+      'actor-id',
+      'BRANCH_ADMIN',
+    );
+
+    expect(tx.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'branch-admin-id',
+          type: UserType.BRANCH,
+          userRoles: expect.any(Object),
+        }),
+      }),
+    );
+    expect(tx.userRole.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_roleId: {
+            userId: 'branch-admin-id',
+            roleId: 'branch-admin-role',
+          },
+        },
+      }),
+    );
+
+    expect(tx.userBranch.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_branchId: {
+            userId: 'branch-admin-id',
+            branchId: 'branch-id',
+          },
+        },
+      }),
+    );
+    expect(tx.userBranchRole.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('does not create a user when transaction revalidation fails', async () => {
     tx.role.count.mockResolvedValue(0);
 
@@ -408,6 +801,13 @@ describe('AuthorizationRepository management transactions', () => {
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: 'customer-id' },
       data: { type: 'BRANCH' },
+    });
+    expect(tx.userRole.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'customer-id',
+        roleId: 'branch-admin-role',
+        assignedBy: 'actor-id',
+      },
     });
     expect(tx.userRole.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'customer-id' },
@@ -560,11 +960,16 @@ describe('AuthorizationRepository management transactions', () => {
   });
 
   it('sets only one primary branch and does not create an unassigned branch', async () => {
-    tx.userBranch.findUniqueOrThrow.mockResolvedValue({
+    tx.userBranch.findFirst.mockResolvedValue({
       branchId: 'branch-id',
     });
 
-    await repository.setPrimaryUserBranch('staff-id', 'branch-id', 'actor-id');
+    await repository.setPrimaryUserBranch(
+      'staff-id',
+      'branch-id',
+      'actor-id',
+      'STAFF',
+    );
 
     expect(tx.userBranch.updateMany).toHaveBeenCalledWith({
       where: { userId: 'staff-id' },
@@ -575,9 +980,30 @@ describe('AuthorizationRepository management transactions', () => {
         where: {
           userId_branchId: { userId: 'staff-id', branchId: 'branch-id' },
         },
-        data: expect.objectContaining({ isPrimary: true, isActive: true }),
+        data: expect.objectContaining({ isPrimary: true }),
       }),
     );
+    expect(tx.userBranch.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isActive: true }),
+      }),
+    );
+  });
+
+  it('does not set an inactive assignment as primary', async () => {
+    tx.userBranch.findFirst.mockResolvedValue(null);
+
+    await expect(
+      repository.setPrimaryUserBranch(
+        'staff-id',
+        'branch-id',
+        'actor-id',
+        'STAFF',
+      ),
+    ).rejects.toThrow('assignment đang hoạt động');
+
+    expect(tx.userBranch.updateMany).not.toHaveBeenCalled();
+    expect(tx.userBranch.update).not.toHaveBeenCalled();
   });
 
   it('blocks branch deactivation while active user assignments remain', async () => {
@@ -794,23 +1220,156 @@ describe('AuthorizationRepository management transactions', () => {
   });
 
   it('requires a valid replacement inside the transaction before deactivating a primary branch', async () => {
-    tx.userBranch.findUniqueOrThrow.mockResolvedValue({ isPrimary: true });
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'assignment',
+      isPrimary: true,
+    });
     tx.userBranch.findMany.mockResolvedValue([{ branchId: 'branch-b' }]);
 
     await expect(
-      repository.setUserBranchActive('staff-id', 'branch-a', false, undefined),
+      repository.setUserBranchActive('staff-id', 'branch-a', false, 'STAFF'),
     ).rejects.toThrow('primary branch');
     expect(tx.userBranch.update).not.toHaveBeenCalled();
   });
 
+  it('reactivates an assignment without reactivating the user account', async () => {
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'assignment',
+      isPrimary: false,
+    });
+    tx.userBranch.update.mockResolvedValue({
+      userId: 'staff-id',
+      branchId: 'branch-a',
+      isActive: true,
+    });
+
+    await repository.setUserBranchActive('staff-id', 'branch-a', true, 'STAFF');
+
+    expect(tx.userBranch.update).toHaveBeenCalledWith({
+      where: {
+        userId_branchId: { userId: 'staff-id', branchId: 'branch-a' },
+      },
+      data: { isActive: true },
+    });
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.authSession.updateMany).not.toHaveBeenCalled();
+    expect(tx.userBranch.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ roles: expect.any(Object) }),
+      }),
+    );
+  });
+
+  it('moves primary before deactivating the current primary assignment', async () => {
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'assignment',
+      isPrimary: true,
+    });
+    tx.userBranch.findMany.mockResolvedValue([{ branchId: 'branch-b' }]);
+    tx.userBranch.update.mockResolvedValue({ isActive: false });
+    tx.userBranch.count.mockResolvedValue(1);
+
+    await repository.setUserBranchActive(
+      'staff-id',
+      'branch-a',
+      false,
+      'STAFF',
+      'branch-b',
+    );
+
+    expect(tx.userBranch.update).toHaveBeenNthCalledWith(1, {
+      where: {
+        userId_branchId: { userId: 'staff-id', branchId: 'branch-a' },
+      },
+      data: { isPrimary: false },
+    });
+    expect(tx.userBranch.update).toHaveBeenNthCalledWith(2, {
+      where: {
+        userId_branchId: { userId: 'staff-id', branchId: 'branch-b' },
+      },
+      data: { isPrimary: true, isActive: true },
+    });
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
   it('requires a valid replacement inside the transaction before removing a primary branch', async () => {
-    tx.userBranch.findUniqueOrThrow.mockResolvedValue({ isPrimary: true });
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'assignment',
+      isPrimary: true,
+    });
     tx.userBranch.findMany.mockResolvedValue([{ branchId: 'branch-b' }]);
 
     await expect(
-      repository.removeUserBranch('staff-id', 'branch-a', 'branch-c'),
+      repository.removeUserBranch('staff-id', 'branch-a', 'STAFF', 'branch-c'),
     ).rejects.toThrow('primary branch');
     expect(tx.userBranch.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('treats removal of a missing branch assignment as idempotent', async () => {
+    tx.userBranch.findFirst.mockResolvedValue(null);
+
+    await expect(
+      repository.removeUserBranch('staff-id', 'branch-a', 'STAFF'),
+    ).resolves.toEqual({ count: 0 });
+    expect(tx.userBranch.deleteMany).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.authSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('removes a primary mapping after promoting a valid replacement', async () => {
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'assignment',
+      isPrimary: true,
+    });
+    tx.userBranch.findMany.mockResolvedValue([{ branchId: 'branch-b' }]);
+    tx.userBranch.deleteMany.mockResolvedValue({ count: 1 });
+    tx.userBranch.count.mockResolvedValue(1);
+
+    await expect(
+      repository.removeUserBranch('staff-id', 'branch-a', 'STAFF', 'branch-b'),
+    ).resolves.toEqual({ count: 1 });
+    expect(tx.userBranch.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'staff-id' },
+      data: { isPrimary: false },
+    });
+    expect(tx.userBranch.update).toHaveBeenCalledWith({
+      where: {
+        userId_branchId: { userId: 'staff-id', branchId: 'branch-b' },
+      },
+      data: { isPrimary: true, isActive: true },
+    });
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects Branch Admin removal for a Staff-only assignment', async () => {
+    tx.userBranch.findFirst.mockResolvedValue(null);
+
+    await expect(
+      repository.removeUserBranch('candidate-id', 'branch-id', 'BRANCH_ADMIN'),
+    ).rejects.toBeInstanceOf(AuthorizationWriteScopeError);
+    expect(tx.userBranchRole.deleteMany).not.toHaveBeenCalled();
+    expect(tx.userBranch.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('removes only BRANCH_ADMIN role when the UserBranch also has Staff roles', async () => {
+    tx.userBranch.findFirst.mockResolvedValue({
+      id: 'mixed-assignment',
+      isPrimary: true,
+    });
+    tx.userBranchRole.count.mockResolvedValue(1);
+
+    await expect(
+      repository.removeUserBranch('candidate-id', 'branch-id', 'BRANCH_ADMIN'),
+    ).resolves.toEqual({ count: 1 });
+
+    expect(tx.userBranchRole.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userBranchId: 'mixed-assignment',
+        role: expect.objectContaining({ code: 'BRANCH_ADMIN' }),
+      },
+    });
+    expect(tx.userBranch.deleteMany).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it('offboards only the selected branch and deterministically promotes the oldest remaining assignment', async () => {

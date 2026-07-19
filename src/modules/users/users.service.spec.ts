@@ -1,6 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
-import { UserType } from '@/generated/prisma/client';
+import { AuthProvider, UserType } from '@/generated/prisma/client';
+import { SortDirection } from '@/common/enums';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
+import { UsersSortField } from './dto';
 import { UserActivationRequiresActiveBranchError } from './users.repository';
 import { UsersService } from './users.service';
 
@@ -89,13 +91,14 @@ describe('UsersService authorization boundary', () => {
     expect(repository.count).toHaveBeenCalled();
   });
 
-  it('composes search, type and active filters with deterministic ordering', async () => {
+  it('composes search, type, provider and active filters with deterministic ordering', async () => {
     repository.findMany.mockResolvedValue([]);
     repository.count.mockResolvedValue(0);
 
     await service.findAll(superAdmin(), {
       search: ' Customer ',
       type: UserType.CUSTOMER,
+      provider: AuthProvider.LOCAL,
       isActive: false,
     });
 
@@ -107,9 +110,11 @@ describe('UsersService authorization boundary', () => {
               OR: [
                 { email: { contains: 'Customer', mode: 'insensitive' } },
                 { fullName: { contains: 'Customer', mode: 'insensitive' } },
+                { phone: { contains: 'Customer', mode: 'insensitive' } },
               ],
             },
             { type: UserType.CUSTOMER },
+            { provider: AuthProvider.LOCAL },
             { isActive: false },
           ],
         },
@@ -119,9 +124,26 @@ describe('UsersService authorization boundary', () => {
     expect(repository.count).toHaveBeenCalledWith({
       AND: expect.arrayContaining([
         { type: UserType.CUSTOMER },
+        { provider: AuthProvider.LOCAL },
         { isActive: false },
       ]),
     });
+  });
+
+  it('sorts every public scalar supported by the Users list contract', async () => {
+    repository.findMany.mockResolvedValue([]);
+    repository.count.mockResolvedValue(0);
+
+    await service.findAll(superAdmin(), {
+      sortBy: UsersSortField.LAST_LOGIN_AT,
+      sortOrder: SortDirection.ASC,
+    });
+
+    expect(repository.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ lastLoginAt: 'asc' }, { id: 'asc' }],
+      }),
+    );
   });
 
   it('normalizes update email and persists birthday as a UTC date', async () => {

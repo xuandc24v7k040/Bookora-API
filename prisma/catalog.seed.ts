@@ -13,98 +13,272 @@ export const roles = [
   {
     id: ROLE_IDS.SUPER_ADMIN,
     code: 'SUPER_ADMIN',
-    name: 'Super Admin',
-    description: 'Quản trị toàn hệ thống',
+    name: 'Quản trị hệ thống',
+    description: 'Quản trị toàn bộ hệ thống Bookora',
     type: UserType.SYSTEM,
     level: 100,
   },
   {
     id: ROLE_IDS.BRANCH_ADMIN,
     code: 'BRANCH_ADMIN',
-    name: 'Branch Admin',
-    description: 'Quản trị các chi nhánh được gán',
+    name: 'Quản trị chi nhánh',
+    description: 'Quản trị các chi nhánh được phân công',
     type: UserType.BRANCH,
     level: 70,
   },
   {
     id: ROLE_IDS.STAFF,
     code: 'STAFF',
-    name: 'Staff',
-    description: 'Nhân viên chi nhánh',
+    name: 'Nhân viên chi nhánh',
+    description: 'Nhân viên vận hành tại chi nhánh',
     type: UserType.BRANCH,
     level: 30,
   },
   {
     id: ROLE_IDS.INVENTORY,
     code: 'INVENTORY',
-    name: 'Inventory',
-    description: 'Nhân viên kho',
+    name: 'Nhân viên kho',
+    description: 'Nhân viên phụ trách nhập, xuất và kiểm kê kho',
     type: UserType.BRANCH,
     level: 30,
   },
   {
     id: ROLE_IDS.CASHIER,
     code: 'CASHIER',
-    name: 'Cashier',
-    description: 'Nhân viên thu ngân',
+    name: 'Thu ngân',
+    description: 'Nhân viên phụ trách bán hàng và thanh toán tại chi nhánh',
     type: UserType.BRANCH,
     level: 20,
   },
   {
     id: ROLE_IDS.CUSTOMER,
     code: 'CUSTOMER',
-    name: 'Customer',
-    description: 'Khách hàng Bookora',
+    name: 'Khách hàng',
+    description: 'Khách hàng sử dụng dịch vụ Bookora',
     type: UserType.CUSTOMER,
     level: 10,
   },
 ] as const;
 
-export const permissionCodes = [
-  'dashboard.read',
-  'users.read',
-  'users.create',
-  'users.update',
-  'users.delete',
-  'staff.read',
-  'staff.create',
-  'staff.update',
-  'staff.delete',
-  'staff.assign_role',
-  'staff.assign_permission',
-  'staff.assign_branch',
-  'branches.read',
-  'branches.create',
-  'branches.update',
-  'branches.delete',
-  'branches.assign',
-  'roles.read',
-  'roles.create',
-  'roles.update',
-  'roles.delete',
-  'roles.assign_permission',
-  'permissions.read',
-  'permissions.create',
-  'permissions.update',
-  'permissions.delete',
-  'super_admin.assign',
-  'branch_admin.assign',
-  'orders.read',
-  'orders.create',
-  'orders.update_status',
-  'payments.create',
-  'products.read',
-  'products.create',
-  'products.update',
-  'inventory.read',
-  'inventory.update',
-  'stock_movements.read',
-  'stock_movements.create',
-  'profile.read_own',
-  'profile.update_own',
-  'orders.create_own',
-  'orders.read_own',
+export const permissionCatalog = [
+  {
+    code: 'dashboard.read',
+    name: 'Xem tổng quan',
+    description: 'Cho phép xem dữ liệu tổng quan vận hành',
+  },
+  {
+    code: 'users.read',
+    name: 'Xem người dùng',
+    description: 'Cho phép xem danh sách và thông tin người dùng hệ thống',
+  },
+  {
+    code: 'users.create',
+    name: 'Tạo người dùng',
+    description: 'Cho phép tạo tài khoản người dùng hệ thống',
+  },
+  {
+    code: 'users.update',
+    name: 'Cập nhật người dùng',
+    description: 'Cho phép cập nhật thông tin người dùng hệ thống',
+  },
+  {
+    code: 'users.delete',
+    name: 'Xóa người dùng',
+    description: 'Cho phép xóa người dùng khỏi hệ thống',
+  },
+  {
+    code: 'staff.read',
+    name: 'Xem nhân viên chi nhánh',
+    description: 'Cho phép xem danh sách và thông tin nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.create',
+    name: 'Tạo nhân viên chi nhánh',
+    description: 'Cho phép tạo tài khoản nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.update',
+    name: 'Cập nhật nhân viên chi nhánh',
+    description: 'Cho phép cập nhật thông tin nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.delete',
+    name: 'Ngừng hoạt động nhân viên',
+    description: 'Cho phép ngừng hoạt động tài khoản nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.assign_role',
+    name: 'Gán vai trò nhân viên',
+    description: 'Cho phép gán hoặc gỡ vai trò của nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.assign_permission',
+    name: 'Gán quyền nhân viên',
+    description: 'Cho phép quản lý quyền bổ sung của nhân viên tại chi nhánh',
+  },
+  {
+    code: 'staff.assign_branch',
+    name: 'Phân công chi nhánh cho nhân viên',
+    description: 'Cho phép phân công hoặc chuyển nhân viên giữa các chi nhánh',
+  },
+  {
+    code: 'branches.read',
+    name: 'Xem chi nhánh',
+    description: 'Cho phép xem danh sách và thông tin chi nhánh',
+  },
+  {
+    code: 'branches.create',
+    name: 'Tạo chi nhánh',
+    description: 'Cho phép tạo chi nhánh mới',
+  },
+  {
+    code: 'branches.update',
+    name: 'Cập nhật chi nhánh',
+    description: 'Cho phép cập nhật thông tin chi nhánh',
+  },
+  {
+    code: 'branches.delete',
+    name: 'Ngừng hoạt động chi nhánh',
+    description: 'Cho phép ngừng hoạt động chi nhánh',
+  },
+  {
+    code: 'branches.assign',
+    name: 'Phân công chi nhánh',
+    description: 'Cho phép quản lý phân công người dùng vào chi nhánh',
+  },
+  {
+    code: 'roles.read',
+    name: 'Xem vai trò',
+    description: 'Cho phép xem danh mục và chi tiết vai trò hệ thống',
+  },
+  {
+    code: 'roles.create',
+    name: 'Tạo vai trò',
+    description: 'Cho phép tạo vai trò mới trong hệ thống',
+  },
+  {
+    code: 'roles.update',
+    name: 'Cập nhật vai trò',
+    description: 'Cho phép cập nhật thông tin vai trò',
+  },
+  {
+    code: 'roles.delete',
+    name: 'Ngừng hoạt động vai trò',
+    description: 'Cho phép ngừng hoạt động vai trò',
+  },
+  {
+    code: 'roles.assign_permission',
+    name: 'Gán quyền cho vai trò',
+    description: 'Cho phép thay đổi tập quyền của vai trò',
+  },
+  {
+    code: 'permissions.read',
+    name: 'Xem quyền hạn',
+    description: 'Cho phép xem danh mục và chi tiết quyền hạn hệ thống',
+  },
+  {
+    code: 'permissions.create',
+    name: 'Tạo quyền hạn',
+    description: 'Cho phép tạo quyền hạn mới trong hệ thống',
+  },
+  {
+    code: 'permissions.update',
+    name: 'Cập nhật quyền hạn',
+    description: 'Cho phép cập nhật thông tin quyền hạn',
+  },
+  {
+    code: 'permissions.delete',
+    name: 'Xóa quyền hạn',
+    description: 'Cho phép xóa quyền hạn khỏi hệ thống',
+  },
+  {
+    code: 'super_admin.assign',
+    name: 'Gán quản trị hệ thống',
+    description: 'Cho phép gán vai trò quản trị hệ thống',
+  },
+  {
+    code: 'branch_admin.assign',
+    name: 'Gán quản trị chi nhánh',
+    description: 'Cho phép gán vai trò quản trị chi nhánh',
+  },
+  {
+    code: 'orders.read',
+    name: 'Xem đơn hàng',
+    description: 'Cho phép xem danh sách và chi tiết đơn hàng',
+  },
+  {
+    code: 'orders.create',
+    name: 'Tạo đơn hàng',
+    description: 'Cho phép tạo đơn hàng tại chi nhánh',
+  },
+  {
+    code: 'orders.update_status',
+    name: 'Cập nhật trạng thái đơn hàng',
+    description: 'Cho phép cập nhật trạng thái xử lý đơn hàng',
+  },
+  {
+    code: 'payments.create',
+    name: 'Tạo thanh toán',
+    description: 'Cho phép ghi nhận thanh toán cho đơn hàng',
+  },
+  {
+    code: 'products.read',
+    name: 'Xem sản phẩm',
+    description: 'Cho phép xem danh sách và thông tin sản phẩm',
+  },
+  {
+    code: 'products.create',
+    name: 'Tạo sản phẩm',
+    description: 'Cho phép tạo sản phẩm mới',
+  },
+  {
+    code: 'products.update',
+    name: 'Cập nhật sản phẩm',
+    description: 'Cho phép cập nhật thông tin sản phẩm',
+  },
+  {
+    code: 'inventory.read',
+    name: 'Xem tồn kho',
+    description: 'Cho phép xem số lượng và thông tin tồn kho tại chi nhánh',
+  },
+  {
+    code: 'inventory.update',
+    name: 'Cập nhật tồn kho',
+    description: 'Cho phép cập nhật thông tin tồn kho tại chi nhánh',
+  },
+  {
+    code: 'stock_movements.read',
+    name: 'Xem biến động kho',
+    description: 'Cho phép xem lịch sử nhập, xuất và điều chỉnh kho',
+  },
+  {
+    code: 'stock_movements.create',
+    name: 'Tạo biến động kho',
+    description: 'Cho phép ghi nhận nhập, xuất hoặc điều chỉnh kho',
+  },
+  {
+    code: 'profile.read_own',
+    name: 'Xem hồ sơ cá nhân',
+    description: 'Cho phép xem hồ sơ của chính người dùng',
+  },
+  {
+    code: 'profile.update_own',
+    name: 'Cập nhật hồ sơ cá nhân',
+    description: 'Cho phép cập nhật hồ sơ của chính người dùng',
+  },
+  {
+    code: 'orders.create_own',
+    name: 'Tạo đơn hàng cá nhân',
+    description: 'Cho phép khách hàng tạo đơn hàng của chính mình',
+  },
+  {
+    code: 'orders.read_own',
+    name: 'Xem đơn hàng cá nhân',
+    description: 'Cho phép khách hàng xem đơn hàng của chính mình',
+  },
 ] as const;
+
+export const permissionCodes = permissionCatalog.map(({ code }) => code);
 
 const rolePermissionCodes: Record<string, readonly string[]> = {
   BRANCH_ADMIN: [
@@ -120,6 +294,8 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'staff.delete',
     'staff.assign_role',
     'staff.assign_permission',
+    'roles.read',
+    'permissions.read',
   ],
   STAFF: [
     'dashboard.read',
@@ -189,7 +365,8 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
   }
 
   const permissionIds = new Map<string, string>();
-  for (const code of permissionCodes) {
+  for (const definition of permissionCatalog) {
+    const { code, name, description } = definition;
     if (!PERMISSION_CODE_PATTERN.test(code)) {
       throw new Error(`Invalid permission code: ${code}`);
     }
@@ -199,13 +376,15 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
       where: { code },
       create: {
         code,
-        name: toDisplayName(code),
+        name,
+        description,
         resource,
         action,
         guardName: 'web',
       },
       update: {
-        name: toDisplayName(code),
+        name,
+        description,
         resource,
         action,
         guardName: 'web',
@@ -257,11 +436,4 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
       });
     }
   }
-}
-
-function toDisplayName(code: string): string {
-  return code
-    .split(/[._]/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 }

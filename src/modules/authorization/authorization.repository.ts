@@ -7,6 +7,11 @@ import {
   Prisma,
   UserType,
 } from '@/generated/prisma/client';
+import {
+  BranchAdminAssignmentState,
+  BranchAdminSortField,
+  StaffSortField,
+} from './dto';
 import type { AuthorizationTransactionClient } from './types/authorization-transaction.type';
 import type { BranchWhere } from './types/branch-context.type';
 import { DANGEROUS_PERMISSION_CODES } from './authorization.constants';
@@ -103,11 +108,24 @@ const managedUserBranchSelect = {
 
 function managedUserSelect(
   branchWhere: BranchWhere = { scope: 'UNRESTRICTED' },
+  assignmentKind: 'ALL' | 'BRANCH_ADMIN' = 'ALL',
 ) {
   const userBranchWhere: Prisma.UserBranchWhereInput =
     branchWhere.scope === 'UNRESTRICTED'
       ? {}
       : { branchId: branchWhere.where.branchId };
+  if (assignmentKind === 'BRANCH_ADMIN') {
+    userBranchWhere.roles = {
+      some: {
+        role: {
+          code: 'BRANCH_ADMIN',
+          type: UserType.BRANCH,
+          guardName: 'web',
+          isActive: true,
+        },
+      },
+    };
+  }
   return {
     id: true,
     email: true,
@@ -154,6 +172,182 @@ export class AuthorizationWriteValidationError extends Error {}
 export class AuthorizationWriteScopeError extends Error {}
 export class AuthorizationWriteConflictError extends Error {}
 export class StaffLastRoleRequiredError extends AuthorizationWriteConflictError {}
+
+type ManagedUserListFilters = {
+  assignedBranchId?: string;
+  excludeAssignedBranchId?: string;
+  isActive?: boolean;
+  assignmentIsActive?: boolean;
+  assignmentState?: BranchAdminAssignmentState;
+};
+
+type StaffListQuery = {
+  branchId: string;
+  skip: number;
+  take: number;
+  search?: string;
+  sortBy: StaffSortField;
+  sortOrder: Prisma.SortOrder;
+  userIsActive?: boolean;
+  assignmentIsActive?: boolean;
+  isPrimary?: boolean;
+  roleId?: string;
+};
+
+const qualifyingStaffRoleWhere = {
+  type: UserType.BRANCH,
+  guardName: 'web',
+  isActive: true,
+  code: { notIn: ['BRANCH_ADMIN', 'SUPER_ADMIN', 'CUSTOMER'] },
+} satisfies Prisma.RoleWhereInput;
+
+type ManagedAssignmentKind = 'STAFF' | 'BRANCH_ADMIN';
+
+function managedAssignmentRoleWhere(
+  kind: ManagedAssignmentKind,
+): Prisma.RoleWhereInput {
+  return kind === 'BRANCH_ADMIN'
+    ? {
+        code: 'BRANCH_ADMIN',
+        type: UserType.BRANCH,
+        guardName: 'web',
+        isActive: true,
+      }
+    : qualifyingStaffRoleWhere;
+}
+
+const staffAssignmentSelect = {
+  id: true,
+  branchId: true,
+  isPrimary: true,
+  isActive: true,
+  assignedBy: true,
+  assignedAt: true,
+  branch: {
+    select: { id: true, code: true, name: true, isActive: true },
+  },
+  roles: {
+    where: { role: qualifyingStaffRoleWhere },
+    orderBy: { role: { code: 'asc' as const } },
+    select: {
+      role: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          level: true,
+          isActive: true,
+          isSystem: true,
+          type: true,
+          guardName: true,
+          rolePermissions: {
+            orderBy: { permission: { code: 'asc' as const } },
+            select: {
+              permission: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  resource: true,
+                  action: true,
+                  guardName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  permissions: {
+    orderBy: { permission: { code: 'asc' as const } },
+    select: {
+      id: true,
+      effect: true,
+      permission: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          resource: true,
+          action: true,
+          guardName: true,
+        },
+      },
+    },
+  },
+  user: {
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      phone: true,
+      isActive: true,
+      createdAt: true,
+    },
+  },
+} satisfies Prisma.UserBranchSelect;
+
+function staffOrderBy(
+  sortBy: StaffSortField,
+  sortOrder: Prisma.SortOrder,
+): Prisma.UserBranchOrderByWithRelationInput[] {
+  const tieBreak = { id: 'asc' as const };
+  switch (sortBy) {
+    case StaffSortField.FULL_NAME:
+      return [{ user: { fullName: sortOrder } }, tieBreak];
+    case StaffSortField.EMAIL:
+      return [{ user: { email: sortOrder } }, tieBreak];
+    case StaffSortField.PHONE:
+      return [{ user: { phone: sortOrder } }, tieBreak];
+    case StaffSortField.USER_IS_ACTIVE:
+      return [{ user: { isActive: sortOrder } }, tieBreak];
+    case StaffSortField.ASSIGNMENT_IS_ACTIVE:
+      return [{ isActive: sortOrder }, tieBreak];
+    case StaffSortField.IS_PRIMARY:
+      return [{ isPrimary: sortOrder }, tieBreak];
+    case StaffSortField.CREATED_AT:
+      return [{ user: { createdAt: sortOrder } }, tieBreak];
+    case StaffSortField.ASSIGNED_AT:
+    default:
+      return [{ assignedAt: sortOrder }, tieBreak];
+  }
+}
+
+function compareNullableText(
+  left: string | null | undefined,
+  right: string | null | undefined,
+  direction: Prisma.SortOrder,
+): number {
+  if (!left && !right) return 0;
+  if (!left) return 1;
+  if (!right) return -1;
+  return (
+    left.localeCompare(right, 'vi', { sensitivity: 'base' }) *
+    (direction === 'asc' ? 1 : -1)
+  );
+}
+
+function branchAdminOrderBy(
+  sortBy: BranchAdminSortField,
+  sortOrder: Prisma.SortOrder,
+): Prisma.UserOrderByWithRelationInput[] | undefined {
+  switch (sortBy) {
+    case BranchAdminSortField.FULL_NAME:
+      return [{ fullName: sortOrder }, { id: 'asc' }];
+    case BranchAdminSortField.EMAIL:
+      return [{ email: sortOrder }, { id: 'asc' }];
+    case BranchAdminSortField.PHONE:
+      return [{ phone: sortOrder }, { id: 'asc' }];
+    case BranchAdminSortField.IS_ACTIVE:
+      return [{ isActive: sortOrder }, { id: 'asc' }];
+    case BranchAdminSortField.CREATED_AT:
+      return [{ createdAt: sortOrder }, { id: 'asc' }];
+    case BranchAdminSortField.PRIMARY_BRANCH:
+    case BranchAdminSortField.ASSIGNMENTS:
+      return undefined;
+  }
+}
 
 @Injectable()
 export class AuthorizationRepository {
@@ -484,6 +678,96 @@ export class AuthorizationRepository {
     ]);
   }
 
+  listAssignableStaffRoles(query: {
+    skip: number;
+    take: number;
+    search?: string;
+    maxRoleLevel: number;
+  }) {
+    const where: Prisma.RoleWhereInput = {
+      type: UserType.BRANCH,
+      guardName: 'web',
+      isActive: true,
+      level: { lt: query.maxRoleLevel },
+      code: { notIn: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'CUSTOMER'] },
+      ...(query.search
+        ? {
+            OR: [
+              { code: { contains: query.search, mode: 'insensitive' } },
+              { name: { contains: query.search, mode: 'insensitive' } },
+              {
+                description: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    return Promise.all([
+      this.prisma.role.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: {
+          ...roleSelect,
+          rolePermissions: {
+            select: { permission: { select: permissionSelect } },
+          },
+        },
+      }),
+      this.prisma.role.count({ where }),
+    ]);
+  }
+
+  listAssignableStaffPermissions(query: {
+    skip: number;
+    take: number;
+    search?: string;
+    actorPermissionCodes?: string[];
+    permissionCodes: readonly string[];
+    excludedCodes: string[];
+  }) {
+    const where: Prisma.PermissionWhereInput = {
+      guardName: 'web',
+      code: {
+        notIn: query.excludedCodes,
+        in: query.actorPermissionCodes
+          ? query.permissionCodes.filter((code) =>
+              query.actorPermissionCodes?.includes(code),
+            )
+          : [...query.permissionCodes],
+      },
+      ...(query.search
+        ? {
+            OR: [
+              { code: { contains: query.search, mode: 'insensitive' } },
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { resource: { contains: query.search, mode: 'insensitive' } },
+              {
+                description: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    return Promise.all([
+      this.prisma.permission.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: [{ resource: 'asc' }, { name: 'asc' }, { id: 'asc' }],
+        select: permissionSelect,
+      }),
+      this.prisma.permission.count({ where }),
+    ]);
+  }
+
   findRoleDetail(id: string) {
     return this.prisma.role.findUnique({
       where: { id },
@@ -734,34 +1018,392 @@ export class AuthorizationRepository {
     return this.updateBranchInScope(id, branchWhere, { isActive: false });
   }
 
-  listManagedUsers(
+  async listStaff(query: StaffListQuery) {
+    const where: Prisma.UserBranchWhereInput = {
+      branchId: query.branchId,
+      ...(query.assignmentIsActive === undefined
+        ? {}
+        : { isActive: query.assignmentIsActive }),
+      ...(query.isPrimary === undefined ? {} : { isPrimary: query.isPrimary }),
+      user: {
+        type: UserType.BRANCH,
+        ...(query.userIsActive === undefined
+          ? {}
+          : { isActive: query.userIsActive }),
+        ...(query.search
+          ? {
+              OR: [
+                {
+                  fullName: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  email: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  phone: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      roles: {
+        some: {
+          ...(query.roleId ? { roleId: query.roleId } : {}),
+          role: qualifyingStaffRoleWhere,
+        },
+      },
+    };
+    const [assignments, total] = await Promise.all([
+      this.prisma.userBranch.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: staffOrderBy(query.sortBy, query.sortOrder),
+        select: staffAssignmentSelect,
+      }),
+      this.prisma.userBranch.count({ where }),
+    ]);
+    return [assignments, total] as const;
+  }
+
+  findStaffInBranch(userId: string, branchId: string) {
+    return this.prisma.userBranch.findFirst({
+      where: {
+        userId,
+        branchId,
+        user: { type: UserType.BRANCH },
+        roles: { some: { role: qualifyingStaffRoleWhere } },
+      },
+      select: staffAssignmentSelect,
+    });
+  }
+
+  async listStaffCandidates(input: {
+    branchId: string;
+    skip: number;
+    take: number;
+    search?: string;
+  }) {
+    const where: Prisma.UserWhereInput = {
+      type: UserType.BRANCH,
+      userBranches: { none: { branchId: input.branchId } },
+      ...(input.search
+        ? {
+            OR: [
+              {
+                fullName: {
+                  contains: input.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                email: {
+                  contains: input.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                phone: {
+                  contains: input.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip: input.skip,
+        take: input.take,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          phone: true,
+          isActive: true,
+          _count: { select: { userBranches: true } },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return [users, total] as const;
+  }
+
+  assignExistingStaff(input: {
+    userId: string;
+    branchId: string;
+    roleIds: string[];
+    permissionIds?: string[];
+    assignedBy: string;
+    actorMaxRoleLevel: number;
+    allowedPermissionCodes: string[];
+  }) {
+    return this.transaction(async (tx) => {
+      const [target, branch, roleCount, permissionCount] = await Promise.all([
+        tx.user.findFirst({
+          where: { id: input.userId, type: UserType.BRANCH },
+          select: {
+            id: true,
+            userBranches: {
+              where: { isActive: true },
+              select: { isPrimary: true },
+            },
+          },
+        }),
+        tx.branch.findFirst({
+          where: { id: input.branchId, isActive: true },
+          select: { id: true },
+        }),
+        tx.role.count({
+          where: {
+            id: { in: input.roleIds },
+            ...qualifyingStaffRoleWhere,
+            level: { lt: input.actorMaxRoleLevel },
+          },
+        }),
+        tx.permission.count({
+          where: {
+            id: { in: input.permissionIds ?? [] },
+            guardName: 'web',
+            code: {
+              in: input.allowedPermissionCodes,
+              notIn: [...DANGEROUS_PERMISSION_CODES],
+            },
+          },
+        }),
+      ]);
+      if (!target || !branch) {
+        throw new AuthorizationWriteValidationError(
+          'Tài khoản nội bộ hoặc chi nhánh không còn hợp lệ',
+        );
+      }
+      if (
+        roleCount !== input.roleIds.length ||
+        permissionCount !== (input.permissionIds?.length ?? 0)
+      ) {
+        throw new AuthorizationWriteValidationError(
+          'Role hoặc permission đã thay đổi trước khi ghi dữ liệu',
+        );
+      }
+      const existing = await tx.userBranch.findUnique({
+        where: {
+          userId_branchId: {
+            userId: input.userId,
+            branchId: input.branchId,
+          },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new AuthorizationWriteConflictError(
+          'Tài khoản đã được phân công tại chi nhánh này',
+        );
+      }
+
+      const assignment = await tx.userBranch.create({
+        data: {
+          userId: input.userId,
+          branchId: input.branchId,
+          assignedBy: input.assignedBy,
+          isActive: true,
+          isPrimary: target.userBranches.length === 0,
+        },
+        select: { id: true },
+      });
+      await tx.userBranchRole.createMany({
+        data: input.roleIds.map((roleId) => ({
+          userBranchId: assignment.id,
+          roleId,
+          assignedBy: input.assignedBy,
+        })),
+      });
+      if (input.permissionIds?.length) {
+        await tx.userBranchPermission.createMany({
+          data: input.permissionIds.map((permissionId) => ({
+            userBranchId: assignment.id,
+            permissionId,
+            effect: PermissionEffect.ALLOW,
+            assignedBy: input.assignedBy,
+          })),
+        });
+      }
+      return tx.userBranch.findUniqueOrThrow({
+        where: { id: assignment.id },
+        select: staffAssignmentSelect,
+      });
+    });
+  }
+
+  async listManagedUsers(
     kind: 'STAFF' | 'BRANCH_ADMIN',
     branchWhere: BranchWhere,
     skip: number,
     take: number,
     search?: string,
+    filters?: ManagedUserListFilters,
+    sortBy: BranchAdminSortField = BranchAdminSortField.CREATED_AT,
+    sortOrder: Prisma.SortOrder = 'desc',
   ) {
+    const assignmentPredicate: Prisma.UserBranchWhereInput =
+      kind === 'BRANCH_ADMIN'
+        ? {
+            roles: {
+              some: {
+                role: {
+                  code: 'BRANCH_ADMIN',
+                  type: UserType.BRANCH,
+                  guardName: 'web',
+                  isActive: true,
+                },
+              },
+            },
+          }
+        : {};
+    const assignmentFilter: Prisma.UserBranchListRelationFilter | undefined =
+      filters?.assignedBranchId
+        ? filters.assignmentState === BranchAdminAssignmentState.UNASSIGNED
+          ? {
+              none: {
+                ...assignmentPredicate,
+                branchId: filters.assignedBranchId,
+              },
+            }
+          : {
+              some: {
+                ...assignmentPredicate,
+                branchId: filters.assignedBranchId,
+                ...(filters.assignmentState ===
+                BranchAdminAssignmentState.ACTIVE
+                  ? { isActive: true }
+                  : filters.assignmentState ===
+                      BranchAdminAssignmentState.INACTIVE_ONLY
+                    ? { isActive: false }
+                    : filters.assignmentIsActive === undefined
+                      ? {}
+                      : { isActive: filters.assignmentIsActive }),
+              },
+            }
+        : filters?.assignmentState === BranchAdminAssignmentState.UNASSIGNED
+          ? { none: assignmentPredicate }
+          : filters?.assignmentState === BranchAdminAssignmentState.ACTIVE
+            ? {
+                some: { ...assignmentPredicate, isActive: true },
+                ...(filters.excludeAssignedBranchId
+                  ? {
+                      none: {
+                        ...assignmentPredicate,
+                        branchId: filters.excludeAssignedBranchId,
+                      },
+                    }
+                  : {}),
+              }
+            : filters?.assignmentState ===
+                BranchAdminAssignmentState.INACTIVE_ONLY
+              ? {
+                  some: assignmentPredicate,
+                  none: filters.excludeAssignedBranchId
+                    ? {
+                        ...assignmentPredicate,
+                        OR: [
+                          { isActive: true },
+                          { branchId: filters.excludeAssignedBranchId },
+                        ],
+                      }
+                    : { ...assignmentPredicate, isActive: true },
+                }
+              : filters?.excludeAssignedBranchId
+                ? {
+                    none: {
+                      ...assignmentPredicate,
+                      branchId: filters.excludeAssignedBranchId,
+                    },
+                  }
+                : undefined;
     const where: Prisma.UserWhereInput = {
       ...this.managedUserWhere(kind, branchWhere),
+      ...(filters?.isActive === undefined
+        ? {}
+        : { isActive: filters.isActive }),
+      ...(assignmentFilter ? { userBranches: assignmentFilter } : {}),
       ...(search
         ? {
             OR: [
               { email: { contains: search, mode: 'insensitive' as const } },
               { fullName: { contains: search, mode: 'insensitive' as const } },
+              ...(kind === 'BRANCH_ADMIN'
+                ? [
+                    {
+                      phone: {
+                        contains: search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  ]
+                : []),
             ],
           }
         : {}),
     };
-    return Promise.all([
+    const orderBy =
+      kind === 'BRANCH_ADMIN'
+        ? branchAdminOrderBy(sortBy, sortOrder)
+        : [{ createdAt: 'desc' as const }];
+    const computedSort = kind === 'BRANCH_ADMIN' && orderBy === undefined;
+    const [items, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        skip,
-        take,
-        orderBy: { createdAt: 'desc' },
-        select: managedUserSelect(branchWhere),
+        ...(computedSort ? {} : { skip, take }),
+        ...(orderBy ? { orderBy } : {}),
+        select: managedUserSelect(
+          branchWhere,
+          kind === 'BRANCH_ADMIN' ? 'BRANCH_ADMIN' : 'ALL',
+        ),
       }),
       this.prisma.user.count({ where }),
     ]);
+
+    if (!computedSort) return [items, total] as const;
+
+    items.sort((left, right) => {
+      let compared = 0;
+      if (sortBy === BranchAdminSortField.PRIMARY_BRANCH) {
+        const leftName = left.userBranches.find(
+          (assignment) => assignment.isPrimary,
+        )?.branch.name;
+        const rightName = right.userBranches.find(
+          (assignment) => assignment.isPrimary,
+        )?.branch.name;
+        compared = compareNullableText(leftName, rightName, sortOrder);
+      } else {
+        const leftActive = left.userBranches.filter(
+          (assignment) => assignment.isActive,
+        ).length;
+        const rightActive = right.userBranches.filter(
+          (assignment) => assignment.isActive,
+        ).length;
+        compared = (leftActive - rightActive) * (sortOrder === 'asc' ? 1 : -1);
+        if (compared === 0) {
+          compared =
+            (left.userBranches.length - right.userBranches.length) *
+            (sortOrder === 'asc' ? 1 : -1);
+        }
+      }
+      return compared || left.id.localeCompare(right.id);
+    });
+
+    return [items.slice(skip, skip + take), total] as const;
   }
 
   findManagedUserInScope(
@@ -963,6 +1605,15 @@ export class AuthorizationRepository {
         },
       });
       if (input.type === UserType.BRANCH) {
+        if (input.requiredRoleCode === 'BRANCH_ADMIN') {
+          await tx.userRole.createMany({
+            data: input.roleIds.map((roleId) => ({
+              userId: user.id,
+              roleId,
+              assignedBy: input.assignedBy,
+            })),
+          });
+        }
         for (const [index, branchId] of input.branchIds.entries()) {
           const userBranch = await tx.userBranch.create({
             data: {
@@ -1063,6 +1714,9 @@ export class AuthorizationRepository {
       await tx.user.update({
         where: { id: userId },
         data: { type: UserType.BRANCH },
+      });
+      await tx.userRole.create({
+        data: { userId, roleId, assignedBy },
       });
       for (const [index, branchId] of branchIds.entries()) {
         const userBranch = await tx.userBranch.create({
@@ -1414,7 +2068,23 @@ export class AuthorizationRepository {
           select: { id: true },
         }),
         tx.user.findFirst({
-          where: { id: userId, type: UserType.BRANCH },
+          where: {
+            id: userId,
+            type: UserType.BRANCH,
+            ...(roleCode === 'BRANCH_ADMIN'
+              ? {
+                  userRoles: {
+                    some: {
+                      role: {
+                        code: 'BRANCH_ADMIN',
+                        type: UserType.BRANCH,
+                        guardName: 'web',
+                      },
+                    },
+                  },
+                }
+              : {}),
+          },
           select: { id: true },
         }),
       ]);
@@ -1436,18 +2106,32 @@ export class AuthorizationRepository {
           'Không tìm thấy role mặc định cho branch assignment',
         );
       }
+      const assignmentSelect = {
+        id: true,
+        userId: true,
+        branchId: true,
+        isPrimary: true,
+        isActive: true,
+      } satisfies Prisma.UserBranchSelect;
       const assignment = await tx.userBranch.upsert({
         where: { userId_branchId: { userId, branchId } },
         create: { userId, branchId, assignedBy },
         update: { isActive: true, assignedBy, assignedAt: new Date() },
-        select: {
-          id: true,
-          userId: true,
-          branchId: true,
-          isPrimary: true,
-          isActive: true,
-        },
+        select: assignmentSelect,
       });
+      if (roleCode === 'BRANCH_ADMIN') {
+        await tx.userRole.upsert({
+          where: {
+            userId_roleId: { userId, roleId: fallbackRole.id },
+          },
+          create: {
+            userId,
+            roleId: fallbackRole.id,
+            assignedBy,
+          },
+          update: {},
+        });
+      }
       await tx.userBranchRole.upsert({
         where: {
           userBranchId_roleId: {
@@ -1631,6 +2315,7 @@ export class AuthorizationRepository {
     userId: string,
     branchId: string,
     isActive: boolean,
+    kind: ManagedAssignmentKind,
     replacementBranchId?: string,
   ) {
     return this.transaction(async (tx) => {
@@ -1644,18 +2329,20 @@ export class AuthorizationRepository {
             'Branch không còn hoạt động',
           );
         }
-        const roleCount = await tx.userBranchRole.count({
-          where: { userBranch: { userId, branchId } },
-        });
-        if (roleCount === 0) {
-          throw new AuthorizationWriteValidationError(
-            'Không thể activate branch assignment chưa có role',
-          );
-        }
       }
-      const assignment = await tx.userBranch.findUniqueOrThrow({
-        where: { userId_branchId: { userId, branchId } },
+      const assignment = await tx.userBranch.findFirst({
+        where: {
+          userId,
+          branchId,
+          roles: { some: { role: managedAssignmentRoleWhere(kind) } },
+        },
+        select: { id: true, isPrimary: true },
       });
+      if (!assignment) {
+        throw new AuthorizationWriteScopeError(
+          `Không tìm thấy phân công ${kind} tại chi nhánh`,
+        );
+      }
       if (!isActive && assignment.isPrimary) {
         const replacements = await tx.userBranch.findMany({
           where: {
@@ -1663,6 +2350,7 @@ export class AuthorizationRepository {
             branchId: { not: branchId },
             isActive: true,
             branch: { isActive: true },
+            roles: { some: { role: managedAssignmentRoleWhere(kind) } },
           },
           select: { branchId: true },
         });
@@ -1719,13 +2407,36 @@ export class AuthorizationRepository {
   removeUserBranch(
     userId: string,
     branchId: string,
+    kind: ManagedAssignmentKind,
     replacementBranchId?: string,
   ) {
     return this.transaction(async (tx) => {
-      const assignment = await tx.userBranch.findUniqueOrThrow({
-        where: { userId_branchId: { userId, branchId } },
-        select: { isPrimary: true },
+      const assignment = await tx.userBranch.findFirst({
+        where: {
+          userId,
+          branchId,
+          roles: { some: { role: managedAssignmentRoleWhere(kind) } },
+        },
+        select: { id: true, isPrimary: true },
       });
+      if (!assignment) {
+        if (kind === 'STAFF') return { count: 0 };
+        throw new AuthorizationWriteScopeError(
+          'Không tìm thấy phân công BRANCH_ADMIN tại chi nhánh',
+        );
+      }
+      if (kind === 'BRANCH_ADMIN') {
+        await tx.userBranchRole.deleteMany({
+          where: {
+            userBranchId: assignment.id,
+            role: managedAssignmentRoleWhere(kind),
+          },
+        });
+        const remainingRoleCount = await tx.userBranchRole.count({
+          where: { userBranchId: assignment.id },
+        });
+        if (remainingRoleCount > 0) return { count: 1 };
+      }
       if (assignment.isPrimary) {
         const replacements = await tx.userBranch.findMany({
           where: {
@@ -1733,6 +2444,7 @@ export class AuthorizationRepository {
             branchId: { not: branchId },
             isActive: true,
             branch: { isActive: true },
+            roles: { some: { role: managedAssignmentRoleWhere(kind) } },
           },
           select: { branchId: true },
         });
@@ -1783,9 +2495,12 @@ export class AuthorizationRepository {
     });
   }
 
-  listUserBranchAssignments(userId: string) {
+  listUserBranchAssignments(userId: string, kind: ManagedAssignmentKind) {
     return this.prisma.userBranch.findMany({
-      where: { userId },
+      where: {
+        userId,
+        roles: { some: { role: managedAssignmentRoleWhere(kind) } },
+      },
       select: {
         branchId: true,
         isPrimary: true,
@@ -1795,7 +2510,12 @@ export class AuthorizationRepository {
     });
   }
 
-  setPrimaryUserBranch(userId: string, branchId: string, assignedBy: string) {
+  setPrimaryUserBranch(
+    userId: string,
+    branchId: string,
+    assignedBy: string,
+    kind: ManagedAssignmentKind,
+  ) {
     return this.transaction(async (tx) => {
       const branch = await tx.branch.findFirst({
         where: { id: branchId, isActive: true },
@@ -1806,10 +2526,21 @@ export class AuthorizationRepository {
           'Branch không còn hoạt động',
         );
       }
-      await tx.userBranch.findUniqueOrThrow({
-        where: { userId_branchId: { userId, branchId } },
+      const assignment = await tx.userBranch.findFirst({
+        where: {
+          userId,
+          branchId,
+          isActive: true,
+          branch: { isActive: true },
+          roles: { some: { role: managedAssignmentRoleWhere(kind) } },
+        },
         select: { branchId: true },
       });
+      if (!assignment) {
+        throw new AuthorizationWriteValidationError(
+          'Chỉ có thể đặt primary cho assignment đang hoạt động',
+        );
+      }
       await tx.userBranch.updateMany({
         where: { userId },
         data: { isPrimary: false },
@@ -1819,7 +2550,6 @@ export class AuthorizationRepository {
         data: {
           assignedBy,
           isPrimary: true,
-          isActive: true,
           assignedAt: new Date(),
         },
       });
@@ -1846,13 +2576,12 @@ export class AuthorizationRepository {
       type: UserType.BRANCH,
       ...(kind === 'BRANCH_ADMIN'
         ? {
-            userBranches: {
+            userRoles: {
               some: {
-                isActive: true,
-                branch: { isActive: true },
-                ...branchFilter,
-                roles: {
-                  some: { role: { code: 'BRANCH_ADMIN', isActive: true } },
+                role: {
+                  code: 'BRANCH_ADMIN',
+                  type: UserType.BRANCH,
+                  guardName: 'web',
                 },
               },
             },

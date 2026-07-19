@@ -5,6 +5,7 @@
   NotFoundException,
 } from '@nestjs/common';
 import { PermissionEffect, Prisma, UserType } from '@/generated/prisma/client';
+import { SortDirection } from '@/common/enums';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { AuthorizationManagementService } from './authorization-management.service';
 import {
@@ -12,6 +13,11 @@ import {
   AuthorizationWriteValidationError,
   StaffLastRoleRequiredError,
 } from './authorization.repository';
+import {
+  BranchAdminSortField,
+  StaffAssignableRoleAction,
+  StaffSortField,
+} from './dto';
 
 describe('AuthorizationManagementService', () => {
   const transactionClient = {};
@@ -50,6 +56,7 @@ describe('AuthorizationManagementService', () => {
     assertCanRemoveRolePermission: jest.fn(),
     assertCanAssignInitialPermission: jest.fn(),
     assertCanAssignUserPermission: jest.fn(),
+    assertStaffPermissionCodeIsDelegatable: jest.fn(),
   };
   let service: AuthorizationManagementService;
 
@@ -115,6 +122,101 @@ describe('AuthorizationManagementService', () => {
         sortOrder: 'desc',
       }),
     );
+  });
+
+  it.each([
+    [StaffAssignableRoleAction.CREATE, 'staff.create'],
+    [StaffAssignableRoleAction.ASSIGN, 'staff.assign_role'],
+  ])(
+    'returns only delegatable Staff roles for %s without roles.read',
+    async (action, permission) => {
+      repository.listAssignableStaffRoles.mockResolvedValue([[], 0]);
+      branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+      const principal = branchAdmin({
+        permissions: [permission],
+        maxRoleLevel: 70,
+      });
+
+      await service.listAssignableStaffRoles(
+        principal,
+        {
+          scope: 'SELECTED',
+          selectedBranchId: 'branch-id',
+          allowedBranchIds: ['branch-id'],
+        },
+        { action, page: 1, limit: 100, search: '  staff  ' },
+      );
+
+      expect(repository.listAssignableStaffRoles).toHaveBeenCalledWith({
+        skip: 0,
+        take: 100,
+        search: 'staff',
+        maxRoleLevel: 70,
+      });
+    },
+  );
+
+  it('rejects the assignable Staff role catalog without the action capability', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+
+    await expect(
+      service.listAssignableStaffRoles(
+        branchAdmin({ permissions: [] }),
+        {
+          scope: 'SELECTED',
+          selectedBranchId: 'branch-id',
+          allowedBranchIds: ['branch-id'],
+        },
+        { action: StaffAssignableRoleAction.ASSIGN },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repository.listAssignableStaffRoles).not.toHaveBeenCalled();
+  });
+
+  it('returns the actor-aware Staff permission catalog without permissions.read', async () => {
+    repository.listAssignableStaffPermissions.mockResolvedValue([[], 0]);
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+
+    await service.listAssignableStaffPermissions(
+      branchAdmin({
+        permissions: ['staff.assign_permission', 'orders.read', 'roles.read'],
+      }),
+      {
+        scope: 'SELECTED',
+        selectedBranchId: 'branch-id',
+        allowedBranchIds: ['branch-id'],
+      },
+      { page: 1, limit: 100, search: '  order  ' },
+    );
+
+    expect(repository.listAssignableStaffPermissions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: 100,
+        search: 'order',
+        actorPermissionCodes: [
+          'staff.assign_permission',
+          'orders.read',
+          'roles.read',
+        ],
+      }),
+    );
+  });
+
+  it('rejects the Staff permission catalog without staff.assign_permission', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+
+    await expect(
+      service.listAssignableStaffPermissions(
+        branchAdmin({ permissions: ['orders.read'] }),
+        {
+          scope: 'SELECTED',
+          selectedBranchId: 'branch-id',
+          allowedBranchIds: ['branch-id'],
+        },
+        {},
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('creates only a custom role after system policy approval', async () => {
@@ -614,6 +716,7 @@ describe('AuthorizationManagementService', () => {
   it('validates roles and permissions before creating staff transactionally', async () => {
     branchContext.requireSelectedBranch.mockReturnValue('branch-id');
     repository.createInternalUser.mockResolvedValue({ id: 'staff-id' });
+    repository.findStaffInBranch.mockResolvedValue(staffAssignment());
     await service.createStaff(
       branchAdmin(),
       {
@@ -648,10 +751,129 @@ describe('AuthorizationManagementService', () => {
     );
   });
 
+  it('forwards Staff list filters and maps the selected assignment', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+    repository.listStaff.mockResolvedValue([[staffAssignment()], 1]);
+
+    const result = await service.listStaff({} as never, {
+      page: 2,
+      limit: 10,
+      search: '  cashier  ',
+      sortBy: StaffSortField.ASSIGNED_AT,
+      sortOrder: SortDirection.ASC,
+      userIsActive: true,
+      assignmentIsActive: false,
+      isPrimary: false,
+      roleId: 'role-id',
+    });
+
+    expect(repository.listStaff).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchId: 'branch-id',
+        skip: 10,
+        take: 10,
+        search: 'cashier',
+        userIsActive: true,
+        assignmentIsActive: false,
+        isPrimary: false,
+        roleId: 'role-id',
+      }),
+    );
+    expect(result.data[0]).toMatchObject({
+      id: 'staff-id',
+      assignment: { id: 'assignment-id', roles: [{ code: 'CASHIER' }] },
+    });
+  });
+
+  it('assigns an existing BRANCH user only after delegation checks', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+    repository.assignExistingStaff.mockResolvedValue(staffAssignment());
+
+    await service.assignExistingStaff(superAdmin(), {} as never, 'staff-id', {
+      roleIds: ['role-id'],
+      permissionIds: ['permission-id'],
+    });
+
+    expect(rolePolicy.assertCanAssignRoleToNewBranchUser).toHaveBeenCalledWith(
+      expect.anything(),
+      'role-id',
+    );
+    expect(
+      permissionPolicy.assertCanAssignInitialPermission,
+    ).toHaveBeenCalledWith(
+      expect.anything(),
+      'permission-id',
+      PermissionEffect.ALLOW,
+    );
+    expect(repository.assignExistingStaff).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'staff-id',
+        branchId: 'branch-id',
+        roleIds: ['role-id'],
+      }),
+    );
+  });
+
+  it('allows only Super Admin to list candidates and assign existing Staff', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+    repository.listStaffCandidates.mockResolvedValue([[], 0]);
+
+    await service.listStaffCandidates(superAdmin(), {} as never, {
+      page: 1,
+      limit: 10,
+    });
+    expect(repository.listStaffCandidates).toHaveBeenCalledWith(
+      expect.objectContaining({ branchId: 'branch-id' }),
+    );
+
+    await expect(
+      service.listStaffCandidates(branchAdmin(), {} as never, {
+        page: 1,
+        limit: 10,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.assignExistingStaff(branchAdmin(), {} as never, 'staff-id', {
+        roleIds: ['role-id'],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('rejects Branch Admin management by a non-Super Admin', async () => {
     await expect(
       service.listBranchAdmins(branchAdmin(), {}),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('passes Branch Admin current/candidate filters to one server-side query', async () => {
+    repository.listManagedUsers.mockResolvedValue([[], 0]);
+
+    await service.listBranchAdmins(superAdmin(), {
+      page: 2,
+      limit: 20,
+      search: '  manager  ',
+      excludeAssignedBranchId: '01JZ0000000000000000000001',
+      isActive: true,
+      sortBy: BranchAdminSortField.FULL_NAME,
+      sortOrder: SortDirection.ASC,
+    });
+
+    expect(repository.listManagedUsers).toHaveBeenCalledWith(
+      'BRANCH_ADMIN',
+      { scope: 'UNRESTRICTED' },
+      20,
+      20,
+      'manager',
+      {
+        assignedBranchId: undefined,
+        excludeAssignedBranchId: '01JZ0000000000000000000001',
+        isActive: true,
+        assignmentIsActive: undefined,
+        assignmentState: undefined,
+      },
+      'fullName',
+      'asc',
+    );
   });
 
   it('uses permission policy and upsert for UserPermission', async () => {
@@ -736,31 +958,23 @@ describe('AuthorizationManagementService', () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it('requires a distinct primary replacement when another active branch remains', async () => {
-    repository.listUserBranchAssignments.mockResolvedValue([
-      {
-        branchId: 'branch-a',
-        isPrimary: true,
-        isActive: true,
-        branch: { isActive: true },
-      },
-      {
-        branchId: 'branch-b',
-        isPrimary: false,
-        isActive: true,
-        branch: { isActive: true },
-      },
-    ]);
+  it('passes assignment kind into the atomic branch removal', async () => {
+    repository.removeUserBranch.mockResolvedValue({ count: 1 });
 
-    await expect(
-      service.removeUserBranch(
-        superAdmin(),
-        'staff-id',
-        'branch-a',
-        'branch-a',
-      ),
-    ).rejects.toMatchObject({ status: 400 });
-    expect(repository.removeUserBranch).not.toHaveBeenCalled();
+    await service.removeUserBranch(
+      superAdmin(),
+      'staff-id',
+      'branch-a',
+      'STAFF',
+      'branch-b',
+    );
+
+    expect(repository.removeUserBranch).toHaveBeenCalledWith(
+      'staff-id',
+      'branch-a',
+      'STAFF',
+      'branch-b',
+    );
   });
 
   it('does not assign an inactive branch', async () => {
@@ -860,6 +1074,28 @@ describe('AuthorizationManagementService', () => {
         'role-id',
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(repository.assignUserRole).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-web role before assigning it to Staff', async () => {
+    branchContext.requireSelectedBranch.mockReturnValue('branch-id');
+    repository.findActiveUserBranchPolicySubject.mockResolvedValue({
+      id: 'user-branch-id',
+      roles: [{ role: { level: 10 } }],
+    });
+    repository.findRolePolicySubject.mockResolvedValue({
+      id: 'role-id',
+      code: 'API_STAFF',
+      type: UserType.BRANCH,
+      guardName: 'api',
+      level: 10,
+      isActive: true,
+    });
+
+    await expect(
+      service.assignUserRole(superAdmin(), {} as never, 'staff-id', 'role-id'),
+    ).rejects.toMatchObject({ status: 400 });
 
     expect(repository.assignUserRole).not.toHaveBeenCalled();
   });
@@ -995,6 +1231,47 @@ describe('AuthorizationManagementService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+function staffAssignment() {
+  return {
+    id: 'assignment-id',
+    branchId: 'branch-id',
+    isPrimary: true,
+    isActive: true,
+    assignedBy: 'actor-id',
+    assignedAt: new Date('2026-07-18T00:00:00.000Z'),
+    branch: {
+      id: 'branch-id',
+      code: 'can-tho',
+      name: 'Cần Thơ',
+      isActive: true,
+    },
+    roles: [
+      {
+        role: {
+          id: 'role-id',
+          code: 'CASHIER',
+          name: 'Thu ngân',
+          guardName: 'web',
+          type: UserType.BRANCH,
+          level: 10,
+          isSystem: false,
+          isActive: true,
+          rolePermissions: [],
+        },
+      },
+    ],
+    permissions: [],
+    user: {
+      id: 'staff-id',
+      email: 'staff@example.com',
+      fullName: 'Staff',
+      phone: '0900000000',
+      isActive: true,
+      createdAt: new Date('2026-07-17T00:00:00.000Z'),
+    },
+  };
+}
 
 function branchAdmin(
   overrides: Partial<AuthenticatedUser> = {},

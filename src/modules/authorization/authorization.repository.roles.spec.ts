@@ -70,4 +70,34 @@ describe('AuthorizationRepository role catalog', () => {
       );
     },
   );
+
+  it('returns only active delegatable Staff roles with permission grants', async () => {
+    await repository.listAssignableStaffRoles({
+      skip: 0,
+      take: 100,
+      search: 'cash',
+      maxRoleLevel: 70,
+    });
+
+    const findManyInput = role.findMany.mock.calls[0][0];
+    expect(findManyInput).toMatchObject({
+      skip: 0,
+      take: 100,
+      where: {
+        type: UserType.BRANCH,
+        guardName: 'web',
+        isActive: true,
+        level: { lt: 70 },
+        code: { notIn: ['SUPER_ADMIN', 'BRANCH_ADMIN', 'CUSTOMER'] },
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      select: {
+        rolePermissions: {
+          select: { permission: expect.any(Object) },
+        },
+      },
+    });
+    expect(findManyInput.where.OR).toHaveLength(3);
+    expect(role.count).toHaveBeenCalledWith({ where: findManyInput.where });
+  });
 });

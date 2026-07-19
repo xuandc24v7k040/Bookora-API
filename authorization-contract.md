@@ -198,6 +198,8 @@ type MutationCountResponse = { count: number };
 - Add role trả `UserBranchRoleResponse`.
 - Upsert permission override trả `UserBranchPermissionResponse`.
 - Remove role/permission trả `MutationCountResponse`; mapping không tồn tại trả `{ count: 0 }`.
+- Remove branch assignment cũng idempotent: mapping không tồn tại trả `{ count: 0 }`
+  và không chạy các side effect thay thế primary/khóa tài khoản.
 
 ## 4. Query contract
 
@@ -234,10 +236,12 @@ Query chung: `page >= 1`, `limit = 1..100`, pagination meta tính trên cùng fi
   có thể truyền riêng; `createdFrom` inclusive và `createdTo` được query bằng
   mốc `< startOfNextDay`.
 - `sortBy?: code | name | description | type | guardName | level | isSystem |
-  isActive | createdAt | updatedAt`; `sortOrder?: asc | desc`.
+isActive | createdAt | updatedAt`; `sortOrder?: asc | desc`.
 - Mặc định `createdAt DESC`; mọi sort thêm `id ASC` làm tie-break ổn định.
 - Search và filter compose bằng AND; data và count dùng cùng một `where`.
-- Đây là global catalog, không yêu cầu `X-Branch-Id`.
+- Dataset là global catalog. Super Admin không cần `X-Branch-Id`; Branch actor gửi
+  selected `X-Branch-Id` để resolve quyền assignment trước `roles.read`, header không
+  dùng để lọc dataset.
 
 ### 4.3. Permissions
 
@@ -250,23 +254,112 @@ Query chung: `page >= 1`, `limit = 1..100`, pagination meta tính trên cùng fi
   có thể truyền riêng; `createdFrom` inclusive và `createdTo` được query bằng
   mốc `< startOfNextDay`.
 - `sortBy?: code | name | resource | action | guardName | description |
-  createdAt | updatedAt`; `sortOrder?: asc | desc`.
+createdAt | updatedAt`; `sortOrder?: asc | desc`.
 - Mặc định `createdAt DESC`; mọi sort thêm `id ASC` làm tie-break ổn định.
 - Search và filter compose bằng AND; data và count dùng cùng một `where`.
-- Đây là global catalog, không yêu cầu `X-Branch-Id`.
+- Dataset là global catalog. Super Admin không cần `X-Branch-Id`; Branch actor gửi
+  selected `X-Branch-Id` để resolve quyền assignment trước `permissions.read`, header
+  không dùng để lọc dataset. Role chuẩn `BRANCH_ADMIN` có hai quyền đọc catalog tối
+  thiểu `roles.read` và `permissions.read` để phục vụ staff delegation UI.
 
-### 4.4. Staff
+### 4.4. Branch Admins
 
-`GET /staff?page&limit&search` giữ search và branch scope hiện hữu. Branch actor chỉ thấy assignment thuộc selected/allowed branch; Super Admin giữ quyền xem theo contract route.
+`GET /branch-admins?page&limit&search&assignedBranchId&excludeAssignedBranchId&isActive&assignmentIsActive&assignmentState`
 
-### 4.5. Users
+- `search` được trim; chuỗi rỗng tương đương không search và tìm kiếm
+  case-insensitive trên `fullName`, `email`, `phone`.
+- `assignedBranchId` chỉ trả Branch Admin đã có `UserBranch` với chi nhánh;
+  `assignmentIsActive` chỉ hợp lệ cùng filter này và lọc trạng thái mapping.
+- `excludeAssignedBranchId` loại mọi mapping với chi nhánh, kể cả mapping inactive.
+- `assignedBranchId` và `excludeAssignedBranchId` loại trừ lẫn nhau.
+- `isActive` lọc trạng thái tài khoản `User`, độc lập với assignment status.
+- `assignmentState?: UNASSIGNED | ACTIVE | INACTIVE_ONLY` lọc trạng thái phân công
+  tổng hợp trên server. Không có `assignedBranchId`, ba giá trị lần lượt
+  nghĩa là không có mapping, có ít nhất một mapping active, hoặc có mapping
+  nhưng không có mapping active. Khi có `assignedBranchId`, semantics được giới hạn
+  trong chi nhánh đó. `assignmentState` không dùng đồng thời với legacy
+  `assignmentIsActive`.
+- Search/filter compose bằng AND; data/count dùng cùng `where` và ordering
+  `createdAt DESC, id ASC`.
+- Branch Admin registry dùng duy nhất global `UserRole(BRANCH_ADMIN)` làm marker
+  identity bền vững, không cấp quyền runtime cho user `BRANCH`; quyền runtime vẫn
+  lấy từ `UserBranchRole`. Create, convert và bổ nhiệm đều reconcile marker này.
+  User thuần Staff/Cashier/Inventory không có marker nên không thuộc registry.
+- List chỉ filter, aggregate, xác định primary và trả `userBranches` đang có active
+  role `BRANCH_ADMIN`. Vì vậy candidate có marker nhưng không có admin assignment
+  vẫn xuất hiện với `0/0`, kể cả khi họ có assignment Staff ở chi nhánh khác.
+- Detail xác thực target bằng marker nhưng trả toàn bộ `userBranches` để UI tách
+  assignment quản trị có `BRANCH_ADMIN` khỏi các assignment nhân viên read-only.
+- Lifecycle `/branch-admins/:id/branches/:branchId/*` revalidate active role
+  `BRANCH_ADMIN` trong transaction. Assignment chỉ có Staff role trả 404 và không
+  bị activate/deactivate/remove/set-primary qua module Branch Admin. Bổ nhiệm vào
+  UserBranch đã có Staff role chỉ thêm `BRANCH_ADMIN`, không xóa role hiện hữu; khi
+  gỡ khỏi mapping hỗn hợp, chỉ mapping role `BRANCH_ADMIN` bị xóa.
+- Đây là global Super Admin management API, không nhận `X-Branch-Id`.
 
-`GET /users?page&limit&search&sortBy&sortOrder&type&isActive`
+### 4.5. Staff
+
+`GET /staff/assignable-roles?action=CREATE|ASSIGN&page&limit&search`:
+
+- Bắt buộc `X-Branch-Id`; branch context được resolve trước khi kiểm tra capability.
+- `CREATE` yêu cầu effective `staff.create`; `ASSIGN` yêu cầu effective
+  `staff.assign_role`. Không yêu cầu quyền CRUD catalog `roles.read`.
+- Chỉ trả role active `type=BRANCH`, `guardName=web`, thấp hơn actor level và loại
+  `SUPER_ADMIN`, `BRANCH_ADMIN`, `CUSTOMER`; search/pagination thực hiện trên server.
+  Mỗi role kèm public `rolePermissions.permission` để UI tính quyền kế thừa mà không
+  gọi Role CRUD detail hoặc tạo N+1 request.
+- Đây là public subset actor-aware dùng cho Staff delegation, không thay thế global
+  `GET /roles` và không mở Role catalog CRUD cho Branch Admin.
+
+`GET /staff/assignable-permissions?page&limit&search`:
+
+- Bắt buộc `X-Branch-Id` và effective `staff.assign_permission`; không yêu cầu
+  quyền CRUD catalog `permissions.read`.
+- Chỉ trả allowlist permission code nghiệp vụ Staff có thể nhận trực tiếp: quyền xem
+  tổng quan/nhân viên, các thao tác nghiệp vụ đơn hàng, thanh toán, sản phẩm, kho,
+  biến động kho và `branch_returns.read`. Search theo name, code, resource và description.
+- Với Branch Admin, kết quả còn được giao với tập effective permission của actor.
+  Super Admin không bị giới hạn bởi tập sở hữu nhưng vẫn không được bypass dangerous
+  policy. Dangerous, global-management và quyền delegation như `roles.*`,
+  `permissions.*`, `branch_admin.*`, `staff.assign_permission`,
+  `staff.assign_role`, `super_admin.*`, `users.*`, `branches.*` không xuất hiện.
+- Backend áp dụng cùng allowlist khi validate initial/direct Staff override; gọi API
+  mutation trực tiếp không thể vượt qua catalog actor-aware.
+
+`GET /staff?page&limit&search&sortBy&sortOrder&userIsActive&assignmentIsActive&isPrimary&roleId`
+
+- Bắt buộc `X-Branch-Id`; dữ liệu và count cùng giới hạn ở selected branch.
+- Search được trim và tìm case-insensitive trên `fullName`, `email`, `phone`.
+- Các filter compose bằng AND và chỉ xét `UserBranch`/role của selected branch.
+- `sortBy?: fullName | email | phone | userIsActive | assignmentIsActive | isPrimary | assignedAt | createdAt`.
+- `sortOrder?: asc | desc`; mặc định `assignedAt DESC`; mọi sort thêm `UserBranch.id ASC` làm tie-break.
+- Response trả public user profile và đúng một selected-branch assignment gồm branch, roles, direct permission overrides, trạng thái active/primary và audit assignment.
+
+`GET /staff/candidates?page&limit&search`:
+
+- Chỉ Super Admin; bắt buộc `X-Branch-Id` và `staff.create`. Branch Admin nhận `403 PERMISSION_DENIED` dù có `staff.create`.
+- Chỉ trả public profile của `User.type=BRANCH` chưa có bất kỳ `UserBranch` nào tại selected branch, kể cả mapping inactive.
+- Search server-side trên `fullName`, `email`, `phone`; không tải toàn bộ rồi client-filter.
+
+`POST /staff/:id/assign-existing`:
+
+- Chỉ Super Admin; bắt buộc `X-Branch-Id`, CSRF và `staff.create`. Branch Admin nhận `403 PERMISSION_DENIED` dù có `staff.create`.
+- Nhận unique `roleIds` không rỗng và optional unique `permissionIds`.
+- Revalidate target BRANCH, active branch, qualifying role, delegation và dangerous permission policy trong serializable transaction.
+- Commit `UserBranch + UserBranchRole + optional ALLOW UserBranchPermission` atomically; mapping selected branch đã tồn tại trả 409.
+- Assignment mới là primary chỉ khi target chưa có active assignment nào; endpoint không union hoặc thay đổi role ở branch khác.
+
+### 4.6. Users
+
+`GET /users?page&limit&search&sortBy&sortOrder&type&provider&isActive`
 
 - `type?: SYSTEM | BRANCH | CUSTOMER`.
+- `provider?: LOCAL | GOOGLE`.
 - `isActive?: boolean`.
+- Search được trim và tìm case-insensitive trên `fullName`, `email`, `phone`.
+- `sortBy?: fullName | email | phone | type | provider | isActive |
+lastLoginAt | createdAt | updatedAt`; `sortOrder?: asc | desc`.
 - Search và mọi filter compose bằng AND trong cả query dữ liệu và count.
-- Search áp dụng theo các public user fields hiện hữu.
 - Ordering dùng sort chính từ query và luôn thêm `id ASC` làm tie-break.
 - Use case hỗ trợ: `type=CUSTOMER`, `type=BRANCH&isActive=false`, `type=SYSTEM`.
 
@@ -309,7 +402,15 @@ USER_ACTIVATION_REQUIRES_ACTIVE_BRANCH
 
 ## 6. Staff management
 
-### 6.1. Read all assignments
+### 6.1. Create và thêm tài khoản nội bộ hiện có
+
+`POST /staff` tạo atomically User BRANCH, selected-branch assignment, ít nhất một qualifying Staff role và optional direct ALLOW permissions. Email được lowercase; password tối thiểu 8 ký tự. User/assignment mặc định active và selected branch là primary đầu tiên.
+
+Qualifying Staff role phải active, `type=BRANCH`, `guardName=web`, thấp hơn actor level và không có code `SUPER_ADMIN`, `BRANCH_ADMIN`, `CUSTOMER`. Permission ban đầu luôn là direct `ALLOW`, phải thuộc quyền actor, thuộc allowlist nghiệp vụ Staff và không nằm trong dangerous catalog.
+
+`POST /staff/:id/assign-existing` là workflow Super Admin-only, dùng cùng role/permission policy nhưng giữ nguyên identity và mọi assignment branch khác của target. Branch Admin vẫn có thể dùng `POST /staff` tạo tài khoản mới nếu effective permission tại selected branch đáp ứng policy hiện hành.
+
+### 6.2. Read all assignments
 
 `GET /staff/:id/assignments`
 
@@ -350,6 +451,16 @@ type StaffAssignmentsResponse = {
         isSystem: boolean;
         type: 'BRANCH';
         guardName: string;
+        rolePermissions: Array<{
+          permission: {
+            id: string;
+            code: string;
+            name: string;
+            resource: string;
+            action: string;
+            guardName: string;
+          };
+        }>;
       };
     }>;
     permissions: Array<{
@@ -370,7 +481,7 @@ type StaffAssignmentsResponse = {
 
 Assignments có ordering deterministic: primary trước, active trước, rồi `branch.code ASC`, `id ASC`. Nested roles/permissions được order theo catalog code.
 
-### 6.2. Remove-last-role invariant
+### 6.3. Remove-last-role invariant
 
 `DELETE /staff/:id/roles/:roleId` chạy trong serializable transaction. Nếu mapping là qualifying active Staff role cuối cùng của assignment, backend không xóa và trả 409:
 
@@ -380,7 +491,7 @@ STAFF_LAST_ROLE_REQUIRED
 
 Mapping không tồn tại vẫn idempotent `{ count: 0 }`. Backend không tự offboard. Concurrent removals không được để active assignment có zero qualifying role.
 
-### 6.3. CUSTOMER → Staff conversion
+### 6.4. CUSTOMER → Staff conversion
 
 `POST /staff/:id/convert`:
 
@@ -402,6 +513,29 @@ User activation và assignment activation là hai trạng thái độc lập:
 - Set primary không tự activate `User.isActive`.
 - Activate user không tự activate/tạo UserBranch.
 - Deactivate Role/Branch vẫn một chiều trong public API hiện tại.
+
+Các mutation lifecycle Staff là global, chỉ Super Admin, dùng permission
+`staff.assign_branch` và không nhận `X-Branch-Id`:
+
+- Activate chỉ thành công khi Branch active và assignment có ít nhất một role
+  Staff qualifying active (`BRANCH`, `web`, không phải `SUPER_ADMIN`,
+  `BRANCH_ADMIN`, `CUSTOMER`). Không tự activate User hoặc tự đặt primary.
+- Deactivate/remove primary yêu cầu `replacementBranchId` khi còn assignment
+  active hợp lệ khác. Nếu không còn assignment active trên Branch active, User
+  bị soft-disable và session active bị revoke; role/permission mapping vẫn được
+  giữ khi deactivate và bị cascade-delete khi remove.
+- Set primary chỉ nhận assignment đang active trên Branch active, bảo đảm đúng
+  một primary và không tự activate assignment hoặc User.
+- Remove mapping không tồn tại trả `{ count: 0 }` trước mọi side effect.
+
+`POST /staff/:id/transfer-branch` là transaction global Super Admin-only, không
+nhận `X-Branch-Id`. Request gồm `fromBranchId`, `toBranchId` và unique non-empty
+`destinationRoleIds`. Source phải là Staff assignment active; destination Branch
+phải active. Destination assignment active gây conflict, destination inactive
+được reactivate. Role đích replace toàn bộ, direct overrides cũ tại đích bị xóa,
+source bị deactivate, primary chuyển sang đích nếu source đang primary. User và
+session không đổi; transaction rollback toàn bộ nếu invariant đúng một active
+primary không đạt.
 
 ## 8. Finding ledger
 
@@ -443,6 +577,11 @@ longitude được giữ nguyên; không backfill tọa độ giả.
 Development seed authoritative có 7 branch-role mappings. Mapping thứ bảy là
 `cashier.hg@bookora.local → INVENTORY → hau-giang`, bổ sung hợp lệ bên cạnh
 role `CASHIER`; đây không phải duplicate.
+
+Development seed có thêm ba Branch Admin identity hợp lệ chưa có `UserBranch`:
+`branchadmin.unassigned01@bookora.local` đến `03`, mật khẩu development
+`password@123`. Các account dùng `UserRole(BRANCH_ADMIN)` làm identity marker;
+không làm thay đổi 7 branch-role mappings authoritative.
 
 ## 10. OpenAPI và frontend handoff
 

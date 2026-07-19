@@ -38,3 +38,21 @@ export const DANGEROUS_PERMISSION_CODES = new Set<string>([
   'super_admin.assign',
   'branch_admin.assign',
 ]);
+
+/** Business permissions that may be delegated directly to a branch Staff user. */
+export const STAFF_DELEGATABLE_PERMISSION_CODES = [
+  'dashboard.read',
+  'staff.read',
+  'orders.read',
+  'orders.create',
+  'orders.update_status',
+  'payments.create',
+  'products.read',
+  'products.create',
+  'products.update',
+  'inventory.read',
+  'inventory.update',
+  'stock_movements.read',
+  'stock_movements.create',
+  'branch_returns.read',
+] as const;

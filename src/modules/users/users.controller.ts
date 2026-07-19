@@ -111,11 +111,11 @@ export class UsersController {
   @Delete(':id')
   @Permissions('users.delete')
   @ApiSecurity('csrf')
-  @ApiOperation({ summary: 'Xóa người dùng theo id' })
+  @ApiOperation({ summary: 'Khóa tài khoản người dùng theo id' })
   @ApiBaseResponse(UserResponseDto, {
-    description: 'Xóa người dùng thành công',
+    description: 'Khóa tài khoản người dùng thành công',
   })
-  @ResponseMessage('Xóa người dùng thành công')
+  @ResponseMessage('Khóa tài khoản người dùng thành công')
   remove(@CurrentUser() actor: AuthenticatedUser, @UlidParam('id') id: string) {
     return this.usersService.remove(actor, id);
   }
