@@ -7,9 +7,6 @@ services:
       - .env.production
     ports:
       - '3000:3000'
-    depends_on:
-      minio:
-        condition: service_started
     healthcheck:
       test:
         [
@@ -22,31 +19,6 @@ services:
       start_period: 30s
     networks:
       - bookora_network
-
-  minio:
-    image: minio/minio
-    container_name: minio-storage
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    env_file:
-      - .env.production
-    volumes:
-      - minio_data:/data
-    ports:
-      # S3 API. Keep localhost-only unless it is intentionally proxied.
-      - '127.0.0.1:9000:9000'
-      # MinIO console. Prefer firewall/Nginx/Cloudflare protection if enabled.
-      - '127.0.0.1:9001:9001'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    networks:
-      - bookora_network
-
-volumes:
-  minio_data:
 
 networks:
   bookora_network:

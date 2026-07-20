@@ -17,6 +17,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio --browser none",
     "prisma:seed:dev": "ts-node -r tsconfig-paths/register prisma/seed.dev.ts",
+    "categories:slug-reconcile": "ts-node -r tsconfig-paths/register src/scripts/reconcile-category-slugs.ts",
     "schema-refactor:snapshot": "ts-node -r tsconfig-paths/register prisma/schema-refactor/snapshot-data.ts",
     "schema-refactor:preflight": "ts-node -r tsconfig-paths/register prisma/schema-refactor/preflight.ts",
     "schema-refactor:backfill": "ts-node -r tsconfig-paths/register prisma/schema-refactor/backfill.ts",
@@ -33,9 +34,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json"
+    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
+    "verify:phase9:categories": "node scripts/verify-phase9-categories.cjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1090.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -61,7 +64,9 @@
     "prisma": "^7.8.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.35.3",
     "swagger-ui-express": "^5.0.1",
+    "ulid": "^3.0.2",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
@@ -78,6 +83,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.1",

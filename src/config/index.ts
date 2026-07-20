@@ -4,6 +4,7 @@ import cookieConfig from './cookie.config';
 import databaseConfig from './database.config';
 import { validateEnv } from './env.validation';
 import runtimeConfig from './runtime.config';
+import storageConfig from './storage.config';
 
 export const configurations = [
   appConfig,
@@ -11,6 +12,7 @@ export const configurations = [
   cookieConfig,
   databaseConfig,
   runtimeConfig,
+  storageConfig,
 ];
 
 export {
@@ -19,5 +21,6 @@ export {
   cookieConfig,
   databaseConfig,
   runtimeConfig,
+  storageConfig,
   validateEnv,
 };

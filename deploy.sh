@@ -23,7 +23,6 @@ echo "Deploying ptxuan/bookora-api:$IMAGE_TAG"
 export IMAGE_TAG
 
 docker compose --env-file .env.production pull backend
-docker compose --env-file .env.production up -d minio
 
 echo "Running Prisma migrations"
 docker compose --env-file .env.production run --rm --no-deps backend \

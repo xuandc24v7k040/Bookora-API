@@ -1,4 +1,4 @@
-# Authorization Contract — Phase 8
+# Authorization Contract — Phase 8–9
 
 > Trạng thái: contract authoritative sau backend remediation.
 > Nguồn sự thật: runtime source → Prisma/migration → tests → `docs/openapi.json`.
@@ -62,6 +62,27 @@ type ErrorEnvelope = {
 ```
 
 Các response 400/401/403/404/409 của authorization-management đều tham chiếu `ErrorResponseDto` trong OpenAPI; client generator không được suy ra `ErrorType<void>`.
+
+### 2.1. Categories global management (Phase 9)
+
+Categories là global SYSTEM management API, không nhận và không yêu cầu
+`X-Branch-Id`. Actor `BRANCH` không được cấp các permission này trong catalog chuẩn.
+
+| Endpoint | operationId | Permission | CSRF |
+| --- | --- | --- | --- |
+| `GET /categories/tree` | `categoriesTree` | `categories.read` | Không |
+| `GET /categories/:id` | `categoriesGet` | `categories.read` | Không |
+| `POST /categories` | `categoriesCreate` | `categories.create` | Có |
+| `PATCH /categories/:id` | `categoriesUpdate` | `categories.update` | Có |
+| `PUT /categories/:id/image` | `categoriesUploadImage` | `categories.update` | Có |
+| `DELETE /categories/:id/image` | `categoriesRemoveImage` | `categories.update` | Có |
+| `DELETE /categories/:id` | `categoriesDelete` | `categories.delete` | Có |
+
+Category tree chỉ có hai cấp. Child phải trỏ tới root cùng `CategoryType`; không
+self-parent/cycle/cấp ba. Slug được backend sinh khi create và giữ nguyên khi đổi tên.
+Delete là hard-delete có điều kiện: từ chối khi còn child hoặc product, không cascade.
+Ảnh chỉ được ghi qua image endpoints và shared R2 pipeline; request create/update không
+nhận `slug`, `imageUrl` hoặc `iconUrl`.
 
 ## 3. Schema authoritative
 

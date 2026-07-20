@@ -15,6 +15,22 @@ export function validateEnv(
     }
   }
 
+  if (readEnvValue(config, 'STORAGE_PROVIDER') !== 'r2') {
+    errors.push('STORAGE_PROVIDER must be r2');
+  }
+
+  const publicBaseUrl = readEnvValue(config, 'R2_PUBLIC_BASE_URL');
+  if (publicBaseUrl) {
+    try {
+      const parsed = new URL(publicBaseUrl);
+      if (parsed.protocol !== 'https:') {
+        errors.push('R2_PUBLIC_BASE_URL must use https');
+      }
+    } catch {
+      errors.push('R2_PUBLIC_BASE_URL must be a valid URL');
+    }
+  }
+
   for (const key of OPTIONAL_NUMBER_ENV_KEYS) {
     const value = readEnvValue(config, key);
 

@@ -2,6 +2,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { loadEnvFile } from '../src/config/env.loader';
 import { seedCatalog } from './catalog.seed';
+import { seedCategories } from './seed/categories.seed';
 
 async function seed(): Promise<void> {
   loadEnvFile();
@@ -15,7 +16,10 @@ async function seed(): Promise<void> {
   });
 
   try {
-    await prisma.$transaction((tx) => seedCatalog(tx));
+    await prisma.$transaction(async (tx) => {
+      await seedCatalog(tx);
+      await seedCategories(tx);
+    });
   } finally {
     await prisma.$disconnect();
   }

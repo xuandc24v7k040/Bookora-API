@@ -6,7 +6,6 @@ model Category {
   parentId    String?      @map("parent_id")
   type        CategoryType @default(NORMAL)
   imageUrl    String?      @map("image_url")
-  iconUrl     String?      @map("icon_url")
   isActive    Boolean      @default(true) @map("is_active")
   sortOrder   Int          @default(0) @map("sort_order")
 

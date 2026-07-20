@@ -227,6 +227,26 @@ export const permissionCatalog = [
     description: 'Cho phép xem danh sách và thông tin sản phẩm',
   },
   {
+    code: 'categories.read',
+    name: 'Xem danh mục',
+    description: 'Cho phép xem cây và chi tiết danh mục sách',
+  },
+  {
+    code: 'categories.create',
+    name: 'Tạo danh mục',
+    description: 'Cho phép tạo danh mục sách',
+  },
+  {
+    code: 'categories.update',
+    name: 'Cập nhật danh mục',
+    description: 'Cho phép cập nhật trạng thái, cấu trúc và ảnh danh mục',
+  },
+  {
+    code: 'categories.delete',
+    name: 'Xóa danh mục',
+    description: 'Cho phép xóa vĩnh viễn danh mục không còn được sử dụng',
+  },
+  {
     code: 'products.create',
     name: 'Tạo sản phẩm',
     description: 'Cho phép tạo sản phẩm mới',

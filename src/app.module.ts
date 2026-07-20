@@ -8,6 +8,7 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { VietMapModule } from '@/modules/integrations/vietmap/vietmap.module';
 import { UsersModule } from '@/modules/users/users.module';
+import { CategoriesModule } from '@/modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UsersModule } from '@/modules/users/users.module';
     HealthModule,
     VietMapModule,
     UsersModule,
+    CategoriesModule,
     AuthModule,
   ],
 })
