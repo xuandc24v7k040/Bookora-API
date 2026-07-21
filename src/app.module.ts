@@ -14,6 +14,7 @@ import { PublishersModule } from '@/modules/publishers/publishers.module';
 import { AuthorsModule } from '@/modules/authors/authors.module';
 import { ProductAttributesModule } from '@/modules/product-attributes/product-attributes.module';
 import { ProductsModule } from '@/modules/products/products.module';
+import { ProductMediaModule } from '@/modules/product-media/product-media.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ProductsModule } from '@/modules/products/products.module';
     AuthorsModule,
     ProductAttributesModule,
     ProductsModule,
+    ProductMediaModule,
     AuthModule,
   ],
 })

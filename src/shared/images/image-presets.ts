@@ -14,6 +14,12 @@ export function createImagePresets(input: {
   return {
     category: { ...common, maxOutputEdge: 1600 },
     product: { ...common, maxOutputEdge: 2400 },
+    productGallery: { ...common, maxOutputEdge: 1600, webpQuality: 82 },
+    optionValueThumbnail: {
+      ...common,
+      maxOutputEdge: 512,
+      webpQuality: 80,
+    },
     review: { ...common, maxOutputEdge: 1920 },
     avatar: { ...common, maxOutputEdge: 1024 },
   };

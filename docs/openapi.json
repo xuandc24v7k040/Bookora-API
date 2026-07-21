@@ -14137,6 +14137,1374 @@
         "description": "Đặt biến thể mặc định atomically"
       }
     },
+    "/products/{productId}/media": {
+      "get": {
+        "operationId": "productMediaList",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "variantId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "ulid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy bộ sưu tập ảnh thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy bộ sưu tập ảnh thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductMediaResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy bộ sưu tập ảnh chung hoặc ảnh riêng của biến thể",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Lấy bộ sưu tập ảnh chung hoặc ảnh riêng của biến thể"
+      },
+      "post": {
+        "operationId": "productMediaUpload",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "variantId": {
+                    "type": "string",
+                    "format": "ulid"
+                  },
+                  "altText": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "isPrimary": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tải ảnh sản phẩm thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tải ảnh sản phẩm thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProductMediaResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tải một ảnh vào bộ sưu tập sản phẩm",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Tải một ảnh vào bộ sưu tập sản phẩm"
+      }
+    },
+    "/products/{productId}/media/{mediaId}": {
+      "patch": {
+        "operationId": "productMediaUpdate",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductMediaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật mô tả ảnh thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cập nhật mô tả ảnh thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProductMediaResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Cập nhật mô tả ảnh sản phẩm",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Cập nhật mô tả ảnh sản phẩm"
+      },
+      "delete": {
+        "operationId": "productMediaDelete",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Xóa ảnh sản phẩm thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Xóa ảnh sản phẩm thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProductMediaResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Xóa ảnh và tự chuyển ảnh đại diện khi cần",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Xóa ảnh và tự chuyển ảnh đại diện khi cần"
+      }
+    },
+    "/products/{productId}/media/{mediaId}/primary": {
+      "patch": {
+        "operationId": "productMediaSetPrimary",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đặt ảnh đại diện thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đặt ảnh đại diện thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProductMediaResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đặt ảnh đại diện atomically trong đúng bộ sưu tập",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Đặt ảnh đại diện atomically trong đúng bộ sưu tập"
+      }
+    },
+    "/products/{productId}/media/reorder": {
+      "put": {
+        "operationId": "productMediaReorder",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderProductMediaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lưu thứ tự ảnh thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lưu thứ tự ảnh thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductMediaResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Lưu thứ tự đầy đủ của một bộ sưu tập",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Lưu thứ tự đầy đủ của một bộ sưu tập"
+      }
+    },
+    "/products/{productId}/options/{optionId}/values/{optionValueId}/image": {
+      "put": {
+        "operationId": "productOptionValueImageUpload",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "optionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "optionValueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật thumbnail thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cập nhật thumbnail thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OptionValueImageResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tải hoặc thay thumbnail của giá trị lựa chọn",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Tải hoặc thay thumbnail của giá trị lựa chọn"
+      },
+      "delete": {
+        "operationId": "productOptionValueImageRemove",
+        "parameters": [
+          {
+            "name": "productId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "optionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "optionValueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gỡ thumbnail thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Gỡ thumbnail thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OptionValueImageResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Gỡ thumbnail của giá trị lựa chọn",
+        "tags": [
+          "product-media"
+        ],
+        "description": "Gỡ thumbnail của giá trị lựa chọn"
+      }
+    },
     "/auth/register": {
       "post": {
         "description": "Tạo tài khoản mới, chưa đăng nhập tự động.",
@@ -17982,6 +19350,11 @@
             "type": "string",
             "nullable": true
           },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          },
           "sortOrder": {
             "type": "number"
           },
@@ -18512,6 +19885,138 @@
             "uniqueItems": true
           }
         }
+      },
+      "ProductMediaResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "variantId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "IMAGE",
+              "VIDEO",
+              "PDF_PREVIEW"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "altText": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "variantId",
+          "type",
+          "url",
+          "altText",
+          "sortOrder",
+          "isPrimary",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateProductMediaDto": {
+        "type": "object",
+        "properties": {
+          "altText": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200
+          }
+        }
+      },
+      "ReorderProductMediaDto": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "orderedMediaIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid"
+            }
+          }
+        },
+        "required": [
+          "orderedMediaIds"
+        ]
+      },
+      "OptionValueImageResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "label": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "imageUrl"
+        ]
       },
       "UserType": {
         "type": "string",

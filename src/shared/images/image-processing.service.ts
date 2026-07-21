@@ -17,10 +17,24 @@ export class ImageProcessingService {
       webpQuality: number;
     }>('storage.image');
     const preset = createImagePresets(imageConfig)[presetName];
+    const codes =
+      presetName === 'category'
+        ? {
+            invalidType: 'CATEGORY_IMAGE_INVALID_TYPE',
+            tooLarge: 'CATEGORY_IMAGE_TOO_LARGE',
+            invalidDimensions: 'CATEGORY_IMAGE_INVALID_DIMENSIONS',
+            processingFailed: 'CATEGORY_IMAGE_PROCESSING_FAILED',
+          }
+        : {
+            invalidType: 'PRODUCT_MEDIA_INVALID_FILE',
+            tooLarge: 'PRODUCT_MEDIA_INVALID_FILE',
+            invalidDimensions: 'PRODUCT_MEDIA_INVALID_FILE',
+            processingFailed: 'PRODUCT_MEDIA_INVALID_FILE',
+          };
 
     if (!SUPPORTED_MIME_TYPES.has(file.mimetype)) {
       throw this.invalid(
-        'CATEGORY_IMAGE_INVALID_TYPE',
+        codes.invalidType,
         'Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP',
       );
     }
@@ -28,10 +42,7 @@ export class ImageProcessingService {
       file.size > preset.maxBytes ||
       file.buffer.byteLength > preset.maxBytes
     ) {
-      throw this.invalid(
-        'CATEGORY_IMAGE_TOO_LARGE',
-        'Ảnh không được vượt quá 5 MB',
-      );
+      throw this.invalid(codes.tooLarge, 'Ảnh không được vượt quá 5 MB');
     }
 
     try {
@@ -42,7 +53,7 @@ export class ImageProcessingService {
       const metadata = await input.metadata();
       if (!metadata.format || !SUPPORTED_FORMATS.has(metadata.format)) {
         throw this.invalid(
-          'CATEGORY_IMAGE_INVALID_TYPE',
+          codes.invalidType,
           'Nội dung tệp không phải ảnh JPEG, PNG hoặc WebP hợp lệ',
         );
       }
@@ -54,7 +65,7 @@ export class ImageProcessingService {
         metadata.width * metadata.height > preset.maxInputPixels
       ) {
         throw this.invalid(
-          'CATEGORY_IMAGE_INVALID_DIMENSIONS',
+          codes.invalidDimensions,
           'Kích thước ảnh không hợp lệ',
         );
       }
@@ -82,7 +93,7 @@ export class ImageProcessingService {
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw this.invalid(
-        'CATEGORY_IMAGE_PROCESSING_FAILED',
+        codes.processingFailed,
         'Không thể xử lý tệp ảnh đã chọn',
       );
     }

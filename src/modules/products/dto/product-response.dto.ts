@@ -86,6 +86,8 @@ export class ProductOptionValueResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true }) colorCode!:
     | string
     | null;
+  @ApiPropertyOptional({ type: String, nullable: true, format: 'uri' })
+  imageUrl!: string | null;
   @ApiProperty() sortOrder!: number;
   @ApiProperty({ minimum: 0 }) usageCount!: number;
 }

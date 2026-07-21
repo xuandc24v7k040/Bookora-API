@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import {
   Prisma,
   ProductAttributeType,
+  ProductMediaType,
   ProductStatus,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
@@ -93,6 +94,7 @@ export const productOptionSelect = {
       label: true,
       value: true,
       colorCode: true,
+      imageUrl: true,
       sortOrder: true,
       _count: { select: { variantLinks: true } },
     },
@@ -300,7 +302,15 @@ export class ProductsRepository {
           id: true,
           status: true,
           categories: { select: { categoryId: true } },
-          media: { where: { isPrimary: true }, select: { id: true } },
+          media: {
+            select: {
+              id: true,
+              productId: true,
+              variantId: true,
+              type: true,
+              isPrimary: true,
+            },
+          },
           options: { select: { id: true } },
           variants: {
             select: {
@@ -348,8 +358,38 @@ export class ProductsRepository {
             saleEndAt: variant.saleEndAt?.toISOString() ?? null,
           });
         }
-        if (product.media.length === 0)
+        const generalMedia = product.media.filter(
+          (media) => media.variantId === null,
+        );
+        if (generalMedia.length === 0)
           throw new ProductDomainError('PRODUCT_MEDIA_REQUIRED');
+        if (generalMedia.filter((media) => media.isPrimary).length !== 1)
+          throw new ProductDomainError('PRODUCT_MEDIA_PRIMARY_REQUIRED');
+
+        const variantIds = new Set(
+          product.variants.map((variant) => variant.id),
+        );
+        const variantMedia = new Map<string, typeof product.media>();
+        for (const media of product.media) {
+          if (
+            media.productId !== product.id ||
+            media.type !== ProductMediaType.IMAGE
+          ) {
+            throw new ProductDomainError('PRODUCT_MEDIA_CONFIGURATION_INVALID');
+          }
+          if (!media.variantId) continue;
+          if (!variantIds.has(media.variantId))
+            throw new ProductDomainError(
+              'PRODUCT_MEDIA_VARIANT_SCOPE_MISMATCH',
+            );
+          const gallery = variantMedia.get(media.variantId) ?? [];
+          gallery.push(media);
+          variantMedia.set(media.variantId, gallery);
+        }
+        for (const gallery of variantMedia.values()) {
+          if (gallery.filter((media) => media.isPrimary).length !== 1)
+            throw new ProductDomainError('PRODUCT_MEDIA_PRIMARY_REQUIRED');
+        }
       }
       return tx.product.update({
         where: { id },
@@ -366,7 +406,7 @@ export class ProductsRepository {
         select: {
           id: true,
           status: true,
-          _count: { select: { media: true, reviews: true, wishlists: true } },
+          _count: { select: { reviews: true, wishlists: true } },
           variants: {
             select: {
               _count: {
@@ -375,7 +415,6 @@ export class ProductsRepository {
                   receiptItems: true,
                   cartItems: true,
                   orderItems: true,
-                  media: true,
                 },
               },
             },
@@ -391,14 +430,12 @@ export class ProductsRepository {
           receiptItems: sum.receiptItems + variant._count.receiptItems,
           cartItems: sum.cartItems + variant._count.cartItems,
           orderItems: sum.orderItems + variant._count.orderItems,
-          variantMedia: sum.variantMedia + variant._count.media,
         }),
         {
           stocks: 0,
           receiptItems: 0,
           cartItems: 0,
           orderItems: 0,
-          variantMedia: 0,
         },
       );
       const blockers = { ...product._count, ...counts };
@@ -500,6 +537,7 @@ export class ProductsRepository {
           label: true,
           value: true,
           colorCode: true,
+          imageUrl: true,
           sortOrder: true,
           _count: { select: { variantLinks: true } },
         },
@@ -521,6 +559,7 @@ export class ProductsRepository {
           label: true,
           value: true,
           colorCode: true,
+          imageUrl: true,
           sortOrder: true,
           _count: { select: { variantLinks: true } },
         },
@@ -543,6 +582,7 @@ export class ProductsRepository {
           label: true,
           value: true,
           colorCode: true,
+          imageUrl: true,
           sortOrder: true,
           _count: { select: { variantLinks: true } },
         },
@@ -563,6 +603,7 @@ export class ProductsRepository {
           label: true,
           value: true,
           colorCode: true,
+          imageUrl: true,
           sortOrder: true,
           _count: { select: { variantLinks: true } },
         },
@@ -756,7 +797,6 @@ export class ProductsRepository {
               receiptItems: true,
               cartItems: true,
               orderItems: true,
-              media: true,
             },
           },
         },

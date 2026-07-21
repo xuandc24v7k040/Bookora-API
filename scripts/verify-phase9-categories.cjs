@@ -130,6 +130,20 @@ async function main() {
   assert(root.status === 201, `Create root failed with ${root.status}`);
   createdCategoryIds.push(root.payload.data.id);
 
+  const moveRoot = await jsonRequest(
+    '',
+    {
+      method: 'POST',
+      body: { name: `Phase 9 Move Parent ${suffix}`, sortOrder: 9999 },
+    },
+    systemToken,
+  );
+  assert(
+    moveRoot.status === 201,
+    `Create move parent failed with ${moveRoot.status}`,
+  );
+  createdCategoryIds.push(moveRoot.payload.data.id);
+
   const child = await jsonRequest(
     '',
     {
@@ -163,19 +177,33 @@ async function main() {
   result.thirdLevelRejected = thirdLevel.payload.code;
 
   const oldSlug = child.payload.data.slug;
+  const renamedName = `Phase 9 Renamed ${suffix}`;
   const renamed = await jsonRequest(
     `/${child.payload.data.id}`,
-    { method: 'PATCH', body: { name: `Phase 9 Renamed ${suffix}` } },
+    { method: 'PATCH', body: { name: renamedName } },
     systemToken,
   );
   assert(
-    renamed.status === 200 && renamed.payload.data.slug === oldSlug,
-    'Renaming must keep the original slug',
+    renamed.status === 200 && renamed.payload.data.slug !== oldSlug,
+    'Renaming must regenerate the slug',
   );
-  result.slugStableOnRename = true;
+  result.slugRegeneratedOnRename = true;
+
+  const moved = await jsonRequest(
+    `/${child.payload.data.id}`,
+    { method: 'PATCH', body: { parentId: moveRoot.payload.data.id } },
+    systemToken,
+  );
+  assert(
+    moved.status === 200 &&
+      moved.payload.data.parentId === moveRoot.payload.data.id &&
+      moved.payload.data.slug !== renamed.payload.data.slug,
+    'Moving to a different parent must regenerate the slug',
+  );
+  result.slugRegeneratedOnParentMove = true;
 
   const blockedDelete = await jsonRequest(
-    `/${root.payload.data.id}`,
+    `/${moveRoot.payload.data.id}`,
     { method: 'DELETE' },
     systemToken,
   );
@@ -280,6 +308,19 @@ async function main() {
   );
   createdCategoryIds.splice(
     createdCategoryIds.indexOf(root.payload.data.id),
+    1,
+  );
+  const deleteMoveRoot = await jsonRequest(
+    `/${moveRoot.payload.data.id}`,
+    { method: 'DELETE' },
+    systemToken,
+  );
+  assert(
+    deleteMoveRoot.status === 200,
+    `Delete move parent failed with ${deleteMoveRoot.status}`,
+  );
+  createdCategoryIds.splice(
+    createdCategoryIds.indexOf(moveRoot.payload.data.id),
     1,
   );
   result.crudCleanup = true;

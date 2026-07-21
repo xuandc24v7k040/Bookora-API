@@ -35,6 +35,7 @@ import {
   type ProductVariantRecord,
   ProductsRepository,
 } from './products.repository';
+import { ProductMediaCleanupService } from '@/modules/product-media/product-media-cleanup.service';
 
 const BAD_REQUEST_CODES = new Set([
   'PRODUCT_CONFIGURATION_INVALID',
@@ -47,11 +48,17 @@ const BAD_REQUEST_CODES = new Set([
   'PRODUCT_SALE_PERIOD_INVALID',
   'PRODUCT_ATTRIBUTE_VALUE_INVALID',
   'PRODUCT_MEDIA_REQUIRED',
+  'PRODUCT_MEDIA_PRIMARY_REQUIRED',
+  'PRODUCT_MEDIA_CONFIGURATION_INVALID',
+  'PRODUCT_MEDIA_VARIANT_SCOPE_MISMATCH',
 ]);
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly repository: ProductsRepository) {}
+  constructor(
+    private readonly repository: ProductsRepository,
+    private readonly mediaCleanup: ProductMediaCleanupService,
+  ) {}
 
   async findAll(query: ProductListQueryDto) {
     const page = query.page ?? 1;
@@ -98,8 +105,10 @@ export class ProductsService {
 
   async remove(id: string) {
     return this.execute(async () => {
+      const urls = await this.mediaCleanup.collectProductUrls(id);
       const result = await this.repository.remove(id);
       if (!result) this.notFound();
+      await this.mediaCleanup.cleanupUrls(urls, 'product-delete');
       return result;
     });
   }
@@ -135,8 +144,10 @@ export class ProductsService {
 
   removeOption(productId: string, optionId: string) {
     return this.execute(async () => {
+      const urls = await this.mediaCleanup.collectOptionUrls(optionId);
       const option = await this.repository.removeOption(productId, optionId);
       if (!option) this.optionNotFound();
+      await this.mediaCleanup.cleanupUrls(urls, 'option-delete');
       return this.toOptionResponse(option);
     });
   }
@@ -173,17 +184,20 @@ export class ProductsService {
 
   removeOptionValue(productId: string, optionId: string, valueId: string) {
     return this.execute(async () => {
+      const urls = await this.mediaCleanup.collectOptionValueUrls(valueId);
       const value = await this.repository.removeOptionValue(
         productId,
         optionId,
         valueId,
       );
       if (!value) this.optionValueNotFound();
+      await this.mediaCleanup.cleanupUrls(urls, 'option-value-delete');
       return {
         id: value.id,
         label: value.label,
         value: value.value,
         colorCode: value.colorCode,
+        imageUrl: value.imageUrl,
         sortOrder: value.sortOrder,
         usageCount: value._count.variantLinks,
       };
@@ -248,8 +262,10 @@ export class ProductsService {
 
   removeVariant(productId: string, variantId: string) {
     return this.execute(async () => {
+      const urls = await this.mediaCleanup.collectVariantUrls(variantId);
       const variant = await this.repository.removeVariant(productId, variantId);
       if (!variant) this.variantNotFound();
+      await this.mediaCleanup.cleanupUrls(urls, 'variant-delete');
       return this.toVariantResponse(variant);
     });
   }
@@ -409,6 +425,7 @@ export class ProductsService {
         label: value.label,
         value: value.value,
         colorCode: value.colorCode,
+        imageUrl: value.imageUrl,
         sortOrder: value.sortOrder,
         usageCount: value._count.variantLinks,
       })),
@@ -421,6 +438,7 @@ export class ProductsService {
     label: string;
     value: string;
     colorCode: string | null;
+    imageUrl: string | null;
     sortOrder: number;
     _count: { variantLinks: number };
   }) {
@@ -429,6 +447,7 @@ export class ProductsService {
       label: value.label,
       value: value.value,
       colorCode: value.colorCode,
+      imageUrl: value.imageUrl,
       sortOrder: value.sortOrder,
       usageCount: value._count.variantLinks,
     };

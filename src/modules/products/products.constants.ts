@@ -9,7 +9,12 @@ export const PRODUCT_ERROR_MESSAGES: Record<string, string> = {
   PRODUCT_DELETE_BLOCKED_BY_REFERENCES:
     'Không thể xóa sản phẩm vì đang có dữ liệu nghiệp vụ tham chiếu',
   PRODUCT_MEDIA_REQUIRED:
-    'Sản phẩm cần có ảnh chính trước khi kích hoạt; chức năng này được hoàn thiện ở Phase 10C',
+    'Sản phẩm cần có ít nhất một ảnh chung trước khi kích hoạt',
+  PRODUCT_MEDIA_PRIMARY_REQUIRED:
+    'Mỗi bộ sưu tập có ảnh phải có đúng một ảnh đại diện',
+  PRODUCT_MEDIA_CONFIGURATION_INVALID: 'Cấu hình ảnh sản phẩm không hợp lệ',
+  PRODUCT_MEDIA_VARIANT_SCOPE_MISMATCH:
+    'Ảnh biến thể không thuộc sản phẩm hiện tại',
   PRODUCT_CONFIGURATION_INVALID: 'Cấu hình sản phẩm không hợp lệ',
   PRODUCT_SIMPLE_VARIANT_REQUIRED:
     'Sản phẩm đơn phải có đúng một biến thể mặc định',

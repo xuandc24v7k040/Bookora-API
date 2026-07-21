@@ -1,7 +1,13 @@
 import type { StorageVisibility } from '../storage/storage.types';
 
 export type ImageNamespace = 'categories' | 'products' | 'reviews' | 'avatars';
-export type ImagePresetName = 'category' | 'product' | 'review' | 'avatar';
+export type ImagePresetName =
+  | 'category'
+  | 'product'
+  | 'productGallery'
+  | 'optionValueThumbnail'
+  | 'review'
+  | 'avatar';
 
 export interface ImagePreset {
   maxBytes: number;
