@@ -2,6 +2,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthProvider, Prisma, UserType } from '../src/generated/prisma/client';
 import { seedCatalog } from './catalog.seed';
 import { seedCategories } from './seed/categories.seed';
+import { seedProductMasterData } from './seed/product-master-data.seed';
 
 export const DEVELOPMENT_PASSWORD = 'password@123';
 
@@ -141,6 +142,7 @@ export async function seedDevelopmentFixtures(
   await prisma.$transaction(async (tx) => {
     await seedCatalog(tx);
     await seedCategories(tx);
+    await seedProductMasterData(tx);
 
     const rolesByCode = await resolveRequiredRoles(tx);
     const branchesByCode = await upsertBranches(tx);

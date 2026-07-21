@@ -9,6 +9,11 @@ import { HealthModule } from '@/modules/health/health.module';
 import { VietMapModule } from '@/modules/integrations/vietmap/vietmap.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { CategoriesModule } from '@/modules/categories/categories.module';
+import { SuppliersModule } from '@/modules/suppliers/suppliers.module';
+import { PublishersModule } from '@/modules/publishers/publishers.module';
+import { AuthorsModule } from '@/modules/authors/authors.module';
+import { ProductAttributesModule } from '@/modules/product-attributes/product-attributes.module';
+import { ProductsModule } from '@/modules/products/products.module';
 
 @Module({
   imports: [
@@ -30,6 +35,11 @@ import { CategoriesModule } from '@/modules/categories/categories.module';
     VietMapModule,
     UsersModule,
     CategoriesModule,
+    SuppliersModule,
+    PublishersModule,
+    AuthorsModule,
+    ProductAttributesModule,
+    ProductsModule,
     AuthModule,
   ],
 })

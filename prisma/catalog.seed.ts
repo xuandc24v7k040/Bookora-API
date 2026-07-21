@@ -247,6 +247,87 @@ export const permissionCatalog = [
     description: 'Cho phép xóa vĩnh viễn danh mục không còn được sử dụng',
   },
   {
+    code: 'suppliers.read',
+    name: 'Xem nhà cung cấp',
+    description: 'Cho phép xem danh sách và thông tin nhà cung cấp sản phẩm',
+  },
+  {
+    code: 'suppliers.create',
+    name: 'Tạo nhà cung cấp',
+    description: 'Cho phép tạo nhà cung cấp sản phẩm',
+  },
+  {
+    code: 'suppliers.update',
+    name: 'Cập nhật nhà cung cấp',
+    description: 'Cho phép cập nhật thông tin nhà cung cấp sản phẩm',
+  },
+  {
+    code: 'suppliers.delete',
+    name: 'Xóa nhà cung cấp',
+    description: 'Cho phép xóa nhà cung cấp chưa được sản phẩm sử dụng',
+  },
+  {
+    code: 'publishers.read',
+    name: 'Xem nhà xuất bản',
+    description: 'Cho phép xem danh sách và thông tin nhà xuất bản',
+  },
+  {
+    code: 'publishers.create',
+    name: 'Tạo nhà xuất bản',
+    description: 'Cho phép tạo nhà xuất bản',
+  },
+  {
+    code: 'publishers.update',
+    name: 'Cập nhật nhà xuất bản',
+    description: 'Cho phép cập nhật thông tin nhà xuất bản',
+  },
+  {
+    code: 'publishers.delete',
+    name: 'Xóa nhà xuất bản',
+    description: 'Cho phép xóa nhà xuất bản chưa được sản phẩm sử dụng',
+  },
+  {
+    code: 'authors.read',
+    name: 'Xem tác giả',
+    description: 'Cho phép xem danh sách và thông tin tác giả',
+  },
+  {
+    code: 'authors.create',
+    name: 'Tạo tác giả',
+    description: 'Cho phép tạo tác giả',
+  },
+  {
+    code: 'authors.update',
+    name: 'Cập nhật tác giả',
+    description: 'Cho phép cập nhật thông tin tác giả',
+  },
+  {
+    code: 'authors.delete',
+    name: 'Xóa tác giả',
+    description: 'Cho phép xóa tác giả chưa được gắn với sản phẩm',
+  },
+  {
+    code: 'product_attributes.read',
+    name: 'Xem thuộc tính sản phẩm',
+    description:
+      'Cho phép xem danh sách và thông tin thuộc tính mô tả sản phẩm',
+  },
+  {
+    code: 'product_attributes.create',
+    name: 'Tạo thuộc tính sản phẩm',
+    description: 'Cho phép tạo định nghĩa thuộc tính mô tả sản phẩm',
+  },
+  {
+    code: 'product_attributes.update',
+    name: 'Cập nhật thuộc tính sản phẩm',
+    description: 'Cho phép chỉnh sửa định nghĩa thuộc tính mô tả sản phẩm',
+  },
+  {
+    code: 'product_attributes.delete',
+    name: 'Xóa thuộc tính sản phẩm',
+    description: 'Cho phép xóa thuộc tính chưa có giá trị trên sản phẩm',
+  },
+  {
     code: 'products.create',
     name: 'Tạo sản phẩm',
     description: 'Cho phép tạo sản phẩm mới',
@@ -255,6 +336,18 @@ export const permissionCatalog = [
     code: 'products.update',
     name: 'Cập nhật sản phẩm',
     description: 'Cho phép cập nhật thông tin sản phẩm',
+  },
+  {
+    code: 'products.delete',
+    name: 'Xóa sản phẩm',
+    description:
+      'Cho phép xóa sản phẩm bản nháp chưa có dữ liệu nghiệp vụ tham chiếu',
+  },
+  {
+    code: 'products.publish',
+    name: 'Chuyển trạng thái sản phẩm',
+    description:
+      'Cho phép thay đổi trạng thái sản phẩm sau khi kiểm tra điều kiện nghiệp vụ',
   },
   {
     code: 'inventory.read',

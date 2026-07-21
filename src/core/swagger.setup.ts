@@ -18,6 +18,16 @@ const ID_PROPERTY_NAMES = new Set([
   'sessionId',
   'fromBranchId',
   'toBranchId',
+  'productId',
+  'categoryId',
+  'supplierId',
+  'publisherId',
+  'authorId',
+  'attributeId',
+  'optionId',
+  'optionValueId',
+  'valueId',
+  'variantId',
   'replacementBranchId',
   'primaryBranchId',
 ]);
@@ -26,12 +36,18 @@ const ID_ARRAY_PROPERTY_NAMES = new Set([
   'roleIds',
   'permissionIds',
   'destinationRoleIds',
+  'categoryIds',
+  'authorIds',
+  'optionValueIds',
 ]);
 const DATE_TIME_PROPERTY_NAMES = new Set([
   'createdAt',
   'updatedAt',
   'lastLoginAt',
   'timestamp',
+  'releaseDate',
+  'saleStartAt',
+  'saleEndAt',
 ]);
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 
@@ -92,6 +108,10 @@ function createSwaggerConfig() {
     .addTag('branches', 'Quản lý chi nhánh và phạm vi chi nhánh.')
     .addTag('branch-admins', 'Quản lý Branch Admin và phân công chi nhánh.')
     .addTag('staff', 'Quản lý Staff trong phạm vi chi nhánh.')
+    .addTag(
+      'products',
+      'Quản lý Product, Options, Option Values và Variants toàn cục.',
+    )
     .addSecurity('accessToken', {
       type: 'apiKey',
       in: 'cookie',

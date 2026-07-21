@@ -1,4 +1,4 @@
-# Authorization Contract — Phase 8–9
+# Authorization Contract — Phase 8–10A
 
 > Trạng thái: contract authoritative sau backend remediation.
 > Nguồn sự thật: runtime source → Prisma/migration → tests → `docs/openapi.json`.
@@ -79,10 +79,25 @@ Categories là global SYSTEM management API, không nhận và không yêu cầu
 | `DELETE /categories/:id` | `categoriesDelete` | `categories.delete` | Có |
 
 Category tree chỉ có hai cấp. Child phải trỏ tới root cùng `CategoryType`; không
-self-parent/cycle/cấp ba. Slug được backend sinh khi create và giữ nguyên khi đổi tên.
+self-parent/cycle/cấp ba. Slug được backend sinh khi create và sinh lại khi đổi tên.
 Delete là hard-delete có điều kiện: từ chối khi còn child hoặc product, không cascade.
 Ảnh chỉ được ghi qua image endpoints và shared R2 pipeline; request create/update không
 nhận `slug`, `imageUrl` hoặc `iconUrl`.
+
+### 2.2. Product master data global management (Phase 10A)
+
+Bốn catalog `suppliers`, `publishers`, `authors` và `product-attributes` là global
+SYSTEM management API, không nhận `X-Branch-Id`. Mỗi catalog có đúng năm operation
+list/create/get/update/delete, dùng lần lượt permission `<resource>.read`,
+`<resource>.create`, `<resource>.update`, `<resource>.delete`; mutation yêu cầu CSRF.
+
+Supplier, Publisher và Author không nhận slug từ client. Backend dùng chung slug
+policy với Categories: tạo slug khi create và sinh lại khi name thay đổi. Delete là
+hard-delete có điều kiện và trả 409 khi record còn được Product/ProductAuthor tham
+chiếu. Product Attribute chặn đổi `code` hoặc `type` và chặn delete khi đã có
+AttributeValue; đổi `name` vẫn được phép.
+
+Catalog permission seed bổ sung 16 code và Super Admin nhận toàn bộ 16 permission.
 
 ## 3. Schema authoritative
 
@@ -383,6 +398,21 @@ lastLoginAt | createdAt | updatedAt`; `sortOrder?: asc | desc`.
 - Search và mọi filter compose bằng AND trong cả query dữ liệu và count.
 - Ordering dùng sort chính từ query và luôn thêm `id ASC` làm tie-break.
 - Use case hỗ trợ: `type=CUSTOMER`, `type=BRANCH&isActive=false`, `type=SYSTEM`.
+
+### 4.7. Product master data
+
+Bốn list endpoint dùng contract chung:
+
+`GET /<resource>?page&limit&search&usageStatus&createdFrom&createdTo&sortBy&sortOrder`
+
+- `page >= 1`, `limit = 1..100`; search được trim và chạy case-insensitive trên
+  các field nghiệp vụ của từng catalog.
+- `usageStatus?: USED | UNUSED`; `createdFrom`/`createdTo` là calendar date Việt Nam,
+  inclusive theo ngày và có thể truyền riêng.
+- Data và count dùng cùng `where`; mọi ordering thêm `id ASC` làm tie-break ổn định.
+- Supplier có thêm `hasPhone` và `hasEmail`; Product Attribute có thêm filter `type`.
+- Response item trả `usageCount`; pagination meta luôn lấy từ authoritative server
+  response, kể cả dataset rỗng.
 
 ## 5. Users Management
 
