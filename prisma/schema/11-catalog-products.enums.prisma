@@ -27,3 +27,9 @@ enum ProductAttributeType {
   SINGLE_SELECT
   MULTI_SELECT
 }
+
+enum ProductOptionPresentationType {
+  TEXT
+  COLOR
+  IMAGE
+}

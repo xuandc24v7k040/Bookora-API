@@ -68,6 +68,35 @@ describe('PermissionsGuard', () => {
     ).toBe(true);
   });
 
+  it.each(['products.read', 'stock_receipts.create', 'stock_receipts.update'])(
+    'allows an actor with any selector permission: %s',
+    (permission) => {
+      reflector.getAllAndMerge.mockImplementation((key: string) =>
+        key === 'bookora:authorization:any-permissions'
+          ? ['products.read', 'stock_receipts.create', 'stock_receipts.update']
+          : undefined,
+      );
+      expect(
+        guard.canActivate(
+          executionContext(actor({ permissions: [permission] })),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('rejects an actor missing every any-of permission', () => {
+    reflector.getAllAndMerge.mockImplementation((key: string) =>
+      key === 'bookora:authorization:any-permissions'
+        ? ['products.read', 'stock_receipts.create']
+        : undefined,
+    );
+    expect(() =>
+      guard.canActivate(
+        executionContext(actor({ permissions: ['inventory.read'] })),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
   it('allows an active Super Admin to bypass permission checks', () => {
     reflector.getAllAndMerge.mockReturnValue(['permissions.delete']);
     expect(

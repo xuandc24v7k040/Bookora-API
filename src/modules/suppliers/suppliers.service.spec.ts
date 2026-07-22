@@ -15,7 +15,7 @@ const record: SupplierRecord = {
   address: null,
   createdAt: new Date('2026-07-01T00:00:00Z'),
   updatedAt: new Date('2026-07-02T00:00:00Z'),
-  _count: { products: 2 },
+  _count: { products: 2, stockReceipts: 0 },
 };
 describe('SuppliersService', () => {
   const repository = {
@@ -46,7 +46,11 @@ describe('SuppliersService', () => {
     expect(result.meta).toMatchObject({ page: 2, total: 1, lastPage: 1 });
     expect(repository.list).toHaveBeenCalledWith(
       expect.objectContaining({ AND: expect.any(Array) }),
-      [{ products: { _count: 'desc' } }, { id: 'asc' }],
+      [
+        { products: { _count: 'desc' } },
+        { stockReceipts: { _count: 'desc' } },
+        { id: 'asc' },
+      ],
       10,
       10,
     );

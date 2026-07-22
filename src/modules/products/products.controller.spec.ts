@@ -3,6 +3,8 @@ import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import { CsrfGuard } from '@/modules/auth/guards/csrf.guard';
 import {
   AUTHORIZATION_METADATA_KEYS,
+  BranchScopeGuard,
+  BranchScopeMode,
   PermissionsGuard,
 } from '@/modules/authorization';
 import { ProductsController } from './products.controller';
@@ -14,8 +16,21 @@ describe('ProductsController contract', () => {
       ProductsController,
     ) as unknown[];
     expect(guards).toEqual(
-      expect.arrayContaining([JwtAccessGuard, PermissionsGuard]),
+      expect.arrayContaining([
+        JwtAccessGuard,
+        BranchScopeGuard,
+        PermissionsGuard,
+      ]),
     );
+  });
+
+  it('uses an optional branch context for global catalog authorization', () => {
+    expect(
+      Reflect.getMetadata(
+        AUTHORIZATION_METADATA_KEYS.branchScope,
+        ProductsController,
+      ),
+    ).toBe(BranchScopeMode.OPTIONAL_SELECTION);
   });
 
   it.each([

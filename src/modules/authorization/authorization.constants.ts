@@ -1,5 +1,6 @@
 export const AUTHORIZATION_METADATA_KEYS = {
   permissions: 'bookora:authorization:permissions',
+  anyPermissions: 'bookora:authorization:any-permissions',
   branchScope: 'bookora:authorization:branch-scope',
 } as const;
 

@@ -15,6 +15,8 @@ import { AuthorsModule } from '@/modules/authors/authors.module';
 import { ProductAttributesModule } from '@/modules/product-attributes/product-attributes.module';
 import { ProductsModule } from '@/modules/products/products.module';
 import { ProductMediaModule } from '@/modules/product-media/product-media.module';
+import { InventoryModule } from '@/modules/inventory/inventory.module';
+import { StockReceiptsModule } from '@/modules/stock-receipts/stock-receipts.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { ProductMediaModule } from '@/modules/product-media/product-media.module
     ProductAttributesModule,
     ProductsModule,
     ProductMediaModule,
+    InventoryModule,
+    StockReceiptsModule,
     AuthModule,
   ],
 })

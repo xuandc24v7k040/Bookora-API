@@ -6,7 +6,8 @@ model Supplier {
   email   String?
   address String?
 
-  products Product[]
+  products      Product[]
+  stockReceipts StockReceipt[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -108,11 +109,12 @@ model ProductMedia {
 }
 
 model ProductOption {
-  id        String @id @default(ulid())
-  productId String @map("product_id")
-  name      String
-  code      String
-  sortOrder Int    @default(0) @map("sort_order")
+  id               String                        @id @default(ulid())
+  productId        String                        @map("product_id")
+  name             String
+  code             String
+  presentationType ProductOptionPresentationType @default(TEXT) @map("presentation_type")
+  sortOrder        Int                           @default(0) @map("sort_order")
 
   product Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
   values  ProductOptionValue[]

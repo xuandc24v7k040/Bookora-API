@@ -28,6 +28,7 @@ const ID_PROPERTY_NAMES = new Set([
   'optionValueId',
   'valueId',
   'variantId',
+  'receiptId',
   'replacementBranchId',
   'primaryBranchId',
 ]);
@@ -48,6 +49,7 @@ const DATE_TIME_PROPERTY_NAMES = new Set([
   'releaseDate',
   'saleStartAt',
   'saleEndAt',
+  'confirmedAt',
 ]);
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 
@@ -112,6 +114,8 @@ function createSwaggerConfig() {
       'products',
       'Quản lý Product, Options, Option Values và Variants toàn cục.',
     )
+    .addTag('inventory', 'Quản lý tồn kho theo chi nhánh và biến thể.')
+    .addTag('stock-receipts', 'Quản lý vòng đời phiếu nhập kho theo chi nhánh.')
     .addSecurity('accessToken', {
       type: 'apiKey',
       in: 'cookie',
@@ -198,6 +202,7 @@ function deleteEmptyLicenseUrl(document: OpenAPIObject): void {
 
 function normalizeOperations(document: OpenAPIObject): void {
   for (const [path, pathItem] of Object.entries(document.paths)) {
+    const contractPath = path.replace(/^\/api\/v\d+(?=\/)/, '');
     const operations = pathItem as Record<string, OperationLike>;
 
     for (const method of HTTP_METHODS) {
@@ -207,14 +212,18 @@ function normalizeOperations(document: OpenAPIObject): void {
       }
 
       operation.description ??= operation.summary;
-      operation.security = normalizeSecurity(path, method, operation.security);
+      operation.security = normalizeSecurity(
+        contractPath,
+        method,
+        operation.security,
+      );
       normalizeParameters(operation.parameters);
-      normalizeRedirectResponses(path, operation);
-      if (isOauthRedirectPath(path)) {
+      normalizeRedirectResponses(contractPath, operation);
+      if (isOauthRedirectPath(contractPath)) {
         continue;
       }
       normalizeErrorResponses(operation);
-      normalizeAuthErrorResponses(path, method, operation);
+      normalizeAuthErrorResponses(contractPath, method, operation);
     }
   }
 }

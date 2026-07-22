@@ -20,7 +20,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { ProductStatus } from '@/generated/prisma/client';
+import {
+  ProductOptionPresentationType,
+  ProductStatus,
+} from '@/generated/prisma/client';
 
 const ULID_PATTERN = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const CODE_PATTERN = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
@@ -242,6 +245,16 @@ export class CreateProductOptionDto {
   })
   @MaxLength(64)
   code!: string;
+
+  @ApiPropertyOptional({
+    enum: ProductOptionPresentationType,
+    default: ProductOptionPresentationType.TEXT,
+  })
+  @IsEnum(ProductOptionPresentationType, {
+    message: 'Kiểu hiển thị lựa chọn không hợp lệ',
+  })
+  @IsOptional()
+  presentationType?: ProductOptionPresentationType;
 
   @ApiPropertyOptional({ default: 0 })
   @Type(() => Number)

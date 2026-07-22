@@ -14,7 +14,7 @@ export const supplierSelect = {
   address: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { products: true } },
+  _count: { select: { products: true, stockReceipts: true } },
 } satisfies Prisma.SupplierSelect;
 
 export type SupplierRecord = Prisma.SupplierGetPayload<{
@@ -113,10 +113,10 @@ export class SuppliersRepository {
         select: supplierSelect,
       });
       if (!current) return null;
-      if (current._count.products > 0)
+      if (current._count.products > 0 || current._count.stockReceipts > 0)
         throw new SupplierDomainError(
           'SUPPLIER_IN_USE',
-          'Không thể xóa vì nhà cung cấp đang được sản phẩm sử dụng',
+          'Không thể xóa vì nhà cung cấp đang được sản phẩm hoặc phiếu nhập sử dụng',
         );
       return tx.supplier.delete({ where: { id }, select: supplierSelect });
     });

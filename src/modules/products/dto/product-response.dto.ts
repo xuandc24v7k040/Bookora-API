@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProductAttributeType, ProductStatus } from '@/generated/prisma/client';
+import {
+  ProductAttributeType,
+  ProductOptionPresentationType,
+  ProductStatus,
+} from '@/generated/prisma/client';
 
 export class ProductRelationSummaryDto {
   @ApiProperty({ format: 'ulid' }) id!: string;
@@ -97,6 +101,8 @@ export class ProductOptionResponseDto {
   @ApiProperty({ format: 'ulid' }) productId!: string;
   @ApiProperty() name!: string;
   @ApiProperty() code!: string;
+  @ApiProperty({ enum: ProductOptionPresentationType })
+  presentationType!: ProductOptionPresentationType;
   @ApiProperty() sortOrder!: number;
   @ApiProperty({ type: [ProductOptionValueResponseDto] })
   values!: ProductOptionValueResponseDto[];

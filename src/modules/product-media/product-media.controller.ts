@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBody,
   ApiConsumes,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiSecurity,
@@ -27,7 +28,13 @@ import {
   ResponseMessage,
   UlidParam,
 } from '@/common/decorators';
-import { Permissions, PermissionsGuard } from '@/modules/authorization';
+import {
+  BranchScope,
+  BranchScopeGuard,
+  BranchScopeMode,
+  Permissions,
+  PermissionsGuard,
+} from '@/modules/authorization';
 import { CsrfGuard } from '@/modules/auth/guards/csrf.guard';
 import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import {
@@ -63,9 +70,16 @@ const ProductImageUpload = () =>
 
 @ApiTags('product-media')
 @ApiSecurity('accessToken')
+@ApiHeader({
+  name: 'X-Branch-Id',
+  required: false,
+  description:
+    'Chi nhánh dùng để tính quyền effective cho branch actor; không lọc media Product.',
+})
 @ApiProductMediaErrors()
 @Controller('products/:productId')
-@UseGuards(JwtAccessGuard, PermissionsGuard)
+@BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+@UseGuards(JwtAccessGuard, BranchScopeGuard, PermissionsGuard)
 export class ProductMediaController {
   constructor(private readonly service: ProductMediaService) {}
 

@@ -47,6 +47,7 @@ const BAD_REQUEST_CODES = new Set([
   'PRODUCT_PRICE_INVALID',
   'PRODUCT_SALE_PERIOD_INVALID',
   'PRODUCT_ATTRIBUTE_VALUE_INVALID',
+  'PRODUCT_OPTION_COLOR_REQUIRED',
   'PRODUCT_MEDIA_REQUIRED',
   'PRODUCT_MEDIA_PRIMARY_REQUIRED',
   'PRODUCT_MEDIA_CONFIGURATION_INVALID',
@@ -419,6 +420,7 @@ export class ProductsService {
       productId: option.productId,
       name: option.name,
       code: option.code,
+      presentationType: option.presentationType,
       sortOrder: option.sortOrder,
       values: option.values.map((value) => ({
         id: value.id,

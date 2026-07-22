@@ -3,9 +3,10 @@ import { ProductsController } from './products.controller';
 import { ProductsRepository } from './products.repository';
 import { ProductsService } from './products.service';
 import { ProductMediaModule } from '@/modules/product-media/product-media.module';
+import { AuthorizationModule } from '@/modules/authorization';
 
 @Module({
-  imports: [ProductMediaModule],
+  imports: [AuthorizationModule, ProductMediaModule],
   controllers: [ProductsController],
   providers: [ProductsService, ProductsRepository],
 })

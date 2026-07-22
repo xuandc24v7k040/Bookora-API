@@ -10,6 +10,7 @@ import {
   applyDecorators,
 } from '@nestjs/common';
 import {
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiSecurity,
@@ -23,7 +24,14 @@ import {
 } from '@/common/decorators';
 import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import { CsrfGuard } from '@/modules/auth/guards/csrf.guard';
-import { Permissions, PermissionsGuard } from '@/modules/authorization';
+import {
+  AnyPermissions,
+  BranchScope,
+  BranchScopeGuard,
+  BranchScopeMode,
+  Permissions,
+  PermissionsGuard,
+} from '@/modules/authorization';
 import {
   CreateSupplierDto,
   SupplierListQueryDto,
@@ -44,13 +52,24 @@ const ApiSupplierErrors = () =>
 
 @ApiTags('suppliers')
 @ApiSecurity('accessToken')
+@ApiHeader({
+  name: 'X-Branch-Id',
+  required: false,
+  description:
+    'Chi nhánh dùng để tính quyền effective cho branch actor; không lọc catalog Supplier.',
+})
 @ApiSupplierErrors()
 @Controller('suppliers')
-@UseGuards(JwtAccessGuard, CsrfGuard, PermissionsGuard)
+@BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+@UseGuards(JwtAccessGuard, CsrfGuard, BranchScopeGuard, PermissionsGuard)
 export class SuppliersController {
   constructor(private readonly service: SuppliersService) {}
   @Get()
-  @Permissions('suppliers.read')
+  @AnyPermissions(
+    'suppliers.read',
+    'stock_receipts.create',
+    'stock_receipts.update',
+  )
   @ApiOperation({
     operationId: 'suppliersList',
     summary: 'Lấy danh sách nhà cung cấp',

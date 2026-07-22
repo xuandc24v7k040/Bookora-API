@@ -1,9 +1,12 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
+  CreateProductOptionDto,
   CreateProductOptionValueDto,
+  UpdateProductOptionDto,
   UpdateProductVariantDto,
 } from './product.dto';
+import { ProductOptionPresentationType } from '@/generated/prisma/client';
 
 describe('CreateProductOptionValueDto', () => {
   const dto = (colorCode: string | null) =>
@@ -41,5 +44,33 @@ describe('UpdateProductVariantDto', () => {
 
     expect(dto.isDefault).toBeUndefined();
     expect(dto.isActive).toBeUndefined();
+  });
+});
+
+describe('Product option presentation DTOs', () => {
+  it('keeps omitted presentation type undefined so Prisma supplies TEXT on create', async () => {
+    const dto = plainToInstance(CreateProductOptionDto, {
+      name: 'Hình thức bìa',
+      code: 'COVER',
+    });
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto.presentationType).toBeUndefined();
+  });
+
+  it.each(Object.values(ProductOptionPresentationType))(
+    'accepts presentation type %s',
+    async (presentationType) => {
+      const dto = plainToInstance(CreateProductOptionDto, {
+        name: 'Lựa chọn',
+        code: 'OPTION',
+        presentationType,
+      });
+      await expect(validate(dto)).resolves.toHaveLength(0);
+    },
+  );
+
+  it('keeps omitted presentation type undefined on PATCH', () => {
+    const dto = plainToInstance(UpdateProductOptionDto, { name: 'Tên mới' });
+    expect(dto.presentationType).toBeUndefined();
   });
 });

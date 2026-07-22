@@ -1,4 +1,5 @@
 import { ProductsRepository } from './products.repository';
+import { ProductOptionPresentationType } from '@/generated/prisma/client';
 
 describe('ProductsRepository variant preview', () => {
   const product = { findUnique: jest.fn() };
@@ -94,5 +95,77 @@ describe('ProductsRepository variant preview', () => {
       code: 'PRODUCT_VARIANT_MATRIX_TOO_LARGE',
       details: { count: 216, limit: 200 },
     });
+  });
+});
+
+describe('ProductsRepository option presentation', () => {
+  const productOption = {
+    findFirst: jest.fn(),
+    update: jest.fn(),
+  };
+  const productOptionValue = {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+  };
+  const tx = { productOption, productOptionValue };
+  const prisma = {
+    $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) =>
+      work(tx),
+    ),
+  };
+  const repository = new ProductsRepository(prisma as never);
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('rejects switching to COLOR while an existing value has no color', async () => {
+    productOption.findFirst.mockResolvedValue({
+      id: 'option',
+      code: 'COVER',
+      values: [{ colorCode: null }],
+      _count: { links: 0 },
+    });
+
+    await expect(
+      repository.updateOption('product', 'option', {
+        presentationType: ProductOptionPresentationType.COLOR,
+      }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_OPTION_COLOR_REQUIRED' });
+    expect(productOption.update).not.toHaveBeenCalled();
+  });
+
+  it('requires color when adding a value to a COLOR option', async () => {
+    productOption.findFirst.mockResolvedValue({
+      id: 'option',
+      presentationType: ProductOptionPresentationType.COLOR,
+    });
+
+    await expect(
+      repository.createOptionValue('product', 'option', {
+        label: 'Xanh',
+        value: 'BLUE',
+        colorCode: null,
+      }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_OPTION_COLOR_REQUIRED' });
+    expect(productOptionValue.create).not.toHaveBeenCalled();
+  });
+
+  it('preserves hidden color data when updating a non-color field', async () => {
+    productOptionValue.findFirst.mockResolvedValue({
+      id: 'value',
+      value: 'BLUE',
+      colorCode: '#2563EB',
+      option: { presentationType: ProductOptionPresentationType.TEXT },
+      _count: { variantLinks: 0 },
+    });
+    productOptionValue.update.mockResolvedValue({ id: 'value' });
+
+    await repository.updateOptionValue('product', 'option', 'value', {
+      label: 'Xanh mới',
+    });
+
+    expect(productOptionValue.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { label: 'Xanh mới' } }),
+    );
   });
 });

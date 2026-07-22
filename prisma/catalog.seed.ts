@@ -355,19 +355,34 @@ export const permissionCatalog = [
     description: 'Cho phép xem số lượng và thông tin tồn kho tại chi nhánh',
   },
   {
-    code: 'inventory.update',
-    name: 'Cập nhật tồn kho',
-    description: 'Cho phép cập nhật thông tin tồn kho tại chi nhánh',
+    code: 'inventory.update_threshold',
+    name: 'Cập nhật ngưỡng cảnh báo tồn kho',
+    description: 'Cho phép cập nhật ngưỡng cảnh báo tồn kho tại chi nhánh',
   },
   {
-    code: 'stock_movements.read',
-    name: 'Xem biến động kho',
-    description: 'Cho phép xem lịch sử nhập, xuất và điều chỉnh kho',
+    code: 'stock_receipts.read',
+    name: 'Xem phiếu nhập kho',
+    description: 'Cho phép xem danh sách và chi tiết phiếu nhập kho',
   },
   {
-    code: 'stock_movements.create',
-    name: 'Tạo biến động kho',
-    description: 'Cho phép ghi nhận nhập, xuất hoặc điều chỉnh kho',
+    code: 'stock_receipts.create',
+    name: 'Tạo phiếu nhập kho',
+    description: 'Cho phép tạo phiếu nhập kho bản nháp',
+  },
+  {
+    code: 'stock_receipts.update',
+    name: 'Cập nhật phiếu nhập kho',
+    description: 'Cho phép cập nhật phiếu nhập kho bản nháp',
+  },
+  {
+    code: 'stock_receipts.cancel',
+    name: 'Hủy phiếu nhập kho',
+    description: 'Cho phép hủy phiếu nhập kho bản nháp',
+  },
+  {
+    code: 'stock_receipts.confirm',
+    name: 'Xác nhận phiếu nhập kho',
+    description: 'Cho phép xác nhận phiếu nhập và cộng tồn kho',
   },
   {
     code: 'profile.read_own',
@@ -393,6 +408,22 @@ export const permissionCatalog = [
 
 export const permissionCodes = permissionCatalog.map(({ code }) => code);
 
+export const STAFF_PERMISSION_CODES = [
+  'dashboard.read',
+  'orders.read',
+  'orders.create',
+  'orders.update_status',
+  'payments.create',
+  'products.read',
+  'inventory.read',
+  'inventory.update_threshold',
+  'stock_receipts.read',
+  'stock_receipts.create',
+  'stock_receipts.update',
+  'stock_receipts.cancel',
+  'stock_receipts.confirm',
+] as const;
+
 const rolePermissionCodes: Record<string, readonly string[]> = {
   BRANCH_ADMIN: [
     'dashboard.read',
@@ -400,7 +431,12 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'orders.update_status',
     'products.read',
     'inventory.read',
-    'inventory.update',
+    'inventory.update_threshold',
+    'stock_receipts.read',
+    'stock_receipts.create',
+    'stock_receipts.update',
+    'stock_receipts.cancel',
+    'stock_receipts.confirm',
     'staff.read',
     'staff.create',
     'staff.update',
@@ -410,24 +446,7 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'roles.read',
     'permissions.read',
   ],
-  STAFF: [
-    'dashboard.read',
-
-    'orders.read',
-    'orders.create',
-    'orders.update_status',
-    'payments.create',
-
-    'products.read',
-    'products.create',
-    'products.update',
-
-    'inventory.read',
-    'inventory.update',
-
-    'stock_movements.read',
-    'stock_movements.create',
-  ],
+  STAFF: STAFF_PERMISSION_CODES,
   CASHIER: [
     'dashboard.read',
     'orders.read',
@@ -439,9 +458,12 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'dashboard.read',
     'products.read',
     'inventory.read',
-    'inventory.update',
-    'stock_movements.read',
-    'stock_movements.create',
+    'inventory.update_threshold',
+    'stock_receipts.read',
+    'stock_receipts.create',
+    'stock_receipts.update',
+    'stock_receipts.cancel',
+    'stock_receipts.confirm',
   ],
   CUSTOMER: [
     'profile.read_own',
@@ -535,6 +557,13 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
     if (!roleId) {
       throw new Error(`Seeded role not found: ${roleCode}`);
     }
+
+    await tx.rolePermission.deleteMany({
+      where: {
+        roleId,
+        permission: { code: { notIn: [...codes] } },
+      },
+    });
 
     for (const permissionCode of codes) {
       const permissionId = permissionIds.get(permissionCode);

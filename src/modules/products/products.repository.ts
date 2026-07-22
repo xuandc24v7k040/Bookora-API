@@ -4,6 +4,7 @@ import {
   Prisma,
   ProductAttributeType,
   ProductMediaType,
+  ProductOptionPresentationType,
   ProductStatus,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
@@ -86,6 +87,7 @@ export const productOptionSelect = {
   productId: true,
   name: true,
   code: true,
+  presentationType: true,
   sortOrder: true,
   values: {
     orderBy: [{ sortOrder: 'asc' as const }, { id: 'asc' as const }],
@@ -495,6 +497,12 @@ export class ProductsRepository {
       ) {
         throw new ProductDomainError('PRODUCT_OPTION_CODE_IMMUTABLE_WHEN_USED');
       }
+      if (
+        dto.presentationType === ProductOptionPresentationType.COLOR &&
+        option.values.some((value) => value.colorCode === null)
+      ) {
+        throw new ProductDomainError('PRODUCT_OPTION_COLOR_REQUIRED');
+      }
       return tx.productOption.update({
         where: { id: optionId },
         data: dto,
@@ -523,7 +531,13 @@ export class ProductsRepository {
     dto: CreateProductOptionValueDto,
   ) {
     return runSerializableTransaction(this.prisma, async (tx) => {
-      await this.assertOptionExists(tx, productId, optionId);
+      const option = await this.assertOptionExists(tx, productId, optionId);
+      if (
+        option.presentationType === ProductOptionPresentationType.COLOR &&
+        !dto.colorCode
+      ) {
+        throw new ProductDomainError('PRODUCT_OPTION_COLOR_REQUIRED');
+      }
       return tx.productOptionValue.create({
         data: {
           optionId,
@@ -561,6 +575,7 @@ export class ProductsRepository {
           colorCode: true,
           imageUrl: true,
           sortOrder: true,
+          option: { select: { presentationType: true } },
           _count: { select: { variantLinks: true } },
         },
       });
@@ -573,6 +588,13 @@ export class ProductsRepository {
         throw new ProductDomainError(
           'PRODUCT_OPTION_VALUE_IMMUTABLE_WHEN_USED',
         );
+      }
+      if (
+        value.option.presentationType === ProductOptionPresentationType.COLOR &&
+        (dto.colorCode === null ||
+          (dto.colorCode === undefined && value.colorCode === null))
+      ) {
+        throw new ProductDomainError('PRODUCT_OPTION_COLOR_REQUIRED');
       }
       return tx.productOptionValue.update({
         where: { id: valueId },
@@ -1082,13 +1104,12 @@ export class ProductsRepository {
     productId: string,
     optionId: string,
   ) {
-    if (
-      !(await tx.productOption.findFirst({
-        where: { id: optionId, productId },
-        select: { id: true },
-      }))
-    )
-      throw new ProductDomainError('PRODUCT_OPTION_NOT_FOUND');
+    const option = await tx.productOption.findFirst({
+      where: { id: optionId, productId },
+      select: { id: true, presentationType: true },
+    });
+    if (!option) throw new ProductDomainError('PRODUCT_OPTION_NOT_FOUND');
+    return option;
   }
 
   private async prepareVariant(

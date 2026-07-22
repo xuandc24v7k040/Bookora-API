@@ -12,7 +12,7 @@ describe('schema refactor target invariants (e2e)', () => {
     database = await createDisposablePostgresDatabase('schema_refactor');
     await runMigrations(database);
     await seedBaseData(database);
-  });
+  }, 30_000);
 
   afterAll(async () => {
     await database.close();
@@ -142,6 +142,52 @@ describe('schema refactor target invariants (e2e)', () => {
     }
 
     expect(await stockQuantity(database)).toBe(23);
+  });
+
+  it('confirms the same receipt concurrently only once', async () => {
+    await createReceipt(database, 'receipt-four', 'RECEIPT-FOUR', 13);
+    const first = new Client({ connectionString: database.databaseUrl });
+    const second = new Client({ connectionString: database.databaseUrl });
+    await Promise.all([first.connect(), second.connect()]);
+    try {
+      await Promise.all([
+        confirmReceiptWithClient(first, 'receipt-four'),
+        confirmReceiptWithClient(second, 'receipt-four'),
+      ]);
+    } finally {
+      await Promise.all([first.end(), second.end()]);
+    }
+
+    expect(await stockQuantity(database)).toBe(36);
+  });
+
+  it('enforces Phase 11 threshold and history references', async () => {
+    await expect(
+      database.runSql(`
+        UPDATE branch_product_stocks SET low_stock_threshold = -1
+        WHERE branch_id = 'branch-one' AND variant_id = 'variant-simple'
+      `),
+    ).rejects.toThrow();
+
+    await database.runSql(`
+      INSERT INTO suppliers (id, name, slug, created_at, updated_at)
+      VALUES ('supplier-inventory', 'Inventory Supplier', 'inventory-supplier', NOW(), NOW());
+      INSERT INTO stock_receipts (
+        id, branch_id, supplier_id, code, status, created_at, updated_at
+      ) VALUES (
+        'receipt-supplier', 'branch-one', 'supplier-inventory',
+        'RECEIPT-SUPPLIER', 'DRAFT', NOW(), NOW()
+      );
+    `);
+
+    await expect(
+      database.runSql(`DELETE FROM suppliers WHERE id = 'supplier-inventory'`),
+    ).rejects.toThrow();
+    await expect(
+      database.runSql(
+        `DELETE FROM product_variants WHERE id = 'variant-simple'`,
+      ),
+    ).rejects.toThrow();
   });
 
   it('rejects invalid stock, receipt, cart, and order quantities', async () => {

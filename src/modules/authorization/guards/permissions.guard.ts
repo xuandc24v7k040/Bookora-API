@@ -28,17 +28,30 @@ export class PermissionsGuard implements CanActivate {
         [context.getClass(), context.getHandler()],
       ) ?? [],
     );
+    const anyPermissions = new Set(
+      this.reflector.getAllAndMerge<string[]>(
+        AUTHORIZATION_METADATA_KEYS.anyPermissions,
+        [context.getClass(), context.getHandler()],
+      ) ?? [],
+    );
 
-    if (requiredPermissions.size === 0 || request.user.isSuperAdmin) {
+    if (
+      (requiredPermissions.size === 0 && anyPermissions.size === 0) ||
+      request.user.isSuperAdmin
+    ) {
       return true;
     }
 
     const actorPermissions = new Set(request.user.permissions);
-    if (
-      Array.from(requiredPermissions).every((permission) =>
+    const hasAllRequired = Array.from(requiredPermissions).every((permission) =>
+      actorPermissions.has(permission),
+    );
+    const hasAnyRequired =
+      anyPermissions.size === 0 ||
+      Array.from(anyPermissions).some((permission) =>
         actorPermissions.has(permission),
-      )
-    ) {
+      );
+    if (hasAllRequired && hasAnyRequired) {
       return true;
     }
 

@@ -24,6 +24,8 @@ export const PRODUCT_ERROR_MESSAGES: Record<string, string> = {
   PRODUCT_OPTION_CODE_ALREADY_EXISTS: 'Mã lựa chọn đã tồn tại trong sản phẩm',
   PRODUCT_OPTION_CODE_IMMUTABLE_WHEN_USED:
     'Không thể đổi mã lựa chọn khi đã có biến thể sử dụng',
+  PRODUCT_OPTION_COLOR_REQUIRED:
+    'Mọi giá trị của lựa chọn màu phải có mã màu hợp lệ',
   PRODUCT_OPTION_IN_USE: 'Không thể xóa lựa chọn đang được biến thể sử dụng',
   PRODUCT_OPTION_VALUE_NOT_FOUND: 'Không tìm thấy giá trị lựa chọn',
   PRODUCT_OPTION_VALUE_ALREADY_EXISTS:

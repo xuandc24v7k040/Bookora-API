@@ -10,6 +10,7 @@ import {
   applyDecorators,
 } from '@nestjs/common';
 import {
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiSecurity,
@@ -23,7 +24,13 @@ import {
 } from '@/common/decorators';
 import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import { CsrfGuard } from '@/modules/auth/guards/csrf.guard';
-import { Permissions, PermissionsGuard } from '@/modules/authorization';
+import {
+  BranchScope,
+  BranchScopeGuard,
+  BranchScopeMode,
+  Permissions,
+  PermissionsGuard,
+} from '@/modules/authorization';
 import {
   BulkCreateProductVariantsDto,
   CreateProductDto,
@@ -58,9 +65,16 @@ const ApiProductErrors = () =>
 
 @ApiTags('products')
 @ApiSecurity('accessToken')
+@ApiHeader({
+  name: 'X-Branch-Id',
+  required: false,
+  description:
+    'Chi nhánh dùng để tính quyền effective cho branch actor; không lọc catalog Product.',
+})
 @ApiProductErrors()
 @Controller('products')
-@UseGuards(JwtAccessGuard, PermissionsGuard)
+@BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+@UseGuards(JwtAccessGuard, BranchScopeGuard, PermissionsGuard)
 export class ProductsController {
   constructor(private readonly service: ProductsService) {}
 

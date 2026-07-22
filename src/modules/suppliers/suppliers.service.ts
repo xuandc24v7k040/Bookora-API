@@ -101,8 +101,14 @@ export class SuppliersService {
       filters.push(query.hasEmail ? { email: { not: null } } : { email: null });
     if (query.usageStatus)
       filters.push({
-        products:
-          query.usageStatus === UsageStatus.USED ? { some: {} } : { none: {} },
+        ...(query.usageStatus === UsageStatus.USED
+          ? {
+              OR: [{ products: { some: {} } }, { stockReceipts: { some: {} } }],
+            }
+          : {
+              products: { none: {} },
+              stockReceipts: { none: {} },
+            }),
       });
     if (query.createdFrom || query.createdTo)
       filters.push({
@@ -127,7 +133,9 @@ export class SuppliersService {
       field === SupplierSortField.USAGE_COUNT
         ? { products: { _count: direction } }
         : { [field]: direction };
-    return [primary, { id: 'asc' }];
+    return field === SupplierSortField.USAGE_COUNT
+      ? [primary, { stockReceipts: { _count: direction } }, { id: 'asc' }]
+      : [primary, { id: 'asc' }];
   }
 
   private toResponse(record: SupplierRecord) {
@@ -138,7 +146,7 @@ export class SuppliersService {
       phone: record.phone,
       email: record.email,
       address: record.address,
-      usageCount: record._count.products,
+      usageCount: record._count.products + record._count.stockReceipts,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     };

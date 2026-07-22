@@ -9,6 +9,7 @@ export { AuthorizationService } from './authorization.service';
 export { AuthorizationManagementService } from './authorization-management.service';
 export { BranchContextService } from './branch-context.service';
 export { BranchScope } from './decorators/branch-scope.decorator';
+export { AnyPermissions } from './decorators/any-permissions.decorator';
 export { CurrentBranchContext } from './decorators/current-branch-context.decorator';
 export { Permissions } from './decorators/permissions.decorator';
 export { BranchScopeGuard } from './guards/branch-scope.guard';
