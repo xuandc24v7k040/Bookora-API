@@ -375,6 +375,7 @@ export class AuthorizationRepository {
             phone: true,
             gender: true,
             birthday: true,
+            avatarUrl: true,
             type: true,
             isActive: true,
             userRoles: {

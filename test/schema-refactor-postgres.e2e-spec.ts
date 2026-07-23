@@ -232,8 +232,8 @@ describe('schema refactor target invariants (e2e)', () => {
     await expect(
       database.runSql(`
         INSERT INTO cart_items (
-          id, cart_id, variant_id, quantity, created_at, updated_at
-        ) VALUES ('invalid-cart-item', 'cart-one', 'variant-simple', 0, NOW(), NOW())
+          id, cart_id, variant_id, quantity, last_known_unit_price, created_at, updated_at
+        ) VALUES ('invalid-cart-item', 'cart-one', 'variant-simple', 0, 100, NOW(), NOW())
       `),
     ).rejects.toThrow();
 

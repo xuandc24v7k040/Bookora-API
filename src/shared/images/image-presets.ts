@@ -21,6 +21,11 @@ export function createImagePresets(input: {
       webpQuality: 80,
     },
     review: { ...common, maxOutputEdge: 1920 },
-    avatar: { ...common, maxOutputEdge: 1024 },
+    avatar: {
+      ...common,
+      maxOutputEdge: 512,
+      webpQuality: 80,
+      fit: 'cover',
+    },
   };
 }

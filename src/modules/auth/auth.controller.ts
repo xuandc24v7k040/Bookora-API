@@ -173,6 +173,7 @@ export class AuthController {
       phone: user.phone,
       gender: user.gender,
       birthday: user.birthday,
+      avatarUrl: user.avatarUrl,
       type: user.type,
       roles: user.roles,
       permissions: user.permissions,

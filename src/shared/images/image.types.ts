@@ -16,6 +16,7 @@ export interface ImagePreset {
   maxInputPixels: number;
   maxOutputEdge: number;
   webpQuality: number;
+  fit?: 'inside' | 'cover';
 }
 
 export interface UploadImageInput {

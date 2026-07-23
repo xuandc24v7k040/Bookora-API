@@ -17,6 +17,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio --browser none",
     "prisma:seed:dev": "ts-node -r tsconfig-paths/register prisma/seed.dev.ts",
+    "prisma:seed:storefront-catalog": "ts-node -r tsconfig-paths/register prisma/seed.storefront-catalog.ts",
+    "prisma:seed:storefront-inventory": "ts-node -r tsconfig-paths/register prisma/seed.storefront-inventory.ts",
     "categories:slug-reconcile": "ts-node -r tsconfig-paths/register src/scripts/reconcile-category-slugs.ts",
     "schema-refactor:snapshot": "ts-node -r tsconfig-paths/register prisma/schema-refactor/snapshot-data.ts",
     "schema-refactor:preflight": "ts-node -r tsconfig-paths/register prisma/schema-refactor/preflight.ts",

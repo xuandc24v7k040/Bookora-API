@@ -51,4 +51,18 @@ describe('ImageProcessingService', () => {
       service.process(multerFile(Buffer.from('not-an-image')), 'category'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('center-crops an avatar to a 512 by 512 WebP', async () => {
+    const input = await sharp({
+      create: { width: 1200, height: 800, channels: 3, background: '#336699' },
+    })
+      .png()
+      .toBuffer();
+    const result = await service.process(multerFile(input), 'avatar');
+    expect(result).toMatchObject({
+      contentType: 'image/webp',
+      width: 512,
+      height: 512,
+    });
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -7,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   AuthProvider,
+  Prisma,
   type User,
   type UserType,
 } from '@/generated/prisma/client';
@@ -16,6 +18,8 @@ import * as bcrypt from 'bcrypt';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import type { SignOptions } from 'jsonwebtoken';
 import { UsersService } from '../users/users.service';
+import { PrismaService } from '@/database/prisma.service';
+import type { AuthenticatedUser } from './types/authenticated-user.type';
 import {
   AuthAttemptService,
   EmailLoginRestrictedException,
@@ -67,6 +71,7 @@ export class AuthService {
     private readonly authSessionsRepository: AuthSessionsRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -124,13 +129,13 @@ export class AuthService {
     refreshToken: string | undefined,
     response: Response,
   ) {
-    const userId = await this.getUserIdFromAuthCookies(
+    const session = await this.getSessionFromAuthCookies(
       accessToken,
       refreshToken,
     );
 
-    if (userId) {
-      await this.authSessionsRepository.revokeActiveByUserId(userId);
+    if (session) {
+      await this.authSessionsRepository.revoke(session.sessionId);
     }
 
     this.clearAuthCookies(response);
@@ -263,13 +268,120 @@ export class AuthService {
     return this.toPublicUser(user);
   }
 
+  async changePassword(
+    actor: AuthenticatedUser,
+    input: { currentPassword: string; newPassword: string },
+    response: Response,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: actor.id } });
+    if (!user || user.provider !== AuthProvider.LOCAL || !user.passwordHash) {
+      throw new BadRequestException({
+        code: 'ACCOUNT_PASSWORD_NOT_CONFIGURED',
+        message: 'Tài khoản này không sử dụng mật khẩu Bookora',
+      });
+    }
+    const currentPasswordValid = await bcrypt.compare(
+      input.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentPasswordValid) {
+      throw new BadRequestException({
+        code: 'CURRENT_PASSWORD_INVALID',
+        message: 'Mật khẩu hiện tại không chính xác',
+      });
+    }
+    if (await bcrypt.compare(input.newPassword, user.passwordHash)) {
+      throw new BadRequestException({
+        code: 'NEW_PASSWORD_SAME_AS_CURRENT',
+        message: 'Mật khẩu mới không được trùng mật khẩu hiện tại',
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    const { accessToken, refreshToken } = await this.signTokenPair(
+      user,
+      actor.sessionId,
+    );
+    const refreshTokenHash = this.hashRefreshToken(refreshToken);
+    const now = new Date();
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const currentSession = await tx.authSession.findFirst({
+            where: {
+              id: actor.sessionId,
+              userId: actor.id,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+            select: { id: true },
+          });
+          if (!currentSession) {
+            throw new UnauthorizedException({
+              code: 'AUTH_SESSION_NOT_FOUND',
+              message: 'Phiên đăng nhập hiện tại không còn hợp lệ',
+            });
+          }
+          const passwordUpdate = await tx.user.updateMany({
+            where: { id: actor.id, passwordHash: user.passwordHash },
+            data: { passwordHash },
+          });
+          if (passwordUpdate.count !== 1) {
+            throw new BadRequestException({
+              code: 'CURRENT_PASSWORD_INVALID',
+              message: 'Mật khẩu hiện tại đã thay đổi, vui lòng thử lại',
+            });
+          }
+          await tx.authSession.updateMany({
+            where: {
+              userId: actor.id,
+              id: { not: actor.sessionId },
+              revokedAt: null,
+            },
+            data: { revokedAt: now },
+          });
+          const rotation = await tx.authSession.updateMany({
+            where: {
+              id: actor.sessionId,
+              userId: actor.id,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+            data: {
+              refreshTokenHash,
+              expiresAt: new Date(Date.now() + this.getRefreshMaxAge()),
+            },
+          });
+          if (rotation.count !== 1) {
+            throw new UnauthorizedException({
+              code: 'AUTH_SESSION_ROTATION_FAILED',
+              message: 'Không thể xoay vòng phiên đăng nhập hiện tại',
+            });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException({
+          code: 'AUTH_SESSION_ROTATION_FAILED',
+          message: 'Phiên đăng nhập vừa thay đổi, vui lòng thử lại',
+        });
+      }
+      throw error;
+    }
+    this.setAuthCookies(response, accessToken, refreshToken);
+    return { success: true };
+  }
+
   private async startSession(
     user: User,
     metadata: RequestMetadata,
     response: Response,
   ) {
-    await this.authSessionsRepository.revokeActiveByUserId(user.id);
-
     const session = await this.authSessionsRepository.create({
       userId: user.id,
       refreshTokenHash: randomBytes(32).toString('hex'),
@@ -349,14 +461,16 @@ export class AuthService {
     });
   }
 
-  private async getUserIdFromAuthCookies(
+  private async getSessionFromAuthCookies(
     accessToken: string | undefined,
     refreshToken: string | undefined,
   ) {
     if (accessToken) {
       try {
         const payload = await this.verifyAccessToken(accessToken);
-        return payload.sub;
+        return payload.sub && payload.sid
+          ? { userId: payload.sub, sessionId: payload.sid }
+          : null;
       } catch {
         // Try refresh token next so logout still works after access expiry.
       }
@@ -365,7 +479,9 @@ export class AuthService {
     if (refreshToken) {
       try {
         const payload = await this.verifyRefreshToken(refreshToken);
-        return payload.sub;
+        return payload.sub && payload.sid
+          ? { userId: payload.sub, sessionId: payload.sid }
+          : null;
       } catch {
         return null;
       }

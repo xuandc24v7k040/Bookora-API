@@ -17,6 +17,11 @@ import { ProductsModule } from '@/modules/products/products.module';
 import { ProductMediaModule } from '@/modules/product-media/product-media.module';
 import { InventoryModule } from '@/modules/inventory/inventory.module';
 import { StockReceiptsModule } from '@/modules/stock-receipts/stock-receipts.module';
+import { CustomerAccountModule } from '@/modules/customer-account/customer-account.module';
+import { CustomerAddressesModule } from '@/modules/customer-addresses/customer-addresses.module';
+import { StorefrontBranchesModule } from '@/modules/storefront-branches/storefront-branches.module';
+import { StorefrontCatalogModule } from '@/modules/storefront-catalog/storefront-catalog.module';
+import { CartModule } from '@/modules/cart/cart.module';
 
 @Module({
   imports: [
@@ -46,6 +51,11 @@ import { StockReceiptsModule } from '@/modules/stock-receipts/stock-receipts.mod
     ProductMediaModule,
     InventoryModule,
     StockReceiptsModule,
+    CustomerAccountModule,
+    CustomerAddressesModule,
+    StorefrontBranchesModule,
+    StorefrontCatalogModule,
+    CartModule,
     AuthModule,
   ],
 })

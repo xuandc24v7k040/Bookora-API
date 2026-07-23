@@ -4,6 +4,7 @@ import { loadEnvFile } from '../src/config/env.loader';
 import { seedCatalog } from './catalog.seed';
 import { seedCategories } from './seed/categories.seed';
 import { seedProductMasterData } from './seed/product-master-data.seed';
+import { seedStorefrontCatalogDemo } from './seed/storefront-catalog/storefront-catalog.seed';
 
 async function seed(): Promise<void> {
   loadEnvFile();
@@ -22,6 +23,7 @@ async function seed(): Promise<void> {
       await seedCategories(tx);
       await seedProductMasterData(tx);
     });
+    await seedStorefrontCatalogDemo(prisma);
   } finally {
     await prisma.$disconnect();
   }

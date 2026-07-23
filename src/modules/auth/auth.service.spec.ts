@@ -25,6 +25,7 @@ const activeUser = {
   phone: null,
   gender: null,
   birthday: null,
+  avatarUrl: null,
   type: UserType.CUSTOMER,
   provider: AuthProvider.LOCAL,
   googleId: null,
@@ -78,6 +79,20 @@ describe('AuthService', () => {
     clearCookie: jest.fn(),
   };
   const response = responseMock as unknown as Response;
+  const transaction = {
+    user: { updateMany: jest.fn() },
+    authSession: {
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+    },
+  };
+  const prismaService = {
+    user: { findUnique: jest.fn() },
+    $transaction: jest.fn(
+      (callback: (tx: typeof transaction) => Promise<unknown>) =>
+        callback(transaction),
+    ),
+  };
 
   let service: AuthService;
 
@@ -96,6 +111,7 @@ describe('AuthService', () => {
       authSessionsRepository as never,
       jwtService as never,
       configService as never,
+      prismaService as never,
     );
   });
 
@@ -466,6 +482,58 @@ describe('AuthService', () => {
     expect(authSessionsRepository.revoke).toHaveBeenCalledWith('session-id');
     expect(authSessionsRepository.revokeActiveByUserId).not.toHaveBeenCalled();
     expect(responseMock.clearCookie).toHaveBeenCalled();
+  });
+
+  it('keeps the current session and revokes every other session after password change', async () => {
+    prismaService.user.findUnique.mockResolvedValue(activeUser);
+    compareMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    jwtService.signAsync
+      .mockResolvedValueOnce('rotated-access-token')
+      .mockResolvedValueOnce('rotated-refresh-token');
+    transaction.authSession.findFirst.mockResolvedValue({ id: 'session-id' });
+    transaction.user.updateMany.mockResolvedValue({ count: 1 });
+    transaction.authSession.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    await expect(
+      service.changePassword(
+        {
+          id: activeUser.id,
+          sessionId: 'session-id',
+        } as never,
+        {
+          currentPassword: 'Password1',
+          newPassword: 'Password2',
+        },
+        response,
+      ),
+    ).resolves.toEqual({ success: true });
+
+    expect(transaction.authSession.updateMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: activeUser.id,
+          id: { not: 'session-id' },
+          revokedAt: null,
+        }),
+      }),
+    );
+    expect(transaction.authSession.updateMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'session-id',
+          userId: activeUser.id,
+          revokedAt: null,
+        }),
+        data: expect.objectContaining({
+          refreshTokenHash: hashRefreshToken('rotated-refresh-token'),
+        }),
+      }),
+    );
+    expect(responseMock.cookie).toHaveBeenCalledTimes(2);
   });
 });
 

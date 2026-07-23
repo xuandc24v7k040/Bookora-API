@@ -53,6 +53,8 @@ export class AuthMeResponseDto {
     description: 'Ngày sinh theo lịch, định dạng YYYY-MM-DD.',
   })
   birthday!: string | null;
+  @ApiProperty({ type: String, format: 'uri', nullable: true })
+  avatarUrl!: string | null;
   @ApiProperty({ enum: UserType }) type!: UserType;
   @ApiProperty({
     type: [AuthMeRoleDto],

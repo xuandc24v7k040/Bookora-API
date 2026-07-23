@@ -37,5 +37,6 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
     JwtAccessStrategy,
     GoogleStrategy,
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}

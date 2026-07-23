@@ -239,6 +239,7 @@ function actor(overrides: Partial<AuthenticatedUser>): AuthenticatedUser {
     phone: null,
     gender: null,
     birthday: null,
+    avatarUrl: null,
     type: UserType.BRANCH,
     roles: [],
     permissions: [],

@@ -25,12 +25,19 @@ export class ImageProcessingService {
             invalidDimensions: 'CATEGORY_IMAGE_INVALID_DIMENSIONS',
             processingFailed: 'CATEGORY_IMAGE_PROCESSING_FAILED',
           }
-        : {
-            invalidType: 'PRODUCT_MEDIA_INVALID_FILE',
-            tooLarge: 'PRODUCT_MEDIA_INVALID_FILE',
-            invalidDimensions: 'PRODUCT_MEDIA_INVALID_FILE',
-            processingFailed: 'PRODUCT_MEDIA_INVALID_FILE',
-          };
+        : presetName === 'avatar'
+          ? {
+              invalidType: 'CUSTOMER_AVATAR_INVALID_FILE',
+              tooLarge: 'CUSTOMER_AVATAR_INVALID_FILE',
+              invalidDimensions: 'CUSTOMER_AVATAR_INVALID_FILE',
+              processingFailed: 'CUSTOMER_AVATAR_INVALID_FILE',
+            }
+          : {
+              invalidType: 'PRODUCT_MEDIA_INVALID_FILE',
+              tooLarge: 'PRODUCT_MEDIA_INVALID_FILE',
+              invalidDimensions: 'PRODUCT_MEDIA_INVALID_FILE',
+              processingFailed: 'PRODUCT_MEDIA_INVALID_FILE',
+            };
 
     if (!SUPPORTED_MIME_TYPES.has(file.mimetype)) {
       throw this.invalid(
@@ -78,7 +85,8 @@ export class ImageProcessingService {
         .resize({
           width: preset.maxOutputEdge,
           height: preset.maxOutputEdge,
-          fit: 'inside',
+          fit: preset.fit ?? 'inside',
+          position: preset.fit === 'cover' ? 'centre' : undefined,
           withoutEnlargement: true,
         })
         .webp({ quality: preset.webpQuality })

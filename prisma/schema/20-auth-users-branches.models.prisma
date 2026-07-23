@@ -6,6 +6,7 @@ model User {
   phone        String?
   gender       String?      @db.VarChar(20)
   birthday     DateTime?    @db.Date
+  avatarUrl    String?      @map("avatar_url")
   type         UserType     @default(CUSTOMER)
   provider     AuthProvider @default(LOCAL)
   googleId     String?      @unique @map("google_id")
@@ -105,13 +106,14 @@ model Branch {
 model UserAddress {
   id            String   @id @default(ulid())
   userId        String   @map("user_id")
+  label         String?
   receiverName  String   @map("receiver_name")
   receiverPhone String   @map("receiver_phone")
   province      String
   ward          String
   detail        String
-  ghnProvinceId Int?     @map("ghn_province_id")
-  ghnWardCode   String?  @map("ghn_ward_code")
+  provinceCode  Int      @map("province_code")
+  wardCode      Int      @map("ward_code")
   latitude      Decimal? @db.Decimal(10, 7)
   longitude     Decimal? @db.Decimal(10, 7)
   isDefault     Boolean  @default(false) @map("is_default")
@@ -122,6 +124,7 @@ model UserAddress {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId])
+  @@index([userId, isDefault])
   @@index([isDefault])
   @@map("user_addresses")
 }
