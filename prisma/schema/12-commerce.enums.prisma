@@ -11,6 +11,7 @@ enum DiscountType {
 
 enum OrderStatus {
   PENDING_PAYMENT
+  PAYMENT_FAILED
   PENDING
   CONFIRMED
   PACKING
@@ -26,9 +27,28 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
+  UNPAID
   PENDING
   PAID
   FAILED
+  EXPIRED
   REFUNDED
   CANCELLED
+}
+
+enum DeliveryAddressSource {
+  SAVED_ADDRESS
+  CURRENT_LOCATION
+}
+
+enum PaymentProvider {
+  VNPAY
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
 }

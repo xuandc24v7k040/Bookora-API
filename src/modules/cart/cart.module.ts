@@ -11,5 +11,6 @@ import { CartValidationService } from './cart-validation.service';
   imports: [AuthModule, StorefrontCatalogModule],
   controllers: [CartController],
   providers: [CartRepository, CartService, CartMapper, CartValidationService],
+  exports: [CartValidationService],
 })
 export class CartModule {}

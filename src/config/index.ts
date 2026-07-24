@@ -5,6 +5,8 @@ import databaseConfig from './database.config';
 import { validateEnv } from './env.validation';
 import runtimeConfig from './runtime.config';
 import storageConfig from './storage.config';
+import shippingConfig from './shipping.config';
+import paymentConfig from './payment.config';
 
 export const configurations = [
   appConfig,
@@ -13,6 +15,8 @@ export const configurations = [
   databaseConfig,
   runtimeConfig,
   storageConfig,
+  shippingConfig,
+  paymentConfig,
 ];
 
 export {
@@ -22,5 +26,7 @@ export {
   databaseConfig,
   runtimeConfig,
   storageConfig,
+  shippingConfig,
+  paymentConfig,
   validateEnv,
 };

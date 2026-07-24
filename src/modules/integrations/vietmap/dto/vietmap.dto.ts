@@ -61,8 +61,12 @@ export class VietMapPlaceQueryDto {
 export class VietMapLocationResponseDto {
   @ApiProperty({ example: 10.0452 }) latitude!: number;
   @ApiProperty({ example: 105.7469 }) longitude!: number;
+  @ApiProperty({ nullable: true, type: String, example: 'VN' })
+  countryCode!: string | null;
   @ApiProperty({ nullable: true, type: String, example: 'Thành phố Cần Thơ' })
   province!: string | null;
+  @ApiProperty({ nullable: true, type: String, example: 'Quận Ninh Kiều' })
+  district!: string | null;
   @ApiProperty({ nullable: true, type: String, example: 'Phường Ninh Kiều' })
   ward!: string | null;
   @ApiProperty({ example: '12 Đường 30 tháng 4' }) address!: string;

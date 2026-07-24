@@ -1,24 +1,53 @@
 model Order {
-  id              String      @id @default(ulid())
-  orderCode       String      @unique @map("order_code")
-  userId          String      @map("user_id")
-  branchId        String      @map("branch_id")
-  couponId        String?     @map("coupon_id")
-  status          OrderStatus @default(PENDING)
-  subtotalAmount  Decimal     @map("subtotal_amount") @db.Decimal(12, 2)
-  discountAmount  Decimal     @default(0) @map("discount_amount") @db.Decimal(12, 2)
-  shippingFee     Decimal     @default(0) @map("shipping_fee") @db.Decimal(12, 2)
-  totalAmount     Decimal     @map("total_amount") @db.Decimal(12, 2)
-  receiverName    String      @map("receiver_name")
-  receiverPhone   String      @map("receiver_phone")
-  shippingAddress String      @map("shipping_address")
-  note            String?
-  stockDeductedAt DateTime?   @map("stock_deducted_at")
-  stockRestoredAt DateTime?   @map("stock_restored_at")
+  id                             String                @id @default(ulid())
+  orderCode                      String                @unique @map("order_code")
+  userId                         String                @map("user_id")
+  branchId                       String                @map("branch_id")
+  couponId                       String?               @map("coupon_id")
+  sourceCustomerAddressId        String?               @map("source_customer_address_id")
+  idempotencyKey                 String                @unique @map("idempotency_key")
+  status                         OrderStatus           @default(PENDING)
+  subtotalAmount                 Decimal               @map("subtotal_amount") @db.Decimal(12, 2)
+  discountAmount                 Decimal               @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  shippingFee                    Decimal               @map("shipping_fee") @db.Decimal(12, 2)
+  totalAmount                    Decimal               @map("total_amount") @db.Decimal(12, 2)
+  deliveryAddressSource          DeliveryAddressSource @map("delivery_address_source")
+  receiverName                   String                @map("receiver_name")
+  receiverPhone                  String                @map("receiver_phone")
+  shippingAddress                String                @map("shipping_address")
+  shippingAddressLine            String                @map("shipping_address_line")
+  shippingProvinceName           String                @map("shipping_province_name")
+  shippingDistrictName           String                @map("shipping_district_name")
+  shippingWardName               String                @map("shipping_ward_name")
+  shippingGhnProvinceId          Int                   @map("shipping_ghn_province_id")
+  shippingGhnDistrictId          Int                   @map("shipping_ghn_district_id")
+  shippingGhnWardCode            String                @map("shipping_ghn_ward_code")
+  shippingGhnMappingVerifiedAt   DateTime?             @map("shipping_ghn_mapping_verified_at")
+  shippingLatitude               Decimal?              @map("shipping_latitude") @db.Decimal(10, 7)
+  shippingLongitude              Decimal?              @map("shipping_longitude") @db.Decimal(10, 7)
+  shippingLocationAccuracyMeters Int?                  @map("shipping_location_accuracy_meters")
+  shippingLocationProvider       String?               @map("shipping_location_provider")
+  shippingLocationPlaceId        String?               @map("shipping_location_place_id")
+  branchNameSnapshot             String                @map("branch_name_snapshot")
+  branchAddressSnapshot          String                @map("branch_address_snapshot")
+  shippingProviderSnapshot       String                @map("shipping_provider_snapshot")
+  shippingServiceId              Int                   @map("shipping_service_id")
+  shippingServiceTypeId          Int                   @map("shipping_service_type_id")
+  shippingServiceName            String                @map("shipping_service_name")
+  shippingFeeBreakdownSnapshot   Json                  @map("shipping_fee_breakdown_snapshot")
+  shippingQuoteReference         String                @map("shipping_quote_reference")
+  estimatedDeliveryAt            DateTime?             @map("estimated_delivery_at")
+  note                           String?
+  placedAt                       DateTime              @default(now()) @map("placed_at")
+  cancelledAt                    DateTime?             @map("cancelled_at")
+  cancelReason                   String?               @map("cancel_reason")
+  stockDeductedAt                DateTime?             @map("stock_deducted_at")
+  stockRestoredAt                DateTime?             @map("stock_restored_at")
 
-  user   User    @relation(fields: [userId], references: [id], onDelete: Restrict)
-  branch Branch  @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  coupon Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  branch                Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  coupon                Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  sourceCustomerAddress UserAddress? @relation("OrderSourceCustomerAddress", fields: [sourceCustomerAddressId], references: [id], onDelete: SetNull)
 
   items   OrderItem[]
   payment Payment?
@@ -30,6 +59,7 @@ model Order {
   @@index([orderCode])
   @@index([userId])
   @@index([branchId])
+  @@index([sourceCustomerAddressId])
   @@index([couponId])
   @@index([status])
   @@index([createdAt])
@@ -37,33 +67,44 @@ model Order {
 }
 
 model OrderItem {
-  id         String   @id @default(ulid())
-  orderId    String   @map("order_id")
-  variantId  String   @map("variant_id")
-  name       String
-  sku        String?
-  quantity   Int
-  unitPrice  Decimal  @map("unit_price") @db.Decimal(12, 2)
-  totalPrice Decimal  @map("total_price") @db.Decimal(12, 2)
-  createdAt  DateTime @default(now()) @map("created_at")
+  id               String   @id @default(ulid())
+  orderId          String   @map("order_id")
+  sourceCartItemId String?  @map("source_cart_item_id")
+  productId        String?  @map("product_id")
+  variantId        String?  @map("variant_id")
+  productName      String   @map("product_name")
+  productSlug      String   @map("product_slug")
+  variantLabel     String   @map("variant_label")
+  variantOptions   Json     @map("variant_options")
+  imageUrl         String?  @map("image_url")
+  sku              String?
+  quantity         Int
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
+  originalPrice    Decimal  @map("original_price") @db.Decimal(12, 2)
+  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  lineTotal        Decimal  @map("line_total") @db.Decimal(12, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([sourceCartItemId])
   @@index([variantId])
   @@map("order_items")
 }
 
 model Payment {
-  id      String        @id @default(ulid())
-  orderId String        @unique @map("order_id")
-  method  PaymentMethod
-  status  PaymentStatus @default(PENDING)
-  amount  Decimal       @db.Decimal(12, 2)
-  paidAt  DateTime?     @map("paid_at")
+  id       String        @id @default(ulid())
+  orderId  String        @unique @map("order_id")
+  method   PaymentMethod
+  status   PaymentStatus @default(PENDING)
+  amount   Decimal       @db.Decimal(12, 2)
+  currency String        @default("VND")
+  paidAt   DateTime?     @map("paid_at")
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order        Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
