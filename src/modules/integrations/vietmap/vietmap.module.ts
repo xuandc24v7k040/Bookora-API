@@ -7,5 +7,6 @@ import { VietMapService } from './vietmap.service';
 @Module({
   controllers: [VietMapController],
   providers: [VietMapService, JwtAccessGuard, PermissionsGuard],
+  exports: [VietMapService],
 })
 export class VietMapModule {}

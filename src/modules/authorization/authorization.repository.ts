@@ -95,6 +95,41 @@ type BranchLifecycleUpdate = Omit<Prisma.BranchUpdateInput, 'isActive'> & {
   isActive?: boolean;
 };
 
+const BRANCH_SHIPPING_SOURCE_FIELDS = [
+  'address',
+  'province',
+  'ward',
+  'latitude',
+  'longitude',
+] as const;
+
+type BranchShippingSourceField = (typeof BRANCH_SHIPPING_SOURCE_FIELDS)[number];
+
+function prismaSetValue(value: unknown): unknown {
+  if (typeof value === 'object' && value !== null && 'set' in value) {
+    return (value as { set?: unknown }).set;
+  }
+  return value;
+}
+
+function branchShippingSourceChanged(
+  branch: Record<BranchShippingSourceField, unknown>,
+  data: BranchLifecycleUpdate,
+): boolean {
+  const requested = data as Record<string, unknown>;
+  return BRANCH_SHIPPING_SOURCE_FIELDS.some((field) => {
+    if (!Object.prototype.hasOwnProperty.call(requested, field)) return false;
+    const current = branch[field];
+    const next = prismaSetValue(requested[field]);
+    if (field === 'latitude' || field === 'longitude') {
+      const currentNumber = current === null ? null : Number(current);
+      const nextNumber = next === null ? null : Number(next);
+      return currentNumber !== nextNumber;
+    }
+    return (current ?? null) !== (next ?? null);
+  });
+}
+
 const managedUserBranchSelect = {
   id: true,
   code: true,
@@ -996,7 +1031,15 @@ export class AuthorizationRepository {
     return this.transaction(async (tx) => {
       const branch = await tx.branch.findFirst({
         where: { id, ...this.toBranchWhere(branchWhere) },
-        select: { id: true, isActive: true },
+        select: {
+          id: true,
+          isActive: true,
+          address: true,
+          province: true,
+          ward: true,
+          latitude: true,
+          longitude: true,
+        },
       });
       if (!branch) {
         throw new AuthorizationWriteScopeError('Branch nằm ngoài phạm vi');
@@ -1011,7 +1054,23 @@ export class AuthorizationRepository {
           );
         }
       }
-      return tx.branch.update({ where: { id }, data, select: branchSelect });
+      const updateData: BranchLifecycleUpdate = branchShippingSourceChanged(
+        branch,
+        data,
+      )
+        ? {
+            ...data,
+            ghnProvinceId: null,
+            ghnDistrictId: null,
+            ghnWardCode: null,
+            ghnMappingVerifiedAt: null,
+          }
+        : data;
+      return tx.branch.update({
+        where: { id },
+        data: updateData,
+        select: branchSelect,
+      });
     });
   }
 

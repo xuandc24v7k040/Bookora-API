@@ -16,9 +16,13 @@ const MIGRATION_PATHS = [
   '20260719150000_add_schema_refactor_targets',
   '20260719160000_enforce_schema_refactor_constraints',
   '20260719170000_remove_deprecated_bookora_models',
+  '20260720090000_remove_category_icon_url',
   '20260720160000_enforce_one_default_product_variant',
   '20260721120000_add_product_option_presentation_type',
   '20260722150000_phase11_inventory_contract',
+  '20260722190000_customer_account_foundation',
+  '20260723143000_phase13_customer_cart',
+  '20260723190000_phase15_checkout_orders',
 ] as const;
 
 export interface DisposablePostgresDatabase {

@@ -77,16 +77,21 @@ model AuthAttempt {
 }
 
 model Branch {
-  id        String   @id @default(ulid())
-  name      String
-  code      String   @unique
-  phone     String?
-  address   String
-  province  String?
-  ward      String?
-  latitude  Decimal? @db.Decimal(10, 7)
-  longitude Decimal? @db.Decimal(10, 7)
-  isActive  Boolean  @default(true) @map("is_active")
+  id                   String    @id @default(ulid())
+  name                 String
+  code                 String    @unique
+  phone                String?
+  address              String
+  province             String?
+  ward                 String?
+  latitude             Decimal?  @db.Decimal(10, 7)
+  longitude            Decimal?  @db.Decimal(10, 7)
+  ghnProvinceId        Int?      @map("ghn_province_id")
+  ghnDistrictId        Int?      @map("ghn_district_id")
+  ghnWardCode          String?   @map("ghn_ward_code")
+  ghnMappingVerifiedAt DateTime? @map("ghn_mapping_verified_at")
+  ghnShopId            Int?      @map("ghn_shop_id")
+  isActive             Boolean   @default(true) @map("is_active")
 
   userBranches  UserBranch[]
   carts         Cart[]
@@ -104,21 +109,26 @@ model Branch {
 }
 
 model UserAddress {
-  id            String   @id @default(ulid())
-  userId        String   @map("user_id")
-  label         String?
-  receiverName  String   @map("receiver_name")
-  receiverPhone String   @map("receiver_phone")
-  province      String
-  ward          String
-  detail        String
-  provinceCode  Int      @map("province_code")
-  wardCode      Int      @map("ward_code")
-  latitude      Decimal? @db.Decimal(10, 7)
-  longitude     Decimal? @db.Decimal(10, 7)
-  isDefault     Boolean  @default(false) @map("is_default")
+  id                   String    @id @default(ulid())
+  userId               String    @map("user_id")
+  label                String?
+  receiverName         String    @map("receiver_name")
+  receiverPhone        String    @map("receiver_phone")
+  province             String
+  ward                 String
+  detail               String
+  provinceCode         Int       @map("province_code")
+  wardCode             Int       @map("ward_code")
+  latitude             Decimal?  @db.Decimal(10, 7)
+  longitude            Decimal?  @db.Decimal(10, 7)
+  ghnProvinceId        Int?      @map("ghn_province_id")
+  ghnDistrictId        Int?      @map("ghn_district_id")
+  ghnWardCode          String?   @map("ghn_ward_code")
+  ghnMappingVerifiedAt DateTime? @map("ghn_mapping_verified_at")
+  isDefault            Boolean   @default(false) @map("is_default")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceOrders Order[] @relation("OrderSourceCustomerAddress")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

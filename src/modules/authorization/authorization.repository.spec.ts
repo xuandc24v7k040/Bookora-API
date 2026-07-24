@@ -1085,6 +1085,78 @@ describe('AuthorizationRepository management transactions', () => {
     },
   );
 
+  it.each([
+    [{ address: '34 đường mới' }],
+    [{ province: 'Tỉnh Hậu Giang' }],
+    [{ ward: 'Phường Vị Tân' }],
+    [{ latitude: 9.75, longitude: 105.45 }],
+  ])(
+    'invalidates Branch GHN metadata when a shipping source changes',
+    async (change) => {
+      tx.branch.findFirst.mockResolvedValue({
+        id: 'branch-id',
+        isActive: true,
+        address: '12 đường cũ',
+        province: 'Thành phố Cần Thơ',
+        ward: 'Phường Ninh Kiều',
+        latitude: 10.0452,
+        longitude: 105.7469,
+      });
+
+      await repository.updateBranchInScope(
+        'branch-id',
+        { scope: 'UNRESTRICTED' },
+        change,
+      );
+
+      expect(tx.branch.update).toHaveBeenCalledWith({
+        where: { id: 'branch-id' },
+        data: {
+          ...change,
+          ghnProvinceId: null,
+          ghnDistrictId: null,
+          ghnWardCode: null,
+          ghnMappingVerifiedAt: null,
+        },
+        select: expect.any(Object),
+      });
+    },
+  );
+
+  it('keeps Branch GHN metadata for unrelated or unchanged edits', async () => {
+    tx.branch.findFirst.mockResolvedValue({
+      id: 'branch-id',
+      isActive: true,
+      address: '12 đường cũ',
+      province: 'Thành phố Cần Thơ',
+      ward: 'Phường Ninh Kiều',
+      latitude: 10.0452,
+      longitude: 105.7469,
+    });
+
+    await repository.updateBranchInScope(
+      'branch-id',
+      { scope: 'UNRESTRICTED' },
+      {
+        name: 'Tên mới',
+        address: '12 đường cũ',
+        latitude: 10.0452,
+        longitude: 105.7469,
+      },
+    );
+
+    expect(tx.branch.update).toHaveBeenCalledWith({
+      where: { id: 'branch-id' },
+      data: {
+        name: 'Tên mới',
+        address: '12 đường cũ',
+        latitude: 10.0452,
+        longitude: 105.7469,
+      },
+      select: expect.any(Object),
+    });
+  });
+
   it('transfers primary staff branch to a new destination without revoking sessions', async () => {
     tx.userBranch.findFirst.mockResolvedValue({
       id: 'source-assignment',

@@ -318,6 +318,7 @@ export class StorefrontCatalogRepository {
     });
     const sales = new Map<string, number>();
     for (const item of items) {
+      if (!item.variant) continue;
       sales.set(
         item.variant.productId,
         (sales.get(item.variant.productId) ?? 0) + item.quantity,

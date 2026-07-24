@@ -20467,6 +20467,1598 @@
         ],
         "description": "Đổi chi nhánh và revalidate toàn bộ giỏ hàng"
       }
+    },
+    "/checkout/preview": {
+      "post": {
+        "operationId": "checkoutPreview",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewCheckoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Checkout preview không ghi database.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Checkout preview không ghi database."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CheckoutPreviewResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Revalidate CartItem và tính checkout preview stateless",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Revalidate CartItem và tính checkout preview stateless"
+      }
+    },
+    "/checkout/current-location/resolve": {
+      "post": {
+        "operationId": "checkoutResolveCurrentLocation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurrentLocationResolveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Địa chỉ gợi ý từ vị trí hiện tại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Địa chỉ gợi ý từ vị trí hiện tại."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CurrentLocationSuggestionDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Resolve vị trí Checkout qua Vietmap hybrid và GHN",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Resolve vị trí Checkout qua Vietmap hybrid và GHN"
+      }
+    },
+    "/checkout/current-location/reverse": {
+      "get": {
+        "operationId": "checkoutReverseCurrentLocation",
+        "parameters": [
+          {
+            "name": "latitude",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -90,
+              "maximum": 90,
+              "example": 10.0452,
+              "type": "number"
+            }
+          },
+          {
+            "name": "longitude",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -180,
+              "maximum": 180,
+              "example": 105.7469,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Địa chỉ hành chính hai cấp từ Vietmap hybrid v4.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Địa chỉ hành chính hai cấp từ Vietmap hybrid v4."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CurrentLocationReverseResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Reverse geocode vị trí cho Customer Checkout",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Reverse geocode vị trí cho Customer Checkout"
+      }
+    },
+    "/checkout/place-order/cod": {
+      "post": {
+        "operationId": "checkoutPlaceOrderCod",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đơn COD đã được tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đơn COD đã được tạo."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlaceOrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Final revalidate và đặt đơn COD atomic, idempotent",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Final revalidate và đặt đơn COD atomic, idempotent"
+      }
+    },
+    "/checkout/place-order/vnpay": {
+      "post": {
+        "operationId": "checkoutPlaceOrderVnpay",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Phiên thanh toán VNPAY đã được tạo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Phiên thanh toán VNPAY đã được tạo."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/VnpayPlaceOrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Final revalidate, tạo VNPAY attempt và giữ stock",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Final revalidate, tạo VNPAY attempt và giữ stock"
+      }
+    },
+    "/payments/vnpay/ipn": {
+      "get": {
+        "operationId": "vnpayIpn",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "RspCode": {
+                      "type": "string"
+                    },
+                    "Message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "RspCode",
+                    "Message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "VNPAY IPN callback",
+        "tags": [
+          "payments"
+        ],
+        "description": "VNPAY IPN callback",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/payments/vnpay/return": {
+      "get": {
+        "operationId": "vnpayReturn",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Chuyển hướng về trang kết quả thanh toán."
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xác minh chữ ký rồi chuyển về trang kết quả",
+        "tags": [
+          "payments"
+        ],
+        "description": "Xác minh chữ ký rồi chuyển về trang kết quả",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/payments/{paymentId}/status": {
+      "get": {
+        "operationId": "paymentsStatus",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trạng thái thanh toán thuộc khách hàng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Trạng thái thanh toán thuộc khách hàng."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentStatusResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy trạng thái Payment và các VNPAY attempt",
+        "tags": [
+          "payments"
+        ],
+        "description": "Lấy trạng thái Payment và các VNPAY attempt"
+      }
+    },
+    "/payments/{paymentId}/retry": {
+      "post": {
+        "operationId": "paymentsRetry",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Phiên VNPAY mới sau khi kiểm tra lại tồn kho.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Phiên VNPAY mới sau khi kiểm tra lại tồn kho."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RetryPaymentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tạo VNPAY attempt mới và giữ lại tồn kho",
+        "tags": [
+          "payments"
+        ],
+        "description": "Tạo VNPAY attempt mới và giữ lại tồn kho"
+      }
+    },
+    "/payments/{paymentId}/query": {
+      "post": {
+        "operationId": "paymentsQueryProvider",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đối soát giao dịch gần nhất qua VNPAY QueryDR",
+        "tags": [
+          "payments"
+        ],
+        "description": "Đối soát giao dịch gần nhất qua VNPAY QueryDR"
+      }
+    },
+    "/payment-transactions/{transactionId}/query": {
+      "post": {
+        "operationId": "paymentTransactionsQuery",
+        "parameters": [
+          {
+            "name": "transactionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đối soát một attempt qua VNPAY QueryDR",
+        "tags": [
+          "payment-transactions"
+        ],
+        "description": "Đối soát một attempt qua VNPAY QueryDR"
+      }
+    },
+    "/customer/orders": {
+      "get": {
+        "operationId": "customerOrdersList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo một hoặc nhiều trạng thái. Hỗ trợ repeated query hoặc comma-separated.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING_PAYMENT",
+                  "PAYMENT_FAILED",
+                  "PENDING",
+                  "CONFIRMED",
+                  "PACKING",
+                  "SHIPPING",
+                  "COMPLETED",
+                  "CANCELLED",
+                  "RETURNED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 5,
+              "default": 5,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách đơn của khách hàng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Danh sách đơn của khách hàng."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerOrderListResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Đơn của tôi",
+        "tags": [
+          "customer-orders"
+        ],
+        "description": "Đơn của tôi"
+      }
+    },
+    "/customer/orders/{orderId}": {
+      "get": {
+        "operationId": "customerOrderDetail",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chi tiết đơn và snapshot sản phẩm.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Chi tiết đơn và snapshot sản phẩm."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerOrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Chi tiết đơn của tôi",
+        "tags": [
+          "customer-orders"
+        ],
+        "description": "Chi tiết đơn của tôi"
+      }
+    },
+    "/customer/orders/{orderId}/cancel": {
+      "post": {
+        "operationId": "customerOrderCancel",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelCustomerOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đơn đã được hủy an toàn.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đơn đã được hủy an toàn."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerOrderResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Hủy đơn còn đủ điều kiện",
+        "tags": [
+          "customer-orders"
+        ],
+        "description": "Hủy đơn còn đủ điều kiện"
+      }
     }
   },
   "info": {
@@ -20591,10 +22183,20 @@
             "type": "number",
             "example": 105.7469
           },
+          "countryCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "VN"
+          },
           "province": {
             "type": "string",
             "nullable": true,
             "example": "Thành phố Cần Thơ"
+          },
+          "district": {
+            "type": "string",
+            "nullable": true,
+            "example": "Quận Ninh Kiều"
           },
           "ward": {
             "type": "string",
@@ -20613,7 +22215,9 @@
         "required": [
           "latitude",
           "longitude",
+          "countryCode",
           "province",
+          "district",
           "ward",
           "address",
           "displayAddress"
@@ -26737,6 +28341,1108 @@
         "required": [
           "branchId"
         ]
+      },
+      "CheckoutBranchResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string",
+            "nullable": true
+          },
+          "ward": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "province",
+          "ward"
+        ]
+      },
+      "CheckoutVariantOptionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ]
+      },
+      "CheckoutItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "cartItemId": {
+            "type": "string",
+            "format": "ulid"
+          },
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productSlug": {
+            "type": "string"
+          },
+          "variantLabel": {
+            "type": "string"
+          },
+          "variantOptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutVariantOptionDto"
+            }
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "availableQuantity": {
+            "type": "number"
+          },
+          "unitPrice": {
+            "type": "number"
+          },
+          "originalPrice": {
+            "type": "number"
+          },
+          "discountAmount": {
+            "type": "number"
+          },
+          "lineTotal": {
+            "type": "number"
+          },
+          "isCheckoutEligible": {
+            "type": "boolean"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "reasonCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "reasonMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "cartItemId",
+          "variantId",
+          "productName",
+          "productSlug",
+          "variantLabel",
+          "variantOptions",
+          "imageUrl",
+          "quantity",
+          "availableQuantity",
+          "unitPrice",
+          "originalPrice",
+          "discountAmount",
+          "lineTotal",
+          "isCheckoutEligible",
+          "issues",
+          "eligible",
+          "reasonCode",
+          "reasonMessage"
+        ]
+      },
+      "CheckoutAddressResponseDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "SAVED_ADDRESS",
+              "CURRENT_LOCATION"
+            ],
+            "nullable": true
+          },
+          "sourceCustomerAddressId": {
+            "type": "string",
+            "format": "ulid",
+            "nullable": true
+          },
+          "receiverName": {
+            "type": "string",
+            "nullable": true
+          },
+          "receiverPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "formattedAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "longitude": {
+            "type": "number",
+            "nullable": true
+          },
+          "isGhnMapped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "sourceCustomerAddressId",
+          "receiverName",
+          "receiverPhone",
+          "formattedAddress",
+          "latitude",
+          "longitude",
+          "isGhnMapped"
+        ]
+      },
+      "ShippingQuoteResponseDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "serviceId": {
+            "type": "number"
+          },
+          "serviceTypeId": {
+            "type": "number"
+          },
+          "serviceName": {
+            "type": "string"
+          },
+          "shippingFee": {
+            "type": "number"
+          },
+          "serviceFee": {
+            "type": "number"
+          },
+          "insuranceFee": {
+            "type": "number"
+          },
+          "codFee": {
+            "type": "number"
+          },
+          "remoteAreaFee": {
+            "type": "number"
+          },
+          "quotedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestFingerprint": {
+            "type": "string"
+          },
+          "shippingFeeRule": {
+            "type": "string",
+            "enum": [
+              "SAME_PROVINCE",
+              "SAME_REGION",
+              "ADJACENT_REGION",
+              "FAR_REGION"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "serviceId",
+          "serviceTypeId",
+          "serviceName",
+          "shippingFee",
+          "serviceFee",
+          "insuranceFee",
+          "codFee",
+          "remoteAreaFee",
+          "quotedAt",
+          "expiresAt",
+          "requestFingerprint",
+          "shippingFeeRule"
+        ]
+      },
+      "CheckoutPreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "previewReference": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "branch": {
+            "$ref": "#/components/schemas/CheckoutBranchResponseDto"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutItemResponseDto"
+            }
+          },
+          "address": {
+            "$ref": "#/components/schemas/CheckoutAddressResponseDto"
+          },
+          "shippingQuote": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShippingQuoteResponseDto"
+              }
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ],
+            "nullable": true
+          },
+          "subtotalAmount": {
+            "type": "number"
+          },
+          "discountAmount": {
+            "type": "number"
+          },
+          "shippingFee": {
+            "type": "number",
+            "nullable": true
+          },
+          "shippingFeeRule": {
+            "type": "string",
+            "enum": [
+              "SAME_PROVINCE",
+              "SAME_REGION",
+              "ADJACENT_REGION",
+              "FAR_REGION"
+            ],
+            "nullable": true
+          },
+          "shippingMethodCode": {
+            "type": "string",
+            "enum": [
+              "STANDARD"
+            ]
+          },
+          "shippingProviderCode": {
+            "type": "string",
+            "enum": [
+              "GHN"
+            ]
+          },
+          "totalAmount": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "canPlaceOrder": {
+            "type": "boolean"
+          },
+          "blockingIssues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "previewReference",
+          "branch",
+          "items",
+          "address",
+          "shippingQuote",
+          "paymentMethod",
+          "subtotalAmount",
+          "discountAmount",
+          "shippingFee",
+          "shippingFeeRule",
+          "shippingMethodCode",
+          "shippingProviderCode",
+          "totalAmount",
+          "note",
+          "canPlaceOrder",
+          "blockingIssues"
+        ]
+      },
+      "SavedAddressInputDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "SAVED_ADDRESS"
+            ]
+          },
+          "customerAddressId": {
+            "type": "string",
+            "format": "ulid"
+          }
+        },
+        "required": [
+          "source",
+          "customerAddressId"
+        ]
+      },
+      "CurrentLocationAddressDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "CURRENT_LOCATION"
+            ]
+          },
+          "receiverName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "addressLine": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 255
+          },
+          "provinceName": {
+            "type": "string"
+          },
+          "provinceCode": {
+            "type": "number"
+          },
+          "wardName": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "locationAccuracyMeters": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "locationProvider": {
+            "type": "string",
+            "enum": [
+              "VIETMAP"
+            ]
+          },
+          "locationPlaceId": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "source",
+          "receiverName",
+          "receiverPhone",
+          "addressLine",
+          "provinceName",
+          "provinceCode",
+          "wardName",
+          "latitude",
+          "longitude"
+        ]
+      },
+      "PreviewCheckoutDto": {
+        "type": "object",
+        "properties": {
+          "selectedCartItemIds": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid"
+            }
+          },
+          "address": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedAddressInputDto"
+              },
+              {
+                "$ref": "#/components/schemas/CurrentLocationAddressDto"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "source"
+            }
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "selectedCartItemIds"
+        ]
+      },
+      "CurrentLocationSuggestionDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "province": {
+            "type": "string",
+            "nullable": true
+          },
+          "provinceCode": {
+            "type": "number",
+            "nullable": true
+          },
+          "ward": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string"
+          },
+          "displayAddress": {
+            "type": "string"
+          },
+          "placeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "accuracyMeters": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "province",
+          "provinceCode",
+          "ward",
+          "address",
+          "displayAddress",
+          "placeId",
+          "accuracyMeters"
+        ]
+      },
+      "CurrentLocationResolveDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "accuracyMeters": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ]
+      },
+      "CurrentLocationReverseResponseDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "province": {
+            "type": "string"
+          },
+          "provinceCode": {
+            "type": "number"
+          },
+          "ward": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "displayAddress": {
+            "type": "string"
+          },
+          "placeId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "province",
+          "provinceCode",
+          "ward",
+          "address",
+          "displayAddress",
+          "placeId"
+        ]
+      },
+      "PlaceOrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "ulid"
+          },
+          "orderCode": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "orderStatus": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId",
+          "orderCode",
+          "paymentStatus",
+          "orderStatus"
+        ]
+      },
+      "PlaceOrderDto": {
+        "type": "object",
+        "properties": {
+          "selectedCartItemIds": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid"
+            }
+          },
+          "address": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedAddressInputDto"
+              },
+              {
+                "$ref": "#/components/schemas/CurrentLocationAddressDto"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "source"
+            }
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 100
+          },
+          "previewReference": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "selectedCartItemIds",
+          "idempotencyKey",
+          "previewReference"
+        ]
+      },
+      "VnpayPlaceOrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "ulid"
+          },
+          "orderCode": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "orderStatus": {
+            "type": "string"
+          },
+          "paymentId": {
+            "type": "string",
+            "format": "ulid"
+          },
+          "paymentTransactionId": {
+            "type": "string",
+            "format": "ulid"
+          },
+          "paymentUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "orderId",
+          "orderCode",
+          "paymentStatus",
+          "orderStatus",
+          "paymentId",
+          "paymentTransactionId",
+          "paymentUrl"
+        ]
+      },
+      "PaymentTransactionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "merchantTxnRef": {
+            "type": "string"
+          },
+          "responseCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "providerTransactionNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "merchantTxnRef",
+          "createdAt"
+        ]
+      },
+      "PaymentStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "orderCode": {
+            "type": "string"
+          },
+          "orderStatus": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAYMENT_FAILED",
+              "PENDING",
+              "CONFIRMED",
+              "PACKING",
+              "SHIPPING",
+              "COMPLETED",
+              "CANCELLED",
+              "RETURNED"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "EXPIRED",
+              "REFUNDED",
+              "CANCELLED"
+            ]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentTransactionResponseDto"
+            }
+          }
+        },
+        "required": [
+          "paymentId",
+          "orderId",
+          "orderCode",
+          "orderStatus",
+          "paymentStatus",
+          "transactions"
+        ]
+      },
+      "RetryPaymentResponseDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "paymentTransactionId": {
+            "type": "string"
+          },
+          "paymentUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentId",
+          "paymentTransactionId",
+          "paymentUrl"
+        ]
+      },
+      "RetryPaymentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CustomerOrderItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "variantId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productSlug": {
+            "type": "string"
+          },
+          "variantLabel": {
+            "type": "string"
+          },
+          "variantOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "value"
+              ]
+            }
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unitPrice": {
+            "type": "number"
+          },
+          "lineTotal": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "productName",
+          "productSlug",
+          "variantLabel",
+          "variantOptions",
+          "quantity",
+          "unitPrice",
+          "lineTotal"
+        ]
+      },
+      "CustomerOrderResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "orderCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAYMENT_FAILED",
+              "PENDING",
+              "CONFIRMED",
+              "PACKING",
+              "SHIPPING",
+              "COMPLETED",
+              "CANCELLED",
+              "RETURNED"
+            ]
+          },
+          "totalAmount": {
+            "type": "number"
+          },
+          "subtotalAmount": {
+            "type": "number"
+          },
+          "discountAmount": {
+            "type": "number"
+          },
+          "shippingFee": {
+            "type": "number"
+          },
+          "receiverName": {
+            "type": "string"
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "shippingAddress": {
+            "type": "string"
+          },
+          "branchName": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "shippingServiceName": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": [
+              "UNPAID",
+              "PENDING",
+              "PAID",
+              "FAILED",
+              "EXPIRED",
+              "REFUNDED",
+              "CANCELLED"
+            ]
+          },
+          "placedAt": {
+            "type": "string"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "cancelReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerOrderItemResponseDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "orderCode",
+          "status",
+          "totalAmount",
+          "subtotalAmount",
+          "discountAmount",
+          "shippingFee",
+          "receiverName",
+          "receiverPhone",
+          "shippingAddress",
+          "branchName",
+          "branchId",
+          "shippingServiceName",
+          "paymentMethod",
+          "paymentStatus",
+          "placedAt",
+          "items"
+        ]
+      },
+      "CustomerOrderListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerOrderResponseDto"
+            }
+          },
+          "page": {
+            "type": "number",
+            "minimum": 1
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "totalItems": {
+            "type": "number",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "totalItems",
+          "totalPages"
+        ]
+      },
+      "CancelCustomerOrderDto": {
+        "type": "object",
+        "properties": {}
       },
       "ErrorResponseDto": {
         "type": "object",

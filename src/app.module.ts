@@ -22,6 +22,10 @@ import { CustomerAddressesModule } from '@/modules/customer-addresses/customer-a
 import { StorefrontBranchesModule } from '@/modules/storefront-branches/storefront-branches.module';
 import { StorefrontCatalogModule } from '@/modules/storefront-catalog/storefront-catalog.module';
 import { CartModule } from '@/modules/cart/cart.module';
+import { CheckoutModule } from '@/modules/checkout/checkout.module';
+import { PaymentsModule } from '@/modules/payments/payments.module';
+import { ShippingModule } from '@/modules/shipping/shipping.module';
+import { CustomerOrdersModule } from '@/modules/customer-orders/customer-orders.module';
 
 @Module({
   imports: [
@@ -56,6 +60,10 @@ import { CartModule } from '@/modules/cart/cart.module';
     StorefrontBranchesModule,
     StorefrontCatalogModule,
     CartModule,
+    ShippingModule,
+    CheckoutModule,
+    PaymentsModule,
+    CustomerOrdersModule,
     AuthModule,
   ],
 })

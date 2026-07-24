@@ -66,6 +66,12 @@ export class CustomerAddressesService {
     const provinceCode = dto.provinceCode ?? current.provinceCode;
     const wardCode = dto.wardCode ?? current.wardCode;
     const location = await this.resolveLocation(provinceCode, wardCode);
+    const invalidatesShippingMapping =
+      provinceCode !== current.provinceCode ||
+      wardCode !== current.wardCode ||
+      location.province.name !== current.province ||
+      location.ward.name !== current.ward ||
+      (dto.addressDetail !== undefined && dto.addressDetail !== current.detail);
     const updated = await this.repository.updateOwned(actor.id, addressId, {
       ...(dto.label !== undefined ? { label: dto.label } : {}),
       ...(dto.recipientName !== undefined
@@ -77,6 +83,16 @@ export class CustomerAddressesService {
       province: location.province.name,
       wardCode,
       ward: location.ward.name,
+      ...(invalidatesShippingMapping
+        ? {
+            latitude: null,
+            longitude: null,
+            ghnProvinceId: null,
+            ghnDistrictId: null,
+            ghnWardCode: null,
+            ghnMappingVerifiedAt: null,
+          }
+        : {}),
       ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
     });
     if (!updated) this.notFound();

@@ -275,8 +275,17 @@ for (const name of ['createdFrom', 'createdTo']) {
   }
 }
 
+const ghnLegacyHierarchySchemas = new Set([
+  'CurrentLocationAddressDto',
+  'CurrentLocationResolveDto',
+  'CurrentLocationSuggestionDto',
+  'VietMapLocationResponseDto',
+]);
+
 for (const [schemaName, schema] of Object.entries(schemas)) {
-  assertNoObsoleteAddressProperties(schemaName, schema);
+  if (!ghnLegacyHierarchySchemas.has(schemaName)) {
+    assertNoObsoleteAddressProperties(schemaName, schema);
+  }
 }
 
 const usersList = operations.find(

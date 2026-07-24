@@ -105,5 +105,97 @@ export function validateEnv(
     throw new Error(`Invalid environment configuration: ${errors.join(', ')}`);
   }
 
+  for (const key of [
+    'GHN_BASE_URL',
+    'VNPAY_PAYMENT_URL',
+    'VNPAY_QUERY_URL',
+    'VNPAY_RETURN_URL',
+    'VNPAY_FRONTEND_RESULT_URL',
+    'VNPAY_IPN_URL',
+  ]) {
+    const rawValue = config[key];
+    const value = readEnvValue(config, key);
+    if (!value) continue;
+    if (
+      typeof rawValue === 'string' &&
+      (rawValue !== rawValue.trim() ||
+        /^["']|["']$/.test(rawValue) ||
+        /[\r\n]/.test(rawValue))
+    ) {
+      errors.push(`${key} must not contain quotes or surrounding whitespace`);
+      continue;
+    }
+    try {
+      const parsed = new URL(value);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        errors.push(`${key} must use http or https`);
+      }
+    } catch {
+      errors.push(`${key} must be a valid URL`);
+    }
+  }
+
+  if (readEnvValue(config, 'NODE_ENV') !== 'production') {
+    const apiPrefix = readEnvValue(config, 'API_PREFIX') ?? 'api';
+    const returnUrl = readEnvValue(config, 'VNPAY_RETURN_URL');
+    const frontendResultUrl = readEnvValue(config, 'VNPAY_FRONTEND_RESULT_URL');
+    if (returnUrl) {
+      try {
+        const parsed = new URL(returnUrl);
+        if (
+          parsed.hostname !== 'localhost' ||
+          parsed.pathname !== `/${apiPrefix}/v1/payments/vnpay/return`
+        ) {
+          errors.push(
+            `VNPAY_RETURN_URL must target /${apiPrefix}/v1/payments/vnpay/return on localhost`,
+          );
+        }
+      } catch {
+        // The generic URL validation above reports the controlled error.
+      }
+    }
+    if (frontendResultUrl) {
+      try {
+        const parsed = new URL(frontendResultUrl);
+        if (
+          parsed.hostname !== 'localhost' ||
+          parsed.pathname !== '/checkout/payment-result'
+        ) {
+          errors.push(
+            'VNPAY_FRONTEND_RESULT_URL must target /checkout/payment-result on localhost',
+          );
+        }
+      } catch {
+        // The generic URL validation above reports the controlled error.
+      }
+    }
+  }
+
+  if (Number(readEnvValue(config, 'GHN_SHOP_ID')) <= 0) {
+    errors.push('GHN_SHOP_ID must be a positive integer');
+  }
+  if (Number(readEnvValue(config, 'GHN_TIMEOUT_MS')) <= 0) {
+    errors.push('GHN_TIMEOUT_MS must be greater than 0');
+  }
+  for (const key of [
+    'GHN_DEFAULT_ITEM_WEIGHT_GRAMS',
+    'GHN_DEFAULT_PACKAGE_LENGTH_CM',
+    'GHN_DEFAULT_PACKAGE_WIDTH_CM',
+    'GHN_DEFAULT_PACKAGE_HEIGHT_CM',
+  ]) {
+    if (Number(readEnvValue(config, key)) <= 0) {
+      errors.push(`${key} must be greater than 0`);
+    }
+  }
+  if (Number(readEnvValue(config, 'VNPAY_PAYMENT_EXPIRE_MINUTES')) <= 0) {
+    errors.push('VNPAY_PAYMENT_EXPIRE_MINUTES must be greater than 0');
+  }
+  if (readEnvValue(config, 'VNPAY_ENV') !== 'sandbox') {
+    errors.push('VNPAY_ENV must be sandbox for this integration');
+  }
+  if (errors.length > 0) {
+    throw new Error(`Invalid environment configuration: ${errors.join(', ')}`);
+  }
+
   return config;
 }
