@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  InventoryMovementSourceType,
+  InventoryMovementType,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -11,6 +13,7 @@ import {
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
+import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
 import type { CustomerOrderListQueryDto } from './dto/customer-order.dto';
 
 const orderInclude = {
@@ -112,6 +115,10 @@ export class CustomerOrdersService {
                 order.branchId,
                 item.variantId,
                 item.quantity,
+                activeHold.id,
+                order.orderCode,
+                actor.id,
+                reason?.trim() || 'Hủy đơn và giải phóng tồn VNPAY',
               );
             }
           }
@@ -128,6 +135,10 @@ export class CustomerOrdersService {
               order.branchId,
               item.variantId,
               item.quantity,
+              order.id,
+              order.orderCode,
+              actor.id,
+              reason?.trim() || 'Hủy đơn hàng COD',
             );
           }
         }
@@ -161,10 +172,28 @@ export class CustomerOrdersService {
     branchId: string,
     variantId: string,
     quantity: number,
+    sourceId: string,
+    sourceCode: string,
+    actorId: string,
+    reason: string,
   ): Promise<void> {
-    await tx.branchProductStock.update({
+    const stock = await tx.branchProductStock.update({
       where: { branchId_variantId: { branchId, variantId } },
       data: { quantity: { increment: quantity } },
+      select: { quantity: true },
+    });
+    await recordInventoryMovement(tx, {
+      branchId,
+      variantId,
+      type: InventoryMovementType.ORDER_STOCK_RESTORED,
+      quantityChange: quantity,
+      beforeQuantity: stock.quantity - quantity,
+      afterQuantity: stock.quantity,
+      reason,
+      sourceType: InventoryMovementSourceType.ORDER,
+      sourceId,
+      sourceCode,
+      actorId,
     });
   }
 

@@ -11,6 +11,8 @@ import { createHash } from 'crypto';
 import { ulid } from 'ulid';
 import {
   DeliveryAddressSource,
+  InventoryMovementSourceType,
+  InventoryMovementType,
   OrderStatus,
   PaymentMethod,
   PaymentProvider,
@@ -33,6 +35,7 @@ import {
   type InternalShippingFeeRule,
 } from '@/modules/shipping/internal-shipping-fee.service';
 import { StorefrontPriceService } from '@/modules/storefront-catalog/storefront-price.service';
+import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
 import {
   CheckoutRepository,
   type CheckoutCartRecord,
@@ -216,14 +219,23 @@ export class CheckoutService {
       });
       if (idempotent) return idempotent;
       const now = new Date();
-      await this.deductStock(tx, state);
+      const orderId = ulid();
+      const orderCode = `BK-${ulid()}`;
+      await this.deductStock(tx, state, {
+        sourceId: orderId,
+        sourceCode: orderCode,
+        actorId: actor.id,
+        reason: 'Đặt đơn hàng COD',
+      });
       const created = await tx.order.create({
         data: {
+          id: orderId,
           ...this.orderData(
             actor.id,
             state,
             dto.idempotencyKey,
             OrderStatus.PENDING,
+            orderCode,
           ),
           stockDeductedAt: now,
           items: {
@@ -285,15 +297,24 @@ export class CheckoutService {
         },
       });
       if (idempotent) return idempotent;
-
-      await this.deductStock(tx, state);
+      const orderId = ulid();
+      const orderCode = `BK-${ulid()}`;
+      const transactionId = ulid();
+      await this.deductStock(tx, state, {
+        sourceId: transactionId,
+        sourceCode: orderCode,
+        actorId: actor.id,
+        reason: 'Đặt đơn hàng thanh toán VNPAY',
+      });
       return tx.order.create({
         data: {
+          id: orderId,
           ...this.orderData(
             actor.id,
             state,
             dto.idempotencyKey,
             OrderStatus.PENDING_PAYMENT,
+            orderCode,
           ),
           items: {
             create: state.eligibleItems.map((item) => this.orderItemData(item)),
@@ -305,6 +326,7 @@ export class CheckoutService {
               amount: state.totalAmount,
               transactions: {
                 create: {
+                  id: transactionId,
                   provider: PaymentProvider.VNPAY,
                   status: PaymentTransactionStatus.PENDING,
                   amount: state.totalAmount,
@@ -643,15 +665,31 @@ export class CheckoutService {
   private async deductStock(
     tx: Prisma.TransactionClient,
     state: CheckoutState,
+    movement: {
+      sourceId: string;
+      sourceCode: string;
+      actorId: string | null;
+      reason: string;
+    },
   ): Promise<void> {
     for (const item of [...state.eligibleItems].sort((left, right) =>
       left.variantId.localeCompare(right.variantId),
     )) {
+      const current = await tx.branchProductStock.findUnique({
+        where: {
+          branchId_variantId: {
+            branchId: state.cart.branchId,
+            variantId: item.variantId,
+          },
+        },
+        select: { quantity: true },
+      });
+      const beforeQuantity = current?.quantity ?? 0;
       const result = await tx.branchProductStock.updateMany({
         where: {
           branchId: state.cart.branchId,
           variantId: item.variantId,
-          quantity: { gte: item.quantity },
+          quantity: { equals: beforeQuantity, gte: item.quantity },
         },
         data: { quantity: { decrement: item.quantity } },
       });
@@ -662,6 +700,19 @@ export class CheckoutService {
           details: { cartItemId: item.cartItemId },
         });
       }
+      await recordInventoryMovement(tx, {
+        branchId: state.cart.branchId,
+        variantId: item.variantId,
+        type: InventoryMovementType.ORDER_STOCK_DEDUCTED,
+        quantityChange: -item.quantity,
+        beforeQuantity,
+        afterQuantity: beforeQuantity - item.quantity,
+        reason: movement.reason,
+        sourceType: InventoryMovementSourceType.ORDER,
+        sourceId: movement.sourceId,
+        sourceCode: movement.sourceCode,
+        actorId: movement.actorId,
+      });
     }
   }
 
@@ -670,11 +721,12 @@ export class CheckoutService {
     state: CheckoutState,
     idempotencyKey: string,
     status: OrderStatus,
+    orderCode: string,
   ): Prisma.OrderUncheckedCreateWithoutItemsInput {
     const address = state.address!;
     const quote = state.quote!;
     return {
-      orderCode: `BK-${ulid()}`,
+      orderCode,
       userId,
       branchId: state.cart.branchId,
       couponId: null,

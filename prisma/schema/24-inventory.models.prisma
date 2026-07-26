@@ -23,6 +23,7 @@ model StockReceipt {
   supplierId    String?            @map("supplier_id")
   code          String             @unique
   status        StockReceiptStatus @default(DRAFT)
+  type          StockReceiptType   @default(IMPORT)
   note          String?
   createdById   String?            @map("created_by_id")
   confirmedById String?            @map("confirmed_by_id")
@@ -30,11 +31,12 @@ model StockReceipt {
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
 
-  branch      Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  supplier    Supplier?          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy   User?              @relation("StockReceiptCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  confirmedBy User?              @relation("StockReceiptConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy   User?               @relation("StockReceiptCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  confirmedBy User?               @relation("StockReceiptConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
   items       StockReceiptItem[]
+  movements   InventoryMovement[]
 
   @@index([branchId, status])
   @@index([supplierId])
@@ -59,4 +61,35 @@ model StockReceiptItem {
   @@unique([receiptId, variantId])
   @@index([variantId])
   @@map("stock_receipt_items")
+}
+
+model InventoryMovement {
+  id             String                      @id @default(ulid())
+  branchId       String                      @map("branch_id")
+  variantId      String                      @map("variant_id")
+  type           InventoryMovementType
+  quantityChange Int                         @map("quantity_change")
+  beforeQuantity Int                         @map("before_quantity")
+  afterQuantity  Int                         @map("after_quantity")
+  reason         String?
+  sourceType     InventoryMovementSourceType @map("source_type")
+  sourceId       String                      @map("source_id")
+  sourceCode     String?                     @map("source_code")
+  actorId        String?                     @map("actor_id")
+  receiptId      String?                     @map("receipt_id")
+  createdAt      DateTime                    @default(now()) @map("created_at")
+
+  branch  Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  actor   User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  receipt StockReceipt?  @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceType, sourceId, variantId, type])
+  @@index([branchId, createdAt])
+  @@index([branchId, type, createdAt])
+  @@index([variantId, createdAt])
+  @@index([sourceType, sourceId])
+  @@index([actorId])
+  @@index([receiptId])
+  @@map("inventory_movements")
 }

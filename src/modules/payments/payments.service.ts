@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ulid } from 'ulid';
 import {
+  InventoryMovementSourceType,
+  InventoryMovementType,
   OrderStatus,
   PaymentMethod,
   PaymentProvider,
@@ -17,6 +19,7 @@ import {
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { PrismaService } from '@/database/prisma.service';
 import { runSerializableTransaction } from '@/database/serializable-transaction.util';
+import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
 import {
   VnpayService,
   type VnpayReturnResult,
@@ -327,6 +330,7 @@ export class PaymentsService {
             message: 'Đã có một giao dịch thanh toán đang chờ.',
           });
         }
+        const transactionId = ulid();
         for (const item of [...payment.order.items].sort((left, right) =>
           (left.variantId ?? '').localeCompare(right.variantId ?? ''),
         )) {
@@ -336,11 +340,21 @@ export class PaymentsService {
               message: 'Sản phẩm trong đơn không còn khả dụng.',
             });
           }
+          const current = await tx.branchProductStock.findUnique({
+            where: {
+              branchId_variantId: {
+                branchId: payment.order.branchId,
+                variantId: item.variantId,
+              },
+            },
+            select: { quantity: true },
+          });
+          const beforeQuantity = current?.quantity ?? 0;
           const stock = await tx.branchProductStock.updateMany({
             where: {
               branchId: payment.order.branchId,
               variantId: item.variantId,
-              quantity: { gte: item.quantity },
+              quantity: { equals: beforeQuantity, gte: item.quantity },
             },
             data: { quantity: { decrement: item.quantity } },
           });
@@ -350,9 +364,23 @@ export class PaymentsService {
               message: 'Tồn kho đã thay đổi, không thể thanh toán lại.',
             });
           }
+          await recordInventoryMovement(tx, {
+            branchId: payment.order.branchId,
+            variantId: item.variantId,
+            type: InventoryMovementType.ORDER_STOCK_DEDUCTED,
+            quantityChange: -item.quantity,
+            beforeQuantity,
+            afterQuantity: beforeQuantity - item.quantity,
+            reason: 'Thanh toán lại qua VNPAY',
+            sourceType: InventoryMovementSourceType.ORDER,
+            sourceId: transactionId,
+            sourceCode: payment.order.orderCode,
+            actorId: actor.id,
+          });
         }
         const created = await tx.paymentTransaction.create({
           data: {
+            id: transactionId,
             paymentId: payment.id,
             amount: payment.amount,
             idempotencyKey,
@@ -556,7 +584,7 @@ export class PaymentsService {
     if (claimed.count !== 1) return false;
     for (const item of transaction.payment.order.items) {
       if (!item.variantId) continue;
-      await tx.branchProductStock.update({
+      const stock = await tx.branchProductStock.update({
         where: {
           branchId_variantId: {
             branchId: transaction.payment.order.branchId,
@@ -564,6 +592,20 @@ export class PaymentsService {
           },
         },
         data: { quantity: { increment: item.quantity } },
+        select: { quantity: true },
+      });
+      await recordInventoryMovement(tx, {
+        branchId: transaction.payment.order.branchId,
+        variantId: item.variantId,
+        type: InventoryMovementType.ORDER_STOCK_RESTORED,
+        quantityChange: item.quantity,
+        beforeQuantity: stock.quantity - item.quantity,
+        afterQuantity: stock.quantity,
+        reason: 'Giải phóng tồn do giao dịch VNPAY không hoàn tất',
+        sourceType: InventoryMovementSourceType.ORDER,
+        sourceId: transaction.id,
+        sourceCode: transaction.payment.order.orderCode,
+        actorId: null,
       });
     }
     return true;

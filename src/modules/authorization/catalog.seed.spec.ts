@@ -15,6 +15,8 @@ const EXPECTED_STAFF_PERMISSION_CODES = [
   'products.read',
   'inventory.read',
   'inventory.update_threshold',
+  'inventory.adjust_quantity',
+  'inventory.movements.read',
   'stock_receipts.read',
   'stock_receipts.create',
   'stock_receipts.update',
@@ -25,7 +27,7 @@ const EXPECTED_STAFF_PERMISSION_CODES = [
 describe('production authorization catalog seed', () => {
   it('defines the exact authoritative STAFF permission set', () => {
     expect(STAFF_PERMISSION_CODES).toEqual(EXPECTED_STAFF_PERMISSION_CODES);
-    expect(STAFF_PERMISSION_CODES).toHaveLength(13);
+    expect(STAFF_PERMISSION_CODES).toHaveLength(15);
     expect(STAFF_PERMISSION_CODES).not.toEqual(
       expect.arrayContaining([
         'products.create',

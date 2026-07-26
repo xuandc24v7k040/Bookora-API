@@ -112,6 +112,7 @@ export class StockReceiptsService {
           productId: item.variant.productId,
           productName: item.variant.product.name,
           variantName: item.variant.name,
+          isDefault: item.variant.isDefault,
           sku: item.variant.sku,
           barcode: item.variant.barcode,
           optionSummary: optionSummary || null,

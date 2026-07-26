@@ -360,6 +360,17 @@ export const permissionCatalog = [
     description: 'Cho phép cập nhật ngưỡng cảnh báo tồn kho tại chi nhánh',
   },
   {
+    code: 'inventory.adjust_quantity',
+    name: 'Điều chỉnh số lượng tồn kho',
+    description:
+      'Cho phép tăng hoặc giảm tồn kho thủ công tại chi nhánh và ghi nhật ký',
+  },
+  {
+    code: 'inventory.movements.read',
+    name: 'Xem nhật ký tồn kho',
+    description: 'Cho phép xem lịch sử biến động tồn kho tại chi nhánh',
+  },
+  {
     code: 'stock_receipts.read',
     name: 'Xem phiếu nhập kho',
     description: 'Cho phép xem danh sách và chi tiết phiếu nhập kho',
@@ -417,6 +428,8 @@ export const STAFF_PERMISSION_CODES = [
   'products.read',
   'inventory.read',
   'inventory.update_threshold',
+  'inventory.adjust_quantity',
+  'inventory.movements.read',
   'stock_receipts.read',
   'stock_receipts.create',
   'stock_receipts.update',
@@ -432,6 +445,8 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'products.read',
     'inventory.read',
     'inventory.update_threshold',
+    'inventory.adjust_quantity',
+    'inventory.movements.read',
     'stock_receipts.read',
     'stock_receipts.create',
     'stock_receipts.update',
@@ -459,6 +474,8 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'products.read',
     'inventory.read',
     'inventory.update_threshold',
+    'inventory.adjust_quantity',
+    'inventory.movements.read',
     'stock_receipts.read',
     'stock_receipts.create',
     'stock_receipts.update',
@@ -473,7 +490,7 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
   ],
 };
 
-const PERMISSION_CODE_PATTERN = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
+const PERMISSION_CODE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 
 type CatalogSeedClient = Pick<
   Prisma.TransactionClient,
@@ -506,7 +523,9 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
       throw new Error(`Invalid permission code: ${code}`);
     }
 
-    const [resource, action] = code.split('.') as [string, string];
+    const segments = code.split('.');
+    const action = segments.pop()!;
+    const resource = segments.join('.');
     const permission = await tx.permission.upsert({
       where: { code },
       create: {

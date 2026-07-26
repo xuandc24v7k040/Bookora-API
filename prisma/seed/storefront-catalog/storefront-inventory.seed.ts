@@ -1,6 +1,9 @@
 import {
+  InventoryMovementSourceType,
+  InventoryMovementType,
   Prisma,
   ProductStatus,
+  StockReceiptType,
   StockReceiptStatus,
 } from '../../../src/generated/prisma/client';
 import { STOREFRONT_CATALOG_PRODUCTS } from './storefront-catalog.data';
@@ -104,10 +107,11 @@ export async function seedStorefrontInventoryDemo(
         });
         if (existing) return 'PRESERVED' as const;
 
-        await tx.stockReceipt.create({
+        const receipt = await tx.stockReceipt.create({
           data: {
             branchId: branch.id,
             code: receiptCode,
+            type: StockReceiptType.IMPORT,
             status: StockReceiptStatus.CONFIRMED,
             note: 'Bookora storefront demo inventory seed',
             confirmedAt: new Date('2026-07-22T00:00:00.000Z'),
@@ -120,8 +124,9 @@ export async function seedStorefrontInventoryDemo(
             },
           },
         });
+        const movements: Prisma.InventoryMovementCreateManyInput[] = [];
         for (const { variant, quantity } of items) {
-          await tx.branchProductStock.upsert({
+          const stock = await tx.branchProductStock.upsert({
             where: {
               branchId_variantId: {
                 branchId: branch.id,
@@ -135,8 +140,23 @@ export async function seedStorefrontInventoryDemo(
               lowStockThreshold: 5,
             },
             update: { quantity: { increment: quantity } },
+            select: { quantity: true },
+          });
+          movements.push({
+            branchId: branch.id,
+            variantId: variant.id,
+            type: InventoryMovementType.STOCK_RECEIPT_CONFIRMED,
+            quantityChange: quantity,
+            beforeQuantity: stock.quantity - quantity,
+            afterQuantity: stock.quantity,
+            reason: 'Bookora storefront demo inventory seed',
+            sourceType: InventoryMovementSourceType.STOCK_RECEIPT,
+            sourceId: receipt.id,
+            sourceCode: receiptCode,
+            receiptId: receipt.id,
           });
         }
+        await tx.inventoryMovement.createMany({ data: movements });
         return 'CREATED' as const;
       });
       if (result === 'CREATED') summary.createdReceipts.push(receiptCode);

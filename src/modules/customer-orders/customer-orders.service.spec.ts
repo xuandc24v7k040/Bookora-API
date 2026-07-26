@@ -69,7 +69,12 @@ function createHarness() {
     },
     payment: { update: jest.fn() },
     paymentTransaction: { updateMany: jest.fn() },
-    branchProductStock: { update: jest.fn() },
+    branchProductStock: {
+      update: jest.fn().mockResolvedValue({ quantity: 10 }),
+    },
+    inventoryMovement: {
+      create: jest.fn().mockResolvedValue({ id: 'movement-id' }),
+    },
   };
   const prisma = {
     order: {
@@ -161,7 +166,20 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
         },
       },
       data: { quantity: { increment: 2 } },
+      select: { quantity: true },
     });
+    expect(tx.inventoryMovement.create).toHaveBeenCalledTimes(1);
+    expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          beforeQuantity: 8,
+          quantityChange: 2,
+          afterQuantity: 10,
+          actorId: 'customer-1',
+          sourceCode: 'BK-ORDER-1',
+        }),
+      }),
+    );
     expect(tx.order.update).toHaveBeenCalledTimes(1);
     expect(tx).not.toHaveProperty('cartItem');
   });
@@ -202,6 +220,7 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
 
     expect(tx.paymentTransaction.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.branchProductStock.update).toHaveBeenCalledTimes(1);
+    expect(tx.inventoryMovement.create).toHaveBeenCalledTimes(1);
     expect(tx.payment.update).toHaveBeenCalledWith({
       where: { id: 'payment-1' },
       data: { status: PaymentStatus.CANCELLED },

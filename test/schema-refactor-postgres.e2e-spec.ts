@@ -220,14 +220,33 @@ describe('schema refactor target invariants (e2e)', () => {
       VALUES ('cart-one', 'user-one', 'branch-one', NOW(), NOW());
 
       INSERT INTO orders (
-        id, order_code, user_id, branch_id, status,
+        id, order_code, user_id, branch_id, idempotency_key, status,
         subtotal_amount, discount_amount, shipping_fee, total_amount,
-        receiver_name, receiver_phone, shipping_address, created_at, updated_at
+        delivery_address_source, receiver_name, receiver_phone,
+        shipping_address, shipping_address_line, shipping_province_name,
+        shipping_district_name, shipping_ward_name, shipping_ghn_province_id,
+        shipping_ghn_district_id, shipping_ghn_ward_code,
+        branch_name_snapshot, branch_address_snapshot,
+        shipping_provider_snapshot, shipping_service_id,
+        shipping_service_type_id, shipping_service_name,
+        shipping_fee_breakdown_snapshot, shipping_quote_reference,
+        created_at, updated_at
       ) VALUES (
-        'order-one', 'ORDER-ONE', 'user-one', 'branch-one', 'PENDING',
-        100, 0, 0, 100, 'Receiver', '0123456789', 'Address', NOW(), NOW()
+        'order-one', 'ORDER-ONE', 'user-one', 'branch-one',
+        'schema-refactor-order-one', 'PENDING', 100, 0, 0, 100,
+        'CURRENT_LOCATION', 'Receiver', '0123456789', 'Address',
+        'Address line', 'Province', 'District', 'Ward', 0, 0, '',
+        'Branch One', 'Address', 'TEST', 0, 0, 'Test service',
+        '{}'::jsonb, 'schema-refactor-quote', NOW(), NOW()
       )
     `);
+
+    const orderSnapshots = await database.query<{
+      branch_address_snapshot: string;
+    }>(`
+      SELECT branch_address_snapshot FROM orders WHERE id = 'order-one'
+    `);
+    expect(orderSnapshots).toEqual([{ branch_address_snapshot: 'Address' }]);
 
     await expect(
       database.runSql(`
@@ -240,11 +259,12 @@ describe('schema refactor target invariants (e2e)', () => {
     await expect(
       database.runSql(`
         INSERT INTO order_items (
-          id, order_id, variant_id, name, quantity,
-          unit_price, total_price, created_at
+          id, order_id, variant_id, product_name, product_slug,
+          variant_label, variant_options, quantity, unit_price,
+          original_price, discount_amount, line_total, created_at
         ) VALUES (
           'invalid-order-item', 'order-one', 'variant-simple', 'Invalid',
-          0, 100, 0, NOW()
+          'invalid', 'Default', '{}'::jsonb, 0, 100, 100, 0, 0, NOW()
         )
       `),
     ).rejects.toThrow();

@@ -30,6 +30,7 @@ model User {
   wishlists                     Wishlist[]
   stockReceiptsCreated          StockReceipt[]         @relation("StockReceiptCreatedBy")
   stockReceiptsConfirmed        StockReceipt[]         @relation("StockReceiptConfirmedBy")
+  inventoryMovements            InventoryMovement[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -93,12 +94,13 @@ model Branch {
   ghnShopId            Int?      @map("ghn_shop_id")
   isActive             Boolean   @default(true) @map("is_active")
 
-  userBranches  UserBranch[]
-  carts         Cart[]
-  orders        Order[]
-  stocks        BranchProductStock[]
-  stockReceipts StockReceipt[]
-  reviews       Review[]
+  userBranches       UserBranch[]
+  carts              Cart[]
+  orders             Order[]
+  stocks             BranchProductStock[]
+  stockReceipts      StockReceipt[]
+  inventoryMovements InventoryMovement[]
+  reviews            Review[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

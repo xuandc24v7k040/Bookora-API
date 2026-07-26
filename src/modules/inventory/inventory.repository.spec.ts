@@ -1,4 +1,5 @@
 import { InventoryRepository } from './inventory.repository';
+import { InventoryAdjustmentDirection } from './dto';
 
 describe('InventoryRepository variant selector', () => {
   it('paginates products and returns every active variant in each product group', async () => {
@@ -48,5 +49,114 @@ describe('InventoryRepository variant selector', () => {
       repository.listVariantOptions(undefined, 0, 20),
     ).resolves.toEqual([[], 0]);
     expect(prisma.productVariant.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('InventoryRepository manual adjustment', () => {
+  function harness(currentQuantity: number | null) {
+    const tx = {
+      branch: {
+        findUnique: jest.fn().mockResolvedValue({ code: 'CT', isActive: true }),
+      },
+      productVariant: {
+        findUnique: jest.fn().mockResolvedValue({
+          isActive: true,
+          product: { status: 'ACTIVE' },
+        }),
+      },
+      branchProductStock: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(
+            currentQuantity === null
+              ? null
+              : { id: 'stock-1', quantity: currentQuantity },
+          ),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({}),
+      },
+      stockReceipt: { create: jest.fn().mockResolvedValue({}) },
+      inventoryMovement: {
+        create: jest.fn().mockResolvedValue({ id: 'movement-1' }),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    return { tx, repository: new InventoryRepository(prisma as never) };
+  }
+
+  it('creates the adjustment document, stock change and movement atomically', async () => {
+    const { tx, repository } = harness(12);
+
+    await expect(
+      repository.adjustQuantity('branch-1', 'variant-1', 'actor-1', {
+        expectedCurrentQuantity: 12,
+        direction: InventoryAdjustmentDirection.DECREASE,
+        quantity: 2,
+        note: 'Kiểm kê thực tế',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        beforeQuantity: 12,
+        quantityChange: -2,
+        afterQuantity: 10,
+        movementId: 'movement-1',
+      }),
+    );
+    expect(tx.stockReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: 'ADJUSTMENT',
+          status: 'CONFIRMED',
+          items: { create: expect.objectContaining({ quantity: -2 }) },
+        }),
+      }),
+    );
+    expect(tx.inventoryMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          beforeQuantity: 12,
+          quantityChange: -2,
+          afterQuantity: 10,
+          actorId: 'actor-1',
+        }),
+      }),
+    );
+  });
+
+  it('rejects a stale expected quantity before writing anything', async () => {
+    const { tx, repository } = harness(13);
+
+    await expect(
+      repository.adjustQuantity('branch-1', 'variant-1', 'actor-1', {
+        expectedCurrentQuantity: 12,
+        direction: InventoryAdjustmentDirection.INCREASE,
+        quantity: 2,
+        note: 'Bổ sung số dư đầu kỳ',
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVENTORY_QUANTITY_CHANGED',
+      details: { currentQuantity: 13 },
+    });
+    expect(tx.stockReceipt.create).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('allows a missing stock row to increase from zero', async () => {
+    const { tx, repository } = harness(null);
+
+    await repository.adjustQuantity('branch-1', 'variant-1', 'actor-1', {
+      expectedCurrentQuantity: 0,
+      direction: InventoryAdjustmentDirection.INCREASE,
+      quantity: 5,
+      note: 'Số dư ban đầu',
+    });
+
+    expect(tx.branchProductStock.create).toHaveBeenCalledWith({
+      data: { branchId: 'branch-1', variantId: 'variant-1', quantity: 5 },
+    });
   });
 });

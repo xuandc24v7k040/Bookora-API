@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Query,
   UseGuards,
   applyDecorators,
@@ -22,6 +23,8 @@ import {
 } from '@/common/decorators';
 import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import { CsrfGuard } from '@/modules/auth/guards/csrf.guard';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import {
   BranchScope,
   BranchScopeGuard,
@@ -34,6 +37,12 @@ import {
 } from '@/modules/authorization';
 import {
   BranchProductStockResponseDto,
+  AdjustInventoryQuantityDto,
+  GroupedStockListQueryDto,
+  InventoryAdjustmentResponseDto,
+  InventoryMovementListQueryDto,
+  InventoryMovementResponseDto,
+  InventoryProductStockResponseDto,
   InventoryVariantOptionResponseDto,
   InventoryVariantOptionsQueryDto,
   StockListQueryDto,
@@ -102,6 +111,66 @@ export class InventoryController {
     @Query() query: StockListQueryDto,
   ) {
     return this.service.listStocks(context, query);
+  }
+
+  @Get('stocks/grouped')
+  @Permissions('inventory.read')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiOperation({
+    operationId: 'inventoryGroupedStocksList',
+    summary: 'Lấy tồn kho phân nhóm theo sản phẩm tại chi nhánh đang chọn',
+  })
+  @ApiPaginatedResponse(
+    InventoryProductStockResponseDto,
+    'Lấy tồn kho phân nhóm thành công',
+  )
+  @ResponseMessage('Lấy tồn kho phân nhóm thành công')
+  groupedStocks(
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: GroupedStockListQueryDto,
+  ) {
+    return this.service.listGroupedStocks(context, query);
+  }
+
+  @Get('movements')
+  @Permissions('inventory.movements.read')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @ApiOperation({
+    operationId: 'inventoryMovementsList',
+    summary: 'Lấy nhật ký biến động tồn kho tại chi nhánh đang chọn',
+  })
+  @ApiPaginatedResponse(
+    InventoryMovementResponseDto,
+    'Lấy nhật ký tồn kho thành công',
+  )
+  @ResponseMessage('Lấy nhật ký tồn kho thành công')
+  movements(
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: InventoryMovementListQueryDto,
+  ) {
+    return this.service.listMovements(context, query);
+  }
+
+  @Post('stocks/:variantId/adjust')
+  @Permissions('inventory.adjust_quantity')
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity('csrf')
+  @ApiOperation({
+    operationId: 'inventoryStocksAdjustQuantity',
+    summary: 'Điều chỉnh số lượng tồn kho tại chi nhánh đang chọn',
+  })
+  @ApiBaseResponse(InventoryAdjustmentResponseDto, {
+    description: 'Điều chỉnh số lượng tồn kho thành công',
+  })
+  @ResponseMessage('Điều chỉnh số lượng tồn kho thành công')
+  adjustQuantity(
+    @CurrentUser() actor: AuthenticatedUser,
+    @CurrentBranchContext() context: BranchContext,
+    @UlidParam('variantId') variantId: string,
+    @Body() dto: AdjustInventoryQuantityDto,
+  ) {
+    return this.service.adjustQuantity(actor, context, variantId, dto);
   }
 
   @Patch('stocks/:variantId/threshold')

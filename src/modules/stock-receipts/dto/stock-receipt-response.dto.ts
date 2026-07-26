@@ -17,6 +17,7 @@ export class StockReceiptItemResponseDto {
   @ApiProperty({ format: 'ulid' }) productId!: string;
   @ApiProperty() productName!: string;
   @ApiProperty() variantName!: string;
+  @ApiProperty() isDefault!: boolean;
   @ApiProperty() sku!: string;
   @ApiPropertyOptional({ type: String, nullable: true }) barcode!:
     | string

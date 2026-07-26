@@ -166,12 +166,13 @@ model ProductVariant {
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  optionValues ProductVariantOptionValue[]
-  media        ProductMedia[]
-  stocks       BranchProductStock[]
-  receiptItems StockReceiptItem[]
-  cartItems    CartItem[]
-  orderItems   OrderItem[]
+  optionValues       ProductVariantOptionValue[]
+  media              ProductMedia[]
+  stocks             BranchProductStock[]
+  inventoryMovements InventoryMovement[]
+  receiptItems       StockReceiptItem[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -3,7 +3,10 @@ import { ulid } from 'ulid';
 import {
   Prisma,
   ProductStatus,
+  InventoryMovementSourceType,
+  InventoryMovementType,
   StockReceiptStatus,
+  StockReceiptType,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import {
@@ -11,6 +14,7 @@ import {
   startOfVietnamDate,
 } from '@/common/utils/master-data.util';
 import { variantPresentationSelect } from '@/modules/inventory/inventory.repository';
+import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
 import type {
   CreateStockReceiptDto,
   StockReceiptItemInputDto,
@@ -30,6 +34,7 @@ export const receiptSelect = {
   supplierId: true,
   code: true,
   status: true,
+  type: true,
   note: true,
   createdAt: true,
   updatedAt: true,
@@ -71,6 +76,7 @@ export class StockReceiptsRepository {
   list(branchId: string, query: StockReceiptListQueryDto) {
     const where: Prisma.StockReceiptWhereInput = {
       branchId,
+      type: StockReceiptType.IMPORT,
       ...(query.search
         ? {
             OR: [
@@ -116,7 +122,7 @@ export class StockReceiptsRepository {
 
   findById(branchId: string, id: string) {
     return this.prisma.stockReceipt.findFirst({
-      where: { id, branchId },
+      where: { id, branchId, type: StockReceiptType.IMPORT },
       select: receiptSelect,
     });
   }
@@ -132,6 +138,7 @@ export class StockReceiptsRepository {
           branchId,
           supplierId: dto.supplierId ?? null,
           code: this.createCode(branch.code),
+          type: StockReceiptType.IMPORT,
           note: dto.note ?? null,
           createdById: actorId,
           items: {
@@ -222,7 +229,7 @@ export class StockReceiptsRepository {
         );
 
       for (const item of receipt.items) {
-        await tx.branchProductStock.upsert({
+        const stock = await tx.branchProductStock.upsert({
           where: {
             branchId_variantId: { branchId, variantId: item.variantId },
           },
@@ -232,6 +239,22 @@ export class StockReceiptsRepository {
             quantity: item.quantity,
           },
           update: { quantity: { increment: item.quantity } },
+          select: { quantity: true },
+        });
+        const beforeQuantity = stock.quantity - item.quantity;
+        await recordInventoryMovement(tx, {
+          branchId,
+          variantId: item.variantId,
+          type: InventoryMovementType.STOCK_RECEIPT_CONFIRMED,
+          quantityChange: item.quantity,
+          beforeQuantity,
+          afterQuantity: stock.quantity,
+          reason: receipt.note,
+          sourceType: InventoryMovementSourceType.STOCK_RECEIPT,
+          sourceId: receipt.id,
+          sourceCode: receipt.code,
+          actorId,
+          receiptId: receipt.id,
         });
       }
 
@@ -248,7 +271,7 @@ export class StockReceiptsRepository {
     id: string,
   ) {
     const receipt = await tx.stockReceipt.findFirst({
-      where: { id, branchId },
+      where: { id, branchId, type: StockReceiptType.IMPORT },
       select: receiptSelect,
     });
     if (!receipt)

@@ -26,6 +26,9 @@ describe('InventoryController contract', () => {
 
   it.each([
     ['stocks', 'inventory.read'],
+    ['groupedStocks', 'inventory.read'],
+    ['movements', 'inventory.movements.read'],
+    ['adjustQuantity', 'inventory.adjust_quantity'],
     ['updateThreshold', 'inventory.update_threshold'],
   ])('maps %s to %s', (method, permission) => {
     const handler = InventoryController.prototype[
@@ -63,14 +66,15 @@ describe('InventoryController contract', () => {
     ).toBe(BranchScopeMode.REQUIRED_SELECTION);
   });
 
-  it('requires CSRF for threshold mutation', () => {
-    const guards = Reflect.getMetadata(
-      GUARDS_METADATA,
-      Object.getOwnPropertyDescriptor(
-        InventoryController.prototype,
-        'updateThreshold',
-      )?.value,
-    ) as unknown[];
-    expect(guards).toContain(CsrfGuard);
-  });
+  it.each(['updateThreshold', 'adjustQuantity'])(
+    'requires CSRF for %s mutation',
+    (method) => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        Object.getOwnPropertyDescriptor(InventoryController.prototype, method)
+          ?.value,
+      ) as unknown[];
+      expect(guards).toContain(CsrfGuard);
+    },
+  );
 });

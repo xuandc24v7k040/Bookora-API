@@ -4,6 +4,24 @@ enum StockReceiptStatus {
   CANCELLED
 }
 
+enum StockReceiptType {
+  IMPORT
+  ADJUSTMENT
+}
+
+enum InventoryMovementType {
+  MANUAL_ADJUSTMENT
+  STOCK_RECEIPT_CONFIRMED
+  ORDER_STOCK_DEDUCTED
+  ORDER_STOCK_RESTORED
+}
+
+enum InventoryMovementSourceType {
+  DIRECT_ADJUSTMENT
+  STOCK_RECEIPT
+  ORDER
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT

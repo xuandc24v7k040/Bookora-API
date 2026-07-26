@@ -1,4 +1,8 @@
-import { ProductStatus, StockReceiptStatus } from '@/generated/prisma/client';
+import {
+  ProductStatus,
+  StockReceiptStatus,
+  StockReceiptType,
+} from '@/generated/prisma/client';
 import type { PrismaService } from '@/database/prisma.service';
 import {
   StockReceiptDomainError,
@@ -32,6 +36,7 @@ function receipt(
     supplierId: null,
     code: 'PNK-CT-202607-TEST',
     status,
+    type: StockReceiptType.IMPORT,
     note: null,
     createdAt: now,
     updatedAt: now,
@@ -68,7 +73,15 @@ function setup(record: StockReceiptRecord) {
         .fn()
         .mockResolvedValue({ ...record, status: StockReceiptStatus.CONFIRMED }),
     },
-    branchProductStock: { upsert: jest.fn().mockResolvedValue({}) },
+    branchProductStock: {
+      upsert: jest
+        .fn()
+        .mockResolvedValueOnce({ quantity: 12 })
+        .mockResolvedValueOnce({ quantity: 21 }),
+    },
+    inventoryMovement: {
+      create: jest.fn().mockResolvedValue({ id: 'movement-id' }),
+    },
     supplier: { count: jest.fn() },
   };
   const prisma = {
@@ -97,6 +110,17 @@ describe('StockReceiptsRepository confirm transaction', () => {
       1,
       expect.objectContaining({ update: { quantity: { increment: 7 } } }),
     );
+    expect(tx.inventoryMovement.create).toHaveBeenCalledTimes(2);
+    expect(tx.inventoryMovement.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          beforeQuantity: 5,
+          quantityChange: 7,
+          afterQuantity: 12,
+        }),
+      }),
+    );
   });
 
   it('does not touch stock when the receipt was already confirmed', async () => {
@@ -106,6 +130,7 @@ describe('StockReceiptsRepository confirm transaction', () => {
     ).rejects.toMatchObject({ code: 'STOCK_RECEIPT_ALREADY_CONFIRMED' });
     expect(tx.stockReceipt.updateMany).not.toHaveBeenCalled();
     expect(tx.branchProductStock.upsert).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
   });
 
   it('validates all items before the state transition or stock increment', async () => {
@@ -117,5 +142,6 @@ describe('StockReceiptsRepository confirm transaction', () => {
     ).rejects.toBeInstanceOf(StockReceiptDomainError);
     expect(tx.stockReceipt.updateMany).not.toHaveBeenCalled();
     expect(tx.branchProductStock.upsert).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
   });
 });
