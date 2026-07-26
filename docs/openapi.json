@@ -19664,11 +19664,11 @@
             }
           }
         },
-        "summary": "Lấy tồn kho public theo chi nhánh và biến thể",
+        "summary": "Lấy tồn kho public của các biến thể theo chi nhánh",
         "tags": [
           "storefront-catalog"
         ],
-        "description": "Lấy tồn kho public theo chi nhánh và biến thể",
+        "description": "Lấy tồn kho public của các biến thể theo chi nhánh",
         "security": [
           {
             "accessToken": []
@@ -25132,6 +25132,11 @@
             "type": "string",
             "format": "date-time"
           },
+          "primaryCategoryId": {
+            "type": "string",
+            "format": "ulid",
+            "nullable": true
+          },
           "shortDescription": {
             "type": "string",
             "nullable": true
@@ -25260,6 +25265,11 @@
             },
             "uniqueItems": true
           },
+          "primaryCategoryId": {
+            "type": "string",
+            "format": "ulid",
+            "nullable": true
+          },
           "authorIds": {
             "default": [],
             "type": "array",
@@ -25283,6 +25293,7 @@
         "required": [
           "name",
           "categoryIds",
+          "primaryCategoryId",
           "authorIds",
           "attributeValues"
         ]
@@ -25339,6 +25350,11 @@
               "maxLength": 26
             },
             "uniqueItems": true
+          },
+          "primaryCategoryId": {
+            "type": "string",
+            "format": "ulid",
+            "nullable": true
           },
           "authorIds": {
             "default": [],
@@ -27705,6 +27721,36 @@
           "name"
         ]
       },
+      "PublicVariantAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "availableQuantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_STOCK",
+              "LOW_STOCK",
+              "OUT_OF_STOCK"
+            ]
+          }
+        },
+        "required": [
+          "variantId",
+          "availableQuantity",
+          "status"
+        ]
+      },
       "PublicProductAvailabilityDto": {
         "type": "object",
         "properties": {
@@ -27738,6 +27784,12 @@
               "LOW_STOCK",
               "OUT_OF_STOCK"
             ]
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicVariantAvailabilityDto"
+            }
           }
         },
         "required": [
@@ -27745,7 +27797,65 @@
           "productId",
           "variantId",
           "availableQuantity",
-          "status"
+          "status",
+          "variants"
+        ]
+      },
+      "PublicCategoryLinkDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ]
+      },
+      "PublicProductPrimaryCategoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "parent": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicCategoryLinkDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
         ]
       },
       "PublicOptionValueDto": {
@@ -27994,6 +28104,15 @@
             "items": {
               "$ref": "#/components/schemas/PublicCategoryResponseDto"
             }
+          },
+          "primaryCategory": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicProductPrimaryCategoryDto"
+              }
+            ]
           },
           "authors": {
             "type": "array",

@@ -38,6 +38,8 @@ import {
 import { ProductMediaCleanupService } from '@/modules/product-media/product-media-cleanup.service';
 
 const BAD_REQUEST_CODES = new Set([
+  'PRODUCT_PRIMARY_CATEGORY_REQUIRED',
+  'PRODUCT_PRIMARY_CATEGORY_INVALID',
   'PRODUCT_CONFIGURATION_INVALID',
   'PRODUCT_SIMPLE_VARIANT_REQUIRED',
   'PRODUCT_DEFAULT_VARIANT_REQUIRED',
@@ -395,6 +397,8 @@ export class ProductsService {
     const base = this.toListResponse(record);
     return {
       ...base,
+      primaryCategoryId:
+        record.categories.find((item) => item.isPrimary)?.category.id ?? null,
       shortDescription: record.shortDescription,
       description: record.description,
       attributeValues: record.attributeValues.map((item) => ({

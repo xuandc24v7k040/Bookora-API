@@ -1,6 +1,87 @@
 import { ProductsRepository } from './products.repository';
 import { ProductOptionPresentationType } from '@/generated/prisma/client';
 
+describe('ProductsRepository primary category', () => {
+  const category = { count: jest.fn() };
+  const author = { count: jest.fn() };
+  const supplier = { count: jest.fn() };
+  const publisher = { count: jest.fn() };
+  const productAttribute = { findMany: jest.fn() };
+  const tx = { category, author, supplier, publisher, productAttribute };
+  const repository = new ProductsRepository({} as never);
+  const categoryA = '01J00000000000000000000001';
+  const categoryB = '01J00000000000000000000002';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    category.count.mockImplementation(({ where }) =>
+      Promise.resolve(where.id.in.length),
+    );
+    author.count.mockResolvedValue(0);
+    productAttribute.findMany.mockResolvedValue([]);
+  });
+
+  it('accepts a selected primary category', async () => {
+    await expect(
+      repository['prepareProductInput'](tx as never, {
+        name: 'Sản phẩm',
+        categoryIds: [categoryA, categoryB],
+        primaryCategoryId: categoryB,
+        authorIds: [],
+        attributeValues: [],
+      }),
+    ).resolves.toMatchObject({
+      categoryIds: [categoryA, categoryB],
+      primaryCategoryId: categoryB,
+    });
+  });
+
+  it('rejects categories without a primary category', async () => {
+    await expect(
+      repository['prepareProductInput'](tx as never, {
+        name: 'Sản phẩm',
+        categoryIds: [categoryA],
+        primaryCategoryId: null,
+        authorIds: [],
+        attributeValues: [],
+      }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_PRIMARY_CATEGORY_REQUIRED' });
+  });
+
+  it('rejects a primary category outside the selected categories', async () => {
+    await expect(
+      repository['prepareProductInput'](tx as never, {
+        name: 'Sản phẩm',
+        categoryIds: [categoryA],
+        primaryCategoryId: categoryB,
+        authorIds: [],
+        attributeValues: [],
+      }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_PRIMARY_CATEGORY_INVALID' });
+  });
+
+  it('preserves the stored primary on unrelated updates', async () => {
+    await expect(
+      repository['prepareProductInput'](
+        tx as never,
+        { shortDescription: 'Mới' },
+        {
+          name: 'Sản phẩm',
+          description: null,
+          shortDescription: null,
+          supplier: null,
+          publisher: null,
+          releaseDate: null,
+          categories: [
+            { category: { id: categoryA, name: 'A' }, isPrimary: true },
+          ],
+          authors: [],
+        } as never,
+      ),
+    ).resolves.toMatchObject({ primaryCategoryId: categoryA });
+  });
+});
+
 describe('ProductsRepository variant preview', () => {
   const product = { findUnique: jest.fn() };
   const repository = new ProductsRepository({ product } as never);

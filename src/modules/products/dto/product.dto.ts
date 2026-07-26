@@ -206,6 +206,13 @@ export class CreateProductDto {
   @Matches(ULID_PATTERN, { each: true, message: 'Danh mục không hợp lệ' })
   categoryIds!: string[];
 
+  @ApiProperty({ type: String, format: 'ulid', nullable: true })
+  @Matches(ULID_PATTERN, {
+    message: 'Danh mục chính không hợp lệ',
+  })
+  @IsOptional()
+  primaryCategoryId!: string | null;
+
   @ApiProperty({ type: [String], format: 'ulid', default: [] })
   @IsArray({ message: 'Tác giả phải là một danh sách' })
   @ArrayUnique(undefined, { message: 'Tác giả không được trùng lặp' })

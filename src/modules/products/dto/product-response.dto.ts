@@ -71,6 +71,8 @@ export class ProductAttributeValueResponseDto {
 }
 
 export class ProductDetailResponseDto extends ProductListItemResponseDto {
+  @ApiPropertyOptional({ type: String, format: 'ulid', nullable: true })
+  primaryCategoryId!: string | null;
   @ApiPropertyOptional({ type: String, nullable: true }) shortDescription!:
     | string
     | null;

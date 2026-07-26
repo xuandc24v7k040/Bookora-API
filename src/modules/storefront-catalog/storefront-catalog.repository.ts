@@ -271,7 +271,7 @@ export class StorefrontCatalogRepository {
     });
   }
 
-  findAvailability(branchId: string, productId: string, variantId?: string) {
+  findAvailability(branchId: string, productId: string) {
     return this.prisma.branch.findUnique({
       where: { id: branchId },
       select: {
@@ -284,7 +284,6 @@ export class StorefrontCatalogRepository {
             variant: {
               productId,
               isActive: true,
-              ...(variantId ? { id: variantId } : { isDefault: true }),
               product: publicProductVisibilityWhere,
             },
           },
@@ -293,21 +292,20 @@ export class StorefrontCatalogRepository {
             quantity: true,
             lowStockThreshold: true,
           },
-          take: 1,
         },
       },
     });
   }
 
-  findPublicVariant(productId: string, variantId?: string) {
-    return this.prisma.productVariant.findFirst({
+  findPublicVariants(productId: string) {
+    return this.prisma.productVariant.findMany({
       where: {
         productId,
         isActive: true,
-        ...(variantId ? { id: variantId } : { isDefault: true }),
         product: publicProductVisibilityWhere,
       },
-      select: { id: true },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+      select: { id: true, isDefault: true },
     });
   }
 

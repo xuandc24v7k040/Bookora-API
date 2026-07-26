@@ -88,7 +88,7 @@ export class StorefrontCatalogController {
   })
   @ApiOperation({
     operationId: 'storefrontProductAvailability',
-    summary: 'Lấy tồn kho public theo chi nhánh và biến thể',
+    summary: 'Lấy tồn kho public của các biến thể theo chi nhánh',
   })
   @ApiBaseResponse(PublicProductAvailabilityDto, {
     description: 'Lấy tình trạng tồn kho thành công',

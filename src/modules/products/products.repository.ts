@@ -40,7 +40,10 @@ export const productListSelect = {
   publisher: { select: relationSummarySelect },
   categories: {
     orderBy: { category: { name: 'asc' as const } },
-    select: { category: { select: relationSummarySelect } },
+    select: {
+      isPrimary: true,
+      category: { select: relationSummarySelect },
+    },
   },
   authors: {
     orderBy: { author: { name: 'asc' as const } },
@@ -216,6 +219,7 @@ export class ProductsRepository {
           categories: {
             create: normalized.categoryIds.map((categoryId) => ({
               categoryId,
+              isPrimary: categoryId === normalized.primaryCategoryId,
             })),
           },
           authors: {
@@ -269,6 +273,7 @@ export class ProductsRepository {
                   deleteMany: {},
                   create: normalized.categoryIds.map((categoryId) => ({
                     categoryId,
+                    isPrimary: categoryId === normalized.primaryCategoryId,
                   })),
                 },
               }),
@@ -940,6 +945,17 @@ export class ProductsRepository {
       dto.categoryIds ??
       current?.categories.map((item) => item.category.id) ??
       [];
+    const primaryCategoryId =
+      dto.primaryCategoryId === undefined
+        ? dto.categoryIds === undefined
+          ? (current?.categories.find((item) => item.isPrimary)?.category.id ??
+            null)
+          : null
+        : dto.primaryCategoryId;
+    if (categoryIds.length > 0 && !primaryCategoryId)
+      throw new ProductDomainError('PRODUCT_PRIMARY_CATEGORY_REQUIRED');
+    if (primaryCategoryId !== null && !categoryIds.includes(primaryCategoryId))
+      throw new ProductDomainError('PRODUCT_PRIMARY_CATEGORY_INVALID');
     const authorIds =
       dto.authorIds ?? current?.authors.map((item) => item.author.id) ?? [];
     const attributeValues =
@@ -966,6 +982,7 @@ export class ProductsRepository {
       publisherId,
       releaseDate,
       categoryIds,
+      primaryCategoryId,
       authorIds,
       attributeValues,
     };

@@ -16,6 +16,9 @@ export const PRODUCT_ERROR_MESSAGES: Record<string, string> = {
   PRODUCT_MEDIA_VARIANT_SCOPE_MISMATCH:
     'Ảnh biến thể không thuộc sản phẩm hiện tại',
   PRODUCT_CONFIGURATION_INVALID: 'Cấu hình sản phẩm không hợp lệ',
+  PRODUCT_PRIMARY_CATEGORY_REQUIRED: 'Vui lòng chọn danh mục chính',
+  PRODUCT_PRIMARY_CATEGORY_INVALID:
+    'Danh mục chính phải thuộc danh sách danh mục đã chọn',
   PRODUCT_SIMPLE_VARIANT_REQUIRED:
     'Sản phẩm đơn phải có đúng một biến thể mặc định',
   PRODUCT_DEFAULT_VARIANT_REQUIRED:

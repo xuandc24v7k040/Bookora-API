@@ -156,6 +156,7 @@ export class StorefrontCatalogService {
     });
     const now = new Date();
     const categories = this.detailCategories(record);
+    const primaryCategoryBreadcrumb = this.primaryCategory(record);
 
     return {
       id: record.id,
@@ -165,6 +166,7 @@ export class StorefrontCatalogService {
       description: record.description,
       releaseDate: record.releaseDate?.toISOString() ?? null,
       categories,
+      primaryCategory: primaryCategoryBreadcrumb,
       authors: record.authors.map(({ author }) => author),
       publisher: record.publisher,
       generalMedia: record.media,
@@ -212,10 +214,11 @@ export class StorefrontCatalogService {
         message: 'Vui lòng chọn một chi nhánh hợp lệ.',
       });
     }
-    const publicVariant = await this.repository.findPublicVariant(
-      productId,
-      variantId,
-    );
+    const publicVariants = await this.repository.findPublicVariants(productId);
+    const publicVariant = variantId
+      ? publicVariants.find((variant) => variant.id === variantId)
+      : (publicVariants.find((variant) => variant.isDefault) ??
+        publicVariants[0]);
     if (!publicVariant) {
       throw new NotFoundException({
         code: variantId
@@ -226,11 +229,7 @@ export class StorefrontCatalogService {
           : 'Không tìm thấy sản phẩm hoặc sản phẩm đã ngừng kinh doanh.',
       });
     }
-    const branch = await this.repository.findAvailability(
-      branchId,
-      productId,
-      publicVariant.id,
-    );
+    const branch = await this.repository.findAvailability(branchId, productId);
     if (!branch) {
       throw new NotFoundException({
         code: 'STOREFRONT_BRANCH_NOT_FOUND',
@@ -243,21 +242,31 @@ export class StorefrontCatalogService {
         message: 'Chi nhánh không còn hoạt động. Vui lòng chọn chi nhánh khác.',
       });
     }
-    const stock = branch.stocks[0];
-    const quantity = stock?.quantity ?? 0;
-    const status =
-      quantity <= 0
-        ? StorefrontAvailabilityStatus.OUT_OF_STOCK
-        : stock && quantity <= stock.lowStockThreshold
-          ? StorefrontAvailabilityStatus.LOW_STOCK
-          : StorefrontAvailabilityStatus.IN_STOCK;
+    const variants = publicVariants.map((variant) => {
+      const stock = branch.stocks.find((item) => item.variantId === variant.id);
+      const availableQuantity = stock?.quantity ?? 0;
+      const status =
+        availableQuantity <= 0
+          ? StorefrontAvailabilityStatus.OUT_OF_STOCK
+          : stock && availableQuantity <= stock.lowStockThreshold
+            ? StorefrontAvailabilityStatus.LOW_STOCK
+            : StorefrontAvailabilityStatus.IN_STOCK;
+      return { variantId: variant.id, availableQuantity, status };
+    });
+    const selectedAvailability = variants.find(
+      (item) => item.variantId === publicVariant.id,
+    );
+    if (!selectedAvailability) {
+      throw new Error(
+        'Public product availability invariant was not satisfied.',
+      );
+    }
 
     return {
       branch: { id: branch.id, code: branch.code, name: branch.name },
       productId,
-      variantId: publicVariant.id,
-      availableQuantity: quantity,
-      status,
+      ...selectedAvailability,
+      variants,
     };
   }
 
@@ -352,5 +361,27 @@ export class StorefrontCatalogService {
     return [...values.values()].sort(
       (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'vi'),
     );
+  }
+
+  private primaryCategory(record: PublicProductRecord) {
+    const primary = record.categories.find((item) => item.isPrimary);
+    if (!primary) return null;
+
+    const { category } = primary;
+    const parent =
+      category.parent?.isActive && category.parent.id !== category.id
+        ? {
+            id: category.parent.id,
+            name: category.parent.name,
+            slug: category.parent.slug,
+          }
+        : null;
+
+    return {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      parent,
+    };
   }
 }

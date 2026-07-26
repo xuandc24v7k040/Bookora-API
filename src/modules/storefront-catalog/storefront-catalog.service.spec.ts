@@ -96,7 +96,7 @@ describe('StorefrontCatalogService', () => {
     completedSalesByProduct: jest.fn(),
     findProductBySlug: jest.fn(),
     listRelated: jest.fn(),
-    findPublicVariant: jest.fn(),
+    findPublicVariants: jest.fn(),
     findAvailability: jest.fn(),
   };
   const service = new StorefrontCatalogService(
@@ -183,29 +183,78 @@ describe('StorefrontCatalogService', () => {
     expect(detail.generalMedia).toHaveLength(1);
     expect(detail.variants[0]?.media).toEqual([]);
     expect(detail.relatedProducts[0]?.slug).toBe('lien-quan');
+    expect(detail.primaryCategory).toEqual({
+      id,
+      name: 'Tiểu thuyết',
+      slug: 'tieu-thuyet',
+      parent: {
+        id: '01J00000000000000000000001',
+        name: 'Văn học',
+        slug: 'van-hoc',
+      },
+    });
     expect(detail.variants[0]).not.toHaveProperty('sku');
     expect(detail.variants[0]).not.toHaveProperty('combinationKey');
   });
 
+  it('keeps public categories and returns no primary category for legacy data', async () => {
+    const legacyProduct = product({
+      categories: product().categories.map((item) => ({
+        ...item,
+        isPrimary: false,
+      })),
+    });
+    repository.findProductBySlug.mockResolvedValue(legacyProduct);
+    repository.listRelated.mockResolvedValue([]);
+
+    const detail = await service.detail(legacyProduct.slug);
+
+    expect(detail.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id, slug: 'tieu-thuyet' }),
+      ]),
+    );
+    expect(detail.primaryCategory).toBeNull();
+  });
+
   it('returns stock status for the exact branch and selected variant', async () => {
-    repository.findPublicVariant.mockResolvedValue({ id });
+    const otherId = '01H00000000000000000000001';
+    repository.findPublicVariants.mockResolvedValue([
+      { id, isDefault: true },
+      { id: otherId, isDefault: false },
+    ]);
     repository.findAvailability.mockResolvedValue({
       id,
       code: 'can-tho',
       name: 'Cần Thơ',
       isActive: true,
-      stocks: [{ variantId: id, quantity: 3, lowStockThreshold: 5 }],
+      stocks: [
+        { variantId: id, quantity: 3, lowStockThreshold: 5 },
+        { variantId: otherId, quantity: 0, lowStockThreshold: 5 },
+      ],
     });
 
     await expect(service.availability(id, id, id)).resolves.toMatchObject({
       availableQuantity: 3,
       status: StorefrontAvailabilityStatus.LOW_STOCK,
       variantId: id,
+      variants: [
+        {
+          variantId: id,
+          availableQuantity: 3,
+          status: StorefrontAvailabilityStatus.LOW_STOCK,
+        },
+        {
+          variantId: otherId,
+          availableQuantity: 0,
+          status: StorefrontAvailabilityStatus.OUT_OF_STOCK,
+        },
+      ],
     });
   });
 
   it('treats a missing stock row as out of stock', async () => {
-    repository.findPublicVariant.mockResolvedValue({ id });
+    repository.findPublicVariants.mockResolvedValue([{ id, isDefault: true }]);
     repository.findAvailability.mockResolvedValue({
       id,
       code: 'can-tho',
@@ -224,11 +273,11 @@ describe('StorefrontCatalogService', () => {
     await expect(service.availability(undefined, id)).rejects.toBeInstanceOf(
       BadRequestException,
     );
-    repository.findPublicVariant.mockResolvedValue(null);
+    repository.findPublicVariants.mockResolvedValue([]);
     await expect(service.availability(id, id)).rejects.toBeInstanceOf(
       NotFoundException,
     );
-    repository.findPublicVariant.mockResolvedValue({ id });
+    repository.findPublicVariants.mockResolvedValue([{ id, isDefault: true }]);
     repository.findAvailability.mockResolvedValue({
       id,
       code: 'x',

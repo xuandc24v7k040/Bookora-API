@@ -159,6 +159,17 @@ export class PublicCategoryResponseDto {
   children!: PublicCategoryResponseDto[];
 }
 
+export class PublicCategoryLinkDto {
+  @ApiProperty({ format: 'ulid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() slug!: string;
+}
+
+export class PublicProductPrimaryCategoryDto extends PublicCategoryLinkDto {
+  @ApiPropertyOptional({ type: PublicCategoryLinkDto, nullable: true })
+  parent!: PublicCategoryLinkDto | null;
+}
+
 export class PublicNamedEntityDto {
   @ApiProperty({ format: 'ulid' }) id!: string;
   @ApiProperty() name!: string;
@@ -317,6 +328,11 @@ export class PublicProductDetailDto {
   releaseDate!: string | null;
   @ApiProperty({ type: [PublicCategoryResponseDto] })
   categories!: PublicCategoryResponseDto[];
+  @ApiPropertyOptional({
+    type: PublicProductPrimaryCategoryDto,
+    nullable: true,
+  })
+  primaryCategory!: PublicProductPrimaryCategoryDto | null;
   @ApiProperty({ type: [PublicNamedEntityDto] })
   authors!: PublicNamedEntityDto[];
   @ApiPropertyOptional({ type: PublicNamedEntityDto, nullable: true })
@@ -338,6 +354,13 @@ export class PublicBranchSummaryDto {
   @ApiProperty() name!: string;
 }
 
+export class PublicVariantAvailabilityDto {
+  @ApiProperty({ format: 'ulid' }) variantId!: string;
+  @ApiProperty({ minimum: 0 }) availableQuantity!: number;
+  @ApiProperty({ enum: StorefrontAvailabilityStatus })
+  status!: StorefrontAvailabilityStatus;
+}
+
 export class PublicProductAvailabilityDto {
   @ApiProperty({ type: PublicBranchSummaryDto })
   branch!: PublicBranchSummaryDto;
@@ -346,4 +369,6 @@ export class PublicProductAvailabilityDto {
   @ApiProperty({ minimum: 0 }) availableQuantity!: number;
   @ApiProperty({ enum: StorefrontAvailabilityStatus })
   status!: StorefrontAvailabilityStatus;
+  @ApiProperty({ type: [PublicVariantAvailabilityDto] })
+  variants!: PublicVariantAvailabilityDto[];
 }
