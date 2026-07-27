@@ -26,6 +26,7 @@ import { CheckoutModule } from '@/modules/checkout/checkout.module';
 import { PaymentsModule } from '@/modules/payments/payments.module';
 import { ShippingModule } from '@/modules/shipping/shipping.module';
 import { CustomerOrdersModule } from '@/modules/customer-orders/customer-orders.module';
+import { AdminOrdersModule } from '@/modules/admin-orders/admin-orders.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { CustomerOrdersModule } from '@/modules/customer-orders/customer-orders.
     CheckoutModule,
     PaymentsModule,
     CustomerOrdersModule,
+    AdminOrdersModule,
     AuthModule,
   ],
 })

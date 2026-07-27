@@ -10,6 +10,7 @@ import {
   InventoryMovementSourceType,
   InventoryMovementType,
   OrderStatus,
+  OrderStatusActorType,
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
@@ -20,6 +21,7 @@ import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.
 import { PrismaService } from '@/database/prisma.service';
 import { runSerializableTransaction } from '@/database/serializable-transaction.util';
 import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
+import { recordOrderStatusHistory } from '@/modules/orders/order-status-history';
 import {
   VnpayService,
   type VnpayReturnResult,
@@ -153,6 +155,17 @@ export class PaymentsService {
               status: OrderStatus.PAYMENT_FAILED,
               stockRestoredAt: now,
             },
+          });
+          await recordOrderStatusHistory(tx, {
+            orderId: transaction.payment.orderId,
+            fromStatus: transaction.payment.order.status,
+            toStatus: OrderStatus.PAYMENT_FAILED,
+            actorType: OrderStatusActorType.SYSTEM,
+            branchId: transaction.payment.order.branchId,
+            note: cancelled
+              ? 'Giao dịch VNPAY đã bị hủy'
+              : 'Giao dịch VNPAY không thành công',
+            createdAt: now,
           });
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -397,6 +410,18 @@ export class PaymentsService {
           where: { id: payment.order.id },
           data: { status: OrderStatus.PENDING_PAYMENT, stockRestoredAt: null },
         });
+        await recordOrderStatusHistory(tx, {
+          orderId: payment.order.id,
+          fromStatus: payment.order.status,
+          toStatus: OrderStatus.PENDING_PAYMENT,
+          actorType: OrderStatusActorType.CUSTOMER,
+          actorUserId: actor.id,
+          actorDisplayNameSnapshot: actor.fullName,
+          actorRoleSnapshot: 'CUSTOMER',
+          branchId: payment.order.branchId,
+          note: 'Khách hàng thử thanh toán lại qua VNPAY',
+          createdAt: now,
+        });
         return created;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -501,6 +526,15 @@ export class PaymentsService {
           status: OrderStatus.PENDING,
           stockDeductedAt: now,
         },
+      });
+      await recordOrderStatusHistory(tx, {
+        orderId: transaction.payment.orderId,
+        fromStatus: transaction.payment.order.status,
+        toStatus: OrderStatus.PENDING,
+        actorType: OrderStatusActorType.SYSTEM,
+        branchId: transaction.payment.order.branchId,
+        note: 'VNPAY xác nhận thanh toán thành công',
+        createdAt: now,
       });
       await this.consumeCart(tx, transaction);
       return 'applied';
@@ -653,6 +687,15 @@ export class PaymentsService {
             status: OrderStatus.PAYMENT_FAILED,
             stockRestoredAt: now,
           },
+        });
+        await recordOrderStatusHistory(tx, {
+          orderId: transaction.payment.orderId,
+          fromStatus: transaction.payment.order.status,
+          toStatus: OrderStatus.PAYMENT_FAILED,
+          actorType: OrderStatusActorType.SYSTEM,
+          branchId: transaction.payment.order.branchId,
+          note: 'Giao dịch VNPAY hết thời hạn thanh toán',
+          createdAt: now,
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

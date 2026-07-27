@@ -24,7 +24,21 @@ function orderStatuses({ value }: { value: unknown }): unknown {
   );
 }
 
+export enum CustomerOrderListTab {
+  SHIPPING = 'shipping',
+  RECEIVED = 'received',
+}
+
 export class CustomerOrderListQueryDto {
+  @ApiPropertyOptional({
+    enum: CustomerOrderListTab,
+    description:
+      'Ngữ nghĩa tab Customer: shipping chỉ gồm đơn đang giao chưa xác nhận; received gồm đơn đang giao đã xác nhận và đơn hoàn thành.',
+  })
+  @IsEnum(CustomerOrderListTab)
+  @IsOptional()
+  tab?: CustomerOrderListTab;
+
   @ApiPropertyOptional({
     enum: OrderStatus,
     isArray: true,
@@ -105,6 +119,25 @@ export class CustomerOrderItemResponseDto {
   lineTotal!: number;
 }
 
+export class CustomerOrderReceiptConfirmationDto {
+  @ApiProperty()
+  confirmed!: boolean;
+
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  confirmedAt!: string | null;
+}
+
+export class CustomerOrderAllowedActionsDto {
+  @ApiProperty()
+  cancel!: boolean;
+
+  @ApiProperty()
+  confirmReceived!: boolean;
+
+  @ApiProperty()
+  retryPayment!: boolean;
+}
+
 export class CustomerOrderResponseDto {
   @ApiProperty()
   id!: string;
@@ -165,6 +198,12 @@ export class CustomerOrderResponseDto {
 
   @ApiPropertyOptional({ type: String, nullable: true })
   paymentId!: string | null;
+
+  @ApiProperty({ type: CustomerOrderReceiptConfirmationDto })
+  customerReceiptConfirmation!: CustomerOrderReceiptConfirmationDto;
+
+  @ApiProperty({ type: CustomerOrderAllowedActionsDto })
+  allowedActions!: CustomerOrderAllowedActionsDto;
 
   @ApiProperty({ type: [CustomerOrderItemResponseDto] })
   items!: CustomerOrderItemResponseDto[];

@@ -4,22 +4,34 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  InventoryMovementSourceType,
-  InventoryMovementType,
+  OrderHistoryEventType,
   OrderStatus,
+  OrderStatusActorType,
   PaymentMethod,
   PaymentStatus,
   Prisma,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
-import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
-import type { CustomerOrderListQueryDto } from './dto/customer-order.dto';
+import {
+  cancelOrderInTransaction,
+  cancellableOrderInclude,
+} from '@/modules/orders/order-cancellation';
+import {
+  CustomerOrderListTab,
+  type CustomerOrderListQueryDto,
+} from './dto/customer-order.dto';
 
 const orderInclude = {
   items: true,
   payment: { include: { transactions: { orderBy: { createdAt: 'desc' } } } },
 } satisfies Prisma.OrderInclude;
+
+const CUSTOMER_CANCELLABLE_STATUSES = new Set<OrderStatus>([
+  OrderStatus.PENDING_PAYMENT,
+  OrderStatus.PAYMENT_FAILED,
+  OrderStatus.PENDING,
+]);
 
 @Injectable()
 export class CustomerOrdersService {
@@ -28,9 +40,28 @@ export class CustomerOrdersService {
   async list(actor: AuthenticatedUser, query: CustomerOrderListQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 5;
+    const semanticTabFilter: Prisma.OrderWhereInput =
+      query.tab === CustomerOrderListTab.SHIPPING
+        ? {
+            status: OrderStatus.SHIPPING,
+            customerConfirmedReceivedAt: null,
+          }
+        : query.tab === CustomerOrderListTab.RECEIVED
+          ? {
+              OR: [
+                {
+                  status: OrderStatus.SHIPPING,
+                  customerConfirmedReceivedAt: { not: null },
+                },
+                { status: OrderStatus.COMPLETED },
+              ],
+            }
+          : {
+              status: query.status?.length ? { in: query.status } : undefined,
+            };
     const where: Prisma.OrderWhereInput = {
       userId: actor.id,
-      status: query.status?.length ? { in: query.status } : undefined,
+      ...semanticTabFilter,
     };
     const [orders, totalItems] = await this.prisma.$transaction([
       this.prisma.order.findMany({
@@ -65,100 +96,20 @@ export class CustomerOrdersService {
       async (tx) => {
         const order = await tx.order.findFirst({
           where: { id: orderId, userId: actor.id },
-          include: orderInclude,
+          include: cancellableOrderInclude,
         });
         if (!order) this.notFound();
-        if (order.status === OrderStatus.CANCELLED) return order;
-        const cancellableStatuses = new Set<OrderStatus>([
-          OrderStatus.PENDING_PAYMENT,
-          OrderStatus.PAYMENT_FAILED,
-          OrderStatus.PENDING,
-        ]);
-        if (!cancellableStatuses.has(order.status)) {
-          throw new ConflictException({
-            code: 'ORDER_CANNOT_BE_CANCELLED',
-            message: 'Đơn hàng đã được xử lý và không thể hủy.',
-          });
-        }
-        if (
-          order.payment?.method === PaymentMethod.VNPAY &&
-          order.payment.status === PaymentStatus.PAID
-        ) {
-          throw new ConflictException({
-            code: 'ORDER_CANCELLATION_REQUIRES_REFUND',
-            message:
-              'Đơn đã thanh toán cần được xử lý hoàn tiền trước khi hủy.',
-          });
-        }
-        const now = new Date();
-        const activeHold = order.payment?.transactions.find(
-          (transaction) =>
-            transaction.stockReservedAt !== null &&
-            transaction.stockReleasedAt === null &&
-            transaction.stockConsumedAt === null,
-        );
-        if (activeHold) {
-          const claimed = await tx.paymentTransaction.updateMany({
-            where: {
-              id: activeHold.id,
-              stockReservedAt: { not: null },
-              stockReleasedAt: null,
-              stockConsumedAt: null,
-            },
-            data: { stockReleasedAt: now },
-          });
-          if (claimed.count === 1) {
-            for (const item of order.items) {
-              if (!item.variantId) continue;
-              await this.restoreStock(
-                tx,
-                order.branchId,
-                item.variantId,
-                item.quantity,
-                activeHold.id,
-                order.orderCode,
-                actor.id,
-                reason?.trim() || 'Hủy đơn và giải phóng tồn VNPAY',
-              );
-            }
-          }
-        }
-        if (
-          order.payment?.method === PaymentMethod.COD &&
-          order.stockDeductedAt &&
-          !order.stockRestoredAt
-        ) {
-          for (const item of order.items) {
-            if (!item.variantId) continue;
-            await this.restoreStock(
-              tx,
-              order.branchId,
-              item.variantId,
-              item.quantity,
-              order.id,
-              order.orderCode,
-              actor.id,
-              reason?.trim() || 'Hủy đơn hàng COD',
-            );
-          }
-        }
-        if (
-          order.payment?.status === PaymentStatus.PENDING ||
-          order.payment?.status === PaymentStatus.UNPAID
-        ) {
-          await tx.payment.update({
-            where: { id: order.payment.id },
-            data: { status: PaymentStatus.CANCELLED },
-          });
-        }
-        return tx.order.update({
+        await cancelOrderInTransaction(tx, order, {
+          allowedStatuses: CUSTOMER_CANCELLABLE_STATUSES,
+          actorType: OrderStatusActorType.CUSTOMER,
+          actorUserId: actor.id,
+          actorDisplayName: actor.fullName,
+          actorRoleSnapshot: 'CUSTOMER',
+          reason: reason?.trim() || 'Khách hàng yêu cầu hủy',
+          invalidStatusCode: 'ORDER_CANNOT_BE_CANCELLED',
+        });
+        return tx.order.findUniqueOrThrow({
           where: { id: order.id },
-          data: {
-            status: OrderStatus.CANCELLED,
-            cancelledAt: now,
-            cancelReason: reason?.trim() || 'Khách hàng yêu cầu hủy',
-            stockRestoredAt: now,
-          },
           include: orderInclude,
         });
       },
@@ -167,34 +118,65 @@ export class CustomerOrdersService {
     return this.toResponse(result);
   }
 
-  private async restoreStock(
-    tx: Prisma.TransactionClient,
-    branchId: string,
-    variantId: string,
-    quantity: number,
-    sourceId: string,
-    sourceCode: string,
-    actorId: string,
-    reason: string,
-  ): Promise<void> {
-    const stock = await tx.branchProductStock.update({
-      where: { branchId_variantId: { branchId, variantId } },
-      data: { quantity: { increment: quantity } },
-      select: { quantity: true },
+  async confirmReceived(actor: AuthenticatedUser, orderId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: orderId, userId: actor.id },
+        select: {
+          id: true,
+          status: true,
+          branchId: true,
+          customerConfirmedReceivedAt: true,
+        },
+      });
+      if (!order) this.notFound();
+      if (order.customerConfirmedReceivedAt) return;
+      if (order.status !== OrderStatus.SHIPPING) {
+        throw new ConflictException({
+          code: 'ORDER_CONFIRM_RECEIVED_NOT_ALLOWED',
+          message: 'Đơn hàng không còn ở trạng thái đang giao.',
+        });
+      }
+
+      const confirmedAt = new Date();
+      const claimed = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          userId: actor.id,
+          status: OrderStatus.SHIPPING,
+          customerConfirmedReceivedAt: null,
+        },
+        data: { customerConfirmedReceivedAt: confirmedAt },
+      });
+      if (claimed.count === 0) {
+        const current = await tx.order.findFirst({
+          where: { id: order.id, userId: actor.id },
+          select: { customerConfirmedReceivedAt: true },
+        });
+        if (current?.customerConfirmedReceivedAt) return;
+        throw new ConflictException({
+          code: 'ORDER_CONCURRENT_UPDATE',
+          message: 'Đơn hàng vừa được cập nhật. Vui lòng thử lại.',
+        });
+      }
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          eventType: OrderHistoryEventType.CUSTOMER_RECEIPT_CONFIRMED,
+          fromStatus: null,
+          toStatus: null,
+          actorType: OrderStatusActorType.CUSTOMER,
+          actorUserId: actor.id,
+          actorDisplayNameSnapshot: actor.fullName,
+          actorRoleSnapshot: 'CUSTOMER',
+          branchId: order.branchId,
+          note: 'Khách hàng xác nhận đã nhận đủ sản phẩm.',
+          createdAt: confirmedAt,
+        },
+      });
     });
-    await recordInventoryMovement(tx, {
-      branchId,
-      variantId,
-      type: InventoryMovementType.ORDER_STOCK_RESTORED,
-      quantityChange: quantity,
-      beforeQuantity: stock.quantity - quantity,
-      afterQuantity: stock.quantity,
-      reason,
-      sourceType: InventoryMovementSourceType.ORDER,
-      sourceId,
-      sourceCode,
-      actorId,
-    });
+    return this.detail(actor, orderId);
   }
 
   private toResponse(
@@ -221,6 +203,19 @@ export class CustomerOrdersService {
       paymentMethod: order.payment?.method ?? PaymentMethod.COD,
       paymentStatus: order.payment?.status ?? PaymentStatus.UNPAID,
       paymentId: order.payment?.id ?? null,
+      customerReceiptConfirmation: {
+        confirmed: Boolean(order.customerConfirmedReceivedAt),
+        confirmedAt: order.customerConfirmedReceivedAt?.toISOString() ?? null,
+      },
+      allowedActions: {
+        cancel: CUSTOMER_CANCELLABLE_STATUSES.has(order.status),
+        confirmReceived:
+          order.status === OrderStatus.SHIPPING &&
+          !order.customerConfirmedReceivedAt,
+        retryPayment:
+          order.status === OrderStatus.PAYMENT_FAILED &&
+          order.payment?.method === PaymentMethod.VNPAY,
+      },
       items: order.items.map((item) => ({
         id: item.id,
         productId: item.productId,

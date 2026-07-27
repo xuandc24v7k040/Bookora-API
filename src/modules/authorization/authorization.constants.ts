@@ -47,6 +47,8 @@ export const STAFF_DELEGATABLE_PERMISSION_CODES = [
   'orders.read',
   'orders.create',
   'orders.update_status',
+  'orders.cancel',
+  'orders.update_note',
   'payments.create',
   'products.read',
   'products.create',

@@ -1,7 +1,10 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { OrderStatus } from '@/generated/prisma/client';
-import { CustomerOrderListQueryDto } from './customer-order.dto';
+import {
+  CustomerOrderListQueryDto,
+  CustomerOrderListTab,
+} from './customer-order.dto';
 
 describe('CustomerOrderListQueryDto', () => {
   it('normalizes repeated and comma-separated status values', async () => {
@@ -25,8 +28,18 @@ describe('CustomerOrderListQueryDto', () => {
     );
   });
 
+  it('accepts the semantic shipping and received tabs', async () => {
+    for (const tab of Object.values(CustomerOrderListTab)) {
+      const dto = plainToInstance(CustomerOrderListQueryDto, { tab });
+
+      await expect(validate(dto)).resolves.toHaveLength(0);
+      expect(dto.tab).toBe(tab);
+    }
+  });
+
   it.each([
     [{ status: 'NOT_A_STATUS' }, 'status'],
+    [{ tab: 'completed' }, 'tab'],
     [{ page: '0' }, 'page'],
     [{ limit: '6' }, 'limit'],
   ])('rejects invalid list query %o', async (input, property) => {

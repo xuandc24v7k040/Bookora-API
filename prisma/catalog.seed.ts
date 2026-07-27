@@ -217,6 +217,16 @@ export const permissionCatalog = [
     description: 'Cho phép cập nhật trạng thái xử lý đơn hàng',
   },
   {
+    code: 'orders.cancel',
+    name: 'Hủy đơn hàng',
+    description: 'Cho phép hủy đơn hợp lệ tại chi nhánh và hoàn tồn kho',
+  },
+  {
+    code: 'orders.update_note',
+    name: 'Cập nhật ghi chú nội bộ đơn hàng',
+    description: 'Cho phép cập nhật ghi chú nội bộ của đơn hàng tại chi nhánh',
+  },
+  {
     code: 'payments.create',
     name: 'Tạo thanh toán',
     description: 'Cho phép ghi nhận thanh toán cho đơn hàng',
@@ -423,7 +433,6 @@ export const STAFF_PERMISSION_CODES = [
   'dashboard.read',
   'orders.read',
   'orders.create',
-  'orders.update_status',
   'payments.create',
   'products.read',
   'inventory.read',
@@ -442,6 +451,8 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'dashboard.read',
     'orders.read',
     'orders.update_status',
+    'orders.cancel',
+    'orders.update_note',
     'products.read',
     'inventory.read',
     'inventory.update_threshold',
@@ -467,6 +478,8 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'orders.read',
     'orders.create',
     'orders.update_status',
+    'orders.cancel',
+    'orders.update_note',
     'payments.create',
   ],
   INVENTORY: [
@@ -552,10 +565,23 @@ export async function seedCatalog(tx: CatalogSeedClient): Promise<void> {
   if (!superAdminRoleId) {
     throw new Error('Seeded role not found: SUPER_ADMIN');
   }
+  const superAdminExcludedCodes = [
+    'orders.update_status',
+    'orders.cancel',
+    'orders.update_note',
+  ];
   const allPermissions = await tx.permission.findMany({
-    select: { id: true },
+    select: { id: true, code: true },
   });
-  for (const permission of allPermissions) {
+  await tx.rolePermission.deleteMany({
+    where: {
+      roleId: superAdminRoleId,
+      permission: { code: { in: superAdminExcludedCodes } },
+    },
+  });
+  for (const permission of allPermissions.filter(
+    ({ code }) => !superAdminExcludedCodes.includes(code),
+  )) {
     await tx.rolePermission.upsert({
       where: {
         roleId_permissionId: {

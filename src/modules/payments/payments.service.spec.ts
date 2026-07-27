@@ -99,6 +99,7 @@ describe('PaymentsService VNPAY verified callbacks', () => {
   const orderUpdate = jest.fn();
   const cartItemDeleteMany = jest.fn();
   const stockUpdate = jest.fn();
+  const statusHistoryCreate = jest.fn();
   const transactionMock = jest.fn();
   const transactionClient = {
     paymentTransaction: {
@@ -110,6 +111,7 @@ describe('PaymentsService VNPAY verified callbacks', () => {
     order: { update: orderUpdate },
     cartItem: { deleteMany: cartItemDeleteMany },
     branchProductStock: { update: stockUpdate },
+    orderStatusHistory: { create: statusHistoryCreate },
   };
   const prisma = {
     paymentTransaction: { findUnique },
@@ -191,6 +193,7 @@ describe('PaymentsService VNPAY verified callbacks', () => {
       },
     );
     cartItemDeleteMany.mockResolvedValue({ count: 1 });
+    statusHistoryCreate.mockResolvedValue({ id: 'status-history-id' });
     transactionMock.mockImplementation((callback: TransactionCallback) => {
       const result = transactionQueue.then(() =>
         callback(transactionClient as unknown as Prisma.TransactionClient),

@@ -14,6 +14,7 @@ import {
   InventoryMovementSourceType,
   InventoryMovementType,
   OrderStatus,
+  OrderStatusActorType,
   PaymentMethod,
   PaymentProvider,
   PaymentStatus,
@@ -241,6 +242,19 @@ export class CheckoutService {
           items: {
             create: state.eligibleItems.map((item) => this.orderItemData(item)),
           },
+          statusHistories: {
+            create: {
+              fromStatus: null,
+              toStatus: OrderStatus.PENDING,
+              actorType: OrderStatusActorType.CUSTOMER,
+              actorUserId: actor.id,
+              actorDisplayNameSnapshot: actor.fullName,
+              actorRoleSnapshot: 'CUSTOMER',
+              branchId: state.cart.branchId,
+              note: 'Khách hàng đặt đơn COD',
+              createdAt: now,
+            },
+          },
           payment: {
             create: {
               method: PaymentMethod.COD,
@@ -318,6 +332,19 @@ export class CheckoutService {
           ),
           items: {
             create: state.eligibleItems.map((item) => this.orderItemData(item)),
+          },
+          statusHistories: {
+            create: {
+              fromStatus: null,
+              toStatus: OrderStatus.PENDING_PAYMENT,
+              actorType: OrderStatusActorType.CUSTOMER,
+              actorUserId: actor.id,
+              actorDisplayNameSnapshot: actor.fullName,
+              actorRoleSnapshot: 'CUSTOMER',
+              branchId: state.cart.branchId,
+              note: 'Khách hàng đặt đơn thanh toán VNPAY',
+              createdAt,
+            },
           },
           payment: {
             create: {

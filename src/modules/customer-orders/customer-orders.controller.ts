@@ -72,4 +72,21 @@ export class CustomerOrdersController {
   ) {
     return this.service.cancel(actor, orderId, dto.reason);
   }
+
+  @Post(':orderId/confirm-received')
+  @UseGuards(CsrfGuard)
+  @ApiSecurity('csrf')
+  @ApiOperation({
+    operationId: 'customerOrderConfirmReceived',
+    summary: 'Xác nhận khách hàng đã nhận hàng',
+  })
+  @ApiBaseResponse(CustomerOrderResponseDto, {
+    description: 'Đã ghi nhận xác nhận nhận hàng, trạng thái đơn không đổi.',
+  })
+  confirmReceived(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.service.confirmReceived(actor, orderId);
+  }
 }

@@ -1,14 +1,17 @@
 import {
+  OrderHistoryEventType,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
 } from '@/generated/prisma/client';
 import type { PrismaService } from '@/database/prisma.service';
+import { CustomerOrderListTab } from './dto/customer-order.dto';
 import { CustomerOrdersService } from './customer-orders.service';
 
 const actor = {
   id: 'customer-1',
   type: 'CUSTOMER',
+  fullName: 'Nguyễn An',
 } as never;
 
 function order(overrides: Record<string, unknown> = {}) {
@@ -34,6 +37,7 @@ function order(overrides: Record<string, unknown> = {}) {
     cancelReason: null,
     stockDeductedAt: new Date('2026-07-24T02:00:00.000Z'),
     stockRestoredAt: null,
+    customerConfirmedReceivedAt: null,
     items: [
       {
         id: 'item-1',
@@ -65,6 +69,8 @@ function createHarness() {
   const tx = {
     order: {
       findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       update: jest.fn(),
     },
     payment: { update: jest.fn() },
@@ -74,6 +80,9 @@ function createHarness() {
     },
     inventoryMovement: {
       create: jest.fn().mockResolvedValue({ id: 'movement-id' }),
+    },
+    orderStatusHistory: {
+      create: jest.fn().mockResolvedValue({ id: 'status-history-id' }),
     },
   };
   const prisma = {
@@ -139,6 +148,70 @@ describe('CustomerOrdersService list', () => {
       totalPages: 3,
     });
   });
+
+  it('filters the shipping tab before pagination to unconfirmed SHIPPING orders', async () => {
+    const { orderCount, orderFindMany, service } = createHarness();
+    orderFindMany.mockResolvedValue([]);
+    orderCount.mockResolvedValue(7);
+
+    const result = await service.list(actor, {
+      tab: CustomerOrderListTab.SHIPPING,
+      page: 2,
+      limit: 5,
+    });
+
+    const where = {
+      userId: 'customer-1',
+      status: OrderStatus.SHIPPING,
+      customerConfirmedReceivedAt: null,
+    };
+    expect(orderFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: 5,
+        take: 5,
+      }),
+    );
+    expect(orderCount).toHaveBeenCalledWith({ where });
+    expect(result).toMatchObject({
+      page: 2,
+      totalItems: 7,
+      totalPages: 2,
+    });
+  });
+
+  it('filters the received tab before pagination to confirmed SHIPPING and COMPLETED orders', async () => {
+    const { orderCount, orderFindMany, service } = createHarness();
+    orderFindMany.mockResolvedValue([]);
+    orderCount.mockResolvedValue(4);
+
+    await service.list(actor, {
+      tab: CustomerOrderListTab.RECEIVED,
+      page: 1,
+      limit: 5,
+    });
+
+    const where = {
+      userId: 'customer-1',
+      OR: [
+        {
+          status: OrderStatus.SHIPPING,
+          customerConfirmedReceivedAt: { not: null },
+        },
+        { status: OrderStatus.COMPLETED },
+      ],
+    };
+    expect(orderFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: 0,
+        take: 5,
+      }),
+    );
+    expect(orderCount).toHaveBeenCalledWith({ where });
+  });
 });
 
 describe('CustomerOrdersService cancellation lifecycle', () => {
@@ -153,6 +226,7 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
       .mockResolvedValueOnce(current)
       .mockResolvedValueOnce(cancelled);
     tx.order.update.mockResolvedValue(cancelled);
+    tx.order.findUniqueOrThrow.mockResolvedValue(cancelled);
 
     await service.cancel(actor, 'order-1');
     await service.cancel(actor, 'order-1');
@@ -181,6 +255,8 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
       }),
     );
     expect(tx.order.update).toHaveBeenCalledTimes(1);
+    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.orderStatusHistory.create).toHaveBeenCalledTimes(1);
     expect(tx).not.toHaveProperty('cartItem');
   });
 
@@ -214,6 +290,7 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
       .mockResolvedValueOnce(cancelled);
     tx.paymentTransaction.updateMany.mockResolvedValue({ count: 1 });
     tx.order.update.mockResolvedValue(cancelled);
+    tx.order.findUniqueOrThrow.mockResolvedValue(cancelled);
 
     await service.cancel(actor, 'order-1');
     await service.cancel(actor, 'order-1');
@@ -221,10 +298,126 @@ describe('CustomerOrdersService cancellation lifecycle', () => {
     expect(tx.paymentTransaction.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.branchProductStock.update).toHaveBeenCalledTimes(1);
     expect(tx.inventoryMovement.create).toHaveBeenCalledTimes(1);
+    expect(tx.order.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.orderStatusHistory.create).toHaveBeenCalledTimes(1);
     expect(tx.payment.update).toHaveBeenCalledWith({
       where: { id: 'payment-1' },
       data: { status: PaymentStatus.CANCELLED },
     });
     expect(tx).not.toHaveProperty('cartItem');
+  });
+});
+
+describe('CustomerOrdersService receipt confirmation', () => {
+  it('records one customer receipt event without changing status, payment, or inventory', async () => {
+    const { prisma, tx, service } = createHarness();
+    const shipping = order({ status: OrderStatus.SHIPPING });
+    const confirmedAt = new Date('2026-07-27T15:00:00.000Z');
+    const confirmed = order({
+      status: OrderStatus.SHIPPING,
+      customerConfirmedReceivedAt: confirmedAt,
+    });
+    tx.order.findFirst.mockResolvedValue(shipping);
+    tx.order.updateMany.mockResolvedValue({ count: 1 });
+    (prisma.order.findFirst as jest.Mock).mockResolvedValue(confirmed);
+
+    const result = await service.confirmReceived(actor, 'order-1');
+
+    expect(tx.order.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'order-1',
+        userId: 'customer-1',
+        status: OrderStatus.SHIPPING,
+        customerConfirmedReceivedAt: null,
+      },
+      data: { customerConfirmedReceivedAt: expect.any(Date) },
+    });
+    expect(tx.orderStatusHistory.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        orderId: 'order-1',
+        eventType: OrderHistoryEventType.CUSTOMER_RECEIPT_CONFIRMED,
+        fromStatus: null,
+        toStatus: null,
+        actorUserId: 'customer-1',
+        branchId: 'branch-1',
+      }),
+    });
+    expect(result.status).toBe(OrderStatus.SHIPPING);
+    expect(result.customerReceiptConfirmation).toEqual({
+      confirmed: true,
+      confirmedAt: confirmedAt.toISOString(),
+    });
+    expect(tx.payment.update).not.toHaveBeenCalled();
+    expect(tx.branchProductStock.update).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent after the receipt timestamp has already been set', async () => {
+    const { prisma, tx, service } = createHarness();
+    const confirmed = order({
+      status: OrderStatus.SHIPPING,
+      customerConfirmedReceivedAt: new Date('2026-07-27T15:00:00.000Z'),
+    });
+    tx.order.findFirst.mockResolvedValue(confirmed);
+    (prisma.order.findFirst as jest.Mock).mockResolvedValue(confirmed);
+
+    await service.confirmReceived(actor, 'order-1');
+    await service.confirmReceived(actor, 'order-1');
+
+    expect(tx.order.updateMany).not.toHaveBeenCalled();
+    expect(tx.orderStatusHistory.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    OrderStatus.PENDING,
+    OrderStatus.PACKING,
+    OrderStatus.COMPLETED,
+    OrderStatus.CANCELLED,
+    OrderStatus.RETURNED,
+  ])(
+    'rejects receipt confirmation while order status is %s',
+    async (status) => {
+      const { tx, service } = createHarness();
+      tx.order.findFirst.mockResolvedValue(order({ status }));
+
+      await expect(
+        service.confirmReceived(actor, 'order-1'),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'ORDER_CONFIRM_RECEIVED_NOT_ALLOWED',
+        }),
+      });
+      expect(tx.orderStatusHistory.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('returns not found for an order owned by another customer', async () => {
+    const { tx, service } = createHarness();
+    tx.order.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.confirmReceived(actor, 'order-2'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'ORDER_NOT_FOUND' }),
+    });
+  });
+
+  it('treats a lost atomic claim as idempotent when another request confirmed first', async () => {
+    const { prisma, tx, service } = createHarness();
+    const shipping = order({ status: OrderStatus.SHIPPING });
+    const confirmed = order({
+      status: OrderStatus.SHIPPING,
+      customerConfirmedReceivedAt: new Date('2026-07-27T15:00:00.000Z'),
+    });
+    tx.order.findFirst
+      .mockResolvedValueOnce(shipping)
+      .mockResolvedValueOnce(confirmed);
+    tx.order.updateMany.mockResolvedValue({ count: 0 });
+    (prisma.order.findFirst as jest.Mock).mockResolvedValue(confirmed);
+
+    await expect(
+      service.confirmReceived(actor, 'order-1'),
+    ).resolves.toMatchObject({ status: OrderStatus.SHIPPING });
+    expect(tx.orderStatusHistory.create).not.toHaveBeenCalled();
   });
 });

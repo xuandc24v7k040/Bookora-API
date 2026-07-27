@@ -38,20 +38,26 @@ model Order {
   shippingQuoteReference         String                @map("shipping_quote_reference")
   estimatedDeliveryAt            DateTime?             @map("estimated_delivery_at")
   note                           String?
+  internalNote                   String?               @map("internal_note")
+  internalNoteUpdatedById        String?               @map("internal_note_updated_by_id")
+  internalNoteUpdatedAt          DateTime?             @map("internal_note_updated_at")
   placedAt                       DateTime              @default(now()) @map("placed_at")
   cancelledAt                    DateTime?             @map("cancelled_at")
   cancelReason                   String?               @map("cancel_reason")
   stockDeductedAt                DateTime?             @map("stock_deducted_at")
   stockRestoredAt                DateTime?             @map("stock_restored_at")
+  customerConfirmedReceivedAt    DateTime?             @map("customer_confirmed_received_at")
 
   user                  User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   branch                Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
   coupon                Coupon?      @relation(fields: [couponId], references: [id], onDelete: SetNull)
   sourceCustomerAddress UserAddress? @relation("OrderSourceCustomerAddress", fields: [sourceCustomerAddressId], references: [id], onDelete: SetNull)
+  internalNoteUpdatedBy User?        @relation("OrderInternalNoteUpdatedBy", fields: [internalNoteUpdatedById], references: [id], onDelete: SetNull)
 
-  items   OrderItem[]
-  payment Payment?
-  reviews Review[]
+  items           OrderItem[]
+  payment         Payment?
+  reviews         Review[]
+  statusHistories OrderStatusHistory[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -63,7 +69,36 @@ model Order {
   @@index([couponId])
   @@index([status])
   @@index([createdAt])
+  @@index([branchId, createdAt])
+  @@index([branchId, status, createdAt])
+  @@index([internalNoteUpdatedById])
   @@map("orders")
+}
+
+model OrderStatusHistory {
+  id                       String                @id @default(ulid())
+  orderId                  String                @map("order_id")
+  eventType                OrderHistoryEventType @default(STATUS_CHANGED) @map("event_type")
+  fromStatus               OrderStatus?          @map("from_status")
+  toStatus                 OrderStatus?          @map("to_status")
+  actorType                OrderStatusActorType  @map("actor_type")
+  actorUserId              String?               @map("actor_user_id")
+  actorDisplayNameSnapshot String?               @map("actor_display_name_snapshot")
+  actorRoleSnapshot        String?               @map("actor_role_snapshot")
+  branchId                 String                @map("branch_id")
+  reason                   String?
+  note                     String?
+  createdAt                DateTime              @default(now()) @map("created_at")
+
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorUser User?  @relation("OrderStatusHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  branch    Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@index([orderId, eventType, createdAt])
+  @@index([branchId, createdAt])
+  @@index([actorUserId])
+  @@map("order_status_histories")
 }
 
 model OrderItem {

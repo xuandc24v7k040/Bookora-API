@@ -10,7 +10,6 @@ const EXPECTED_STAFF_PERMISSION_CODES = [
   'dashboard.read',
   'orders.read',
   'orders.create',
-  'orders.update_status',
   'payments.create',
   'products.read',
   'inventory.read',
@@ -27,7 +26,14 @@ const EXPECTED_STAFF_PERMISSION_CODES = [
 describe('production authorization catalog seed', () => {
   it('defines the exact authoritative STAFF permission set', () => {
     expect(STAFF_PERMISSION_CODES).toEqual(EXPECTED_STAFF_PERMISSION_CODES);
-    expect(STAFF_PERMISSION_CODES).toHaveLength(15);
+    expect(STAFF_PERMISSION_CODES).toHaveLength(14);
+    expect(STAFF_PERMISSION_CODES).not.toEqual(
+      expect.arrayContaining([
+        'orders.update_status',
+        'orders.cancel',
+        'orders.update_note',
+      ]),
+    );
     expect(STAFF_PERMISSION_CODES).not.toEqual(
       expect.arrayContaining([
         'products.create',
@@ -71,6 +77,10 @@ describe('production authorization catalog seed', () => {
           name: 'Xem đơn hàng',
         }),
         expect.objectContaining({
+          code: 'orders.cancel',
+          name: 'Hủy đơn hàng',
+        }),
+        expect.objectContaining({
           code: 'inventory.update_threshold',
           name: 'Cập nhật ngưỡng cảnh báo tồn kho',
         }),
@@ -97,7 +107,7 @@ describe('production authorization catalog seed', () => {
       ),
       findMany: jest.fn(() =>
         Promise.resolve(
-          permissionCodes.map((code) => ({ id: `permission-${code}` })),
+          permissionCodes.map((code) => ({ id: `permission-${code}`, code })),
         ),
       ),
     };
@@ -126,7 +136,7 @@ describe('production authorization catalog seed', () => {
       permission.upsert.mock.calls.map(([input]) => input.where.code),
     ).toEqual(firstPermissionKeys);
     expect(rolePermission.upsert).toHaveBeenCalledTimes(firstMappingCount);
-    expect(rolePermission.deleteMany).toHaveBeenCalledTimes(5);
+    expect(rolePermission.deleteMany).toHaveBeenCalledTimes(6);
   });
 
   it('removes obsolete STAFF mappings while preserving custom roles', async () => {
@@ -158,6 +168,6 @@ describe('production authorization catalog seed', () => {
         },
       },
     });
-    expect(rolePermission.deleteMany).toHaveBeenCalledTimes(5);
+    expect(rolePermission.deleteMany).toHaveBeenCalledTimes(6);
   });
 });
