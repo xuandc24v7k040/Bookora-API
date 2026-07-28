@@ -209,6 +209,9 @@ export class PublicProductListItemDto {
   @ApiPropertyOptional({ type: Number, minimum: 1, nullable: true }) rank!:
     | number
     | null;
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 5, nullable: true })
+  averageRating!: number | null;
+  @ApiProperty({ minimum: 0 }) reviewCount!: number;
 }
 
 export class PublicFacetItemDto {
@@ -326,6 +329,9 @@ export class PublicProductDetailDto {
     | null;
   @ApiPropertyOptional({ type: String, nullable: true, format: 'date-time' })
   releaseDate!: string | null;
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 5, nullable: true })
+  averageRating!: number | null;
+  @ApiProperty({ minimum: 0 }) reviewCount!: number;
   @ApiProperty({ type: [PublicCategoryResponseDto] })
   categories!: PublicCategoryResponseDto[];
   @ApiPropertyOptional({

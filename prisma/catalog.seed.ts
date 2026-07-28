@@ -227,6 +227,16 @@ export const permissionCatalog = [
     description: 'Cho phép cập nhật ghi chú nội bộ của đơn hàng tại chi nhánh',
   },
   {
+    code: 'reviews.read',
+    name: 'Xem đánh giá toàn hệ thống',
+    description: 'Cho phép Super Admin xem danh sách đánh giá global',
+  },
+  {
+    code: 'reviews.moderate',
+    name: 'Kiểm duyệt đánh giá',
+    description: 'Cho phép Super Admin ẩn hoặc hiển thị lại đánh giá',
+  },
+  {
     code: 'payments.create',
     name: 'Tạo thanh toán',
     description: 'Cho phép ghi nhận thanh toán cho đơn hàng',

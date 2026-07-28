@@ -27,6 +27,9 @@ import { PaymentsModule } from '@/modules/payments/payments.module';
 import { ShippingModule } from '@/modules/shipping/shipping.module';
 import { CustomerOrdersModule } from '@/modules/customer-orders/customer-orders.module';
 import { AdminOrdersModule } from '@/modules/admin-orders/admin-orders.module';
+import { ReviewsModule } from '@/modules/reviews/reviews.module';
+import { WishlistsModule } from '@/modules/wishlists/wishlists.module';
+import { AccountDashboardModule } from '@/modules/account-dashboard/account-dashboard.module';
 
 @Module({
   imports: [
@@ -66,6 +69,9 @@ import { AdminOrdersModule } from '@/modules/admin-orders/admin-orders.module';
     PaymentsModule,
     CustomerOrdersModule,
     AdminOrdersModule,
+    ReviewsModule,
+    WishlistsModule,
+    AccountDashboardModule,
     AuthModule,
   ],
 })

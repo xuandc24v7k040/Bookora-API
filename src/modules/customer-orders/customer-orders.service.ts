@@ -19,6 +19,7 @@ import {
 } from '@/modules/orders/order-cancellation';
 import {
   CustomerOrderListTab,
+  CustomerOrderReviewActionType,
   type CustomerOrderListQueryDto,
 } from './dto/customer-order.dto';
 
@@ -32,6 +33,20 @@ const CUSTOMER_CANCELLABLE_STATUSES = new Set<OrderStatus>([
   OrderStatus.PAYMENT_FAILED,
   OrderStatus.PENDING,
 ]);
+
+type CustomerOrderPayload = Prisma.OrderGetPayload<{
+  include: typeof orderInclude;
+}>;
+
+export interface CustomerOrderReviewAction {
+  type: CustomerOrderReviewActionType;
+  count: number;
+}
+
+const NO_REVIEW_ACTION: CustomerOrderReviewAction = {
+  type: CustomerOrderReviewActionType.NONE,
+  count: 0,
+};
 
 @Injectable()
 export class CustomerOrdersService {
@@ -73,8 +88,11 @@ export class CustomerOrdersService {
       }),
       this.prisma.order.count({ where }),
     ]);
+    const reviewActions = await this.reviewActions(actor.id, orders);
     return {
-      items: orders.map((order) => this.toResponse(order)),
+      items: orders.map((order) =>
+        this.toResponse(order, reviewActions.get(order.id)),
+      ),
       page,
       limit,
       totalItems,
@@ -88,7 +106,8 @@ export class CustomerOrdersService {
       include: orderInclude,
     });
     if (!order) this.notFound();
-    return this.toResponse(order);
+    const reviewActions = await this.reviewActions(actor.id, [order]);
+    return this.toResponse(order, reviewActions.get(order.id));
   }
 
   async cancel(actor: AuthenticatedUser, orderId: string, reason?: string) {
@@ -180,7 +199,8 @@ export class CustomerOrdersService {
   }
 
   private toResponse(
-    order: Prisma.OrderGetPayload<{ include: typeof orderInclude }>,
+    order: CustomerOrderPayload,
+    reviewAction: CustomerOrderReviewAction = NO_REVIEW_ACTION,
   ) {
     return {
       id: order.id,
@@ -216,6 +236,7 @@ export class CustomerOrdersService {
           order.status === OrderStatus.PAYMENT_FAILED &&
           order.payment?.method === PaymentMethod.VNPAY,
       },
+      reviewAction,
       items: order.items.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -230,6 +251,58 @@ export class CustomerOrdersService {
         lineTotal: Number(item.lineTotal),
       })),
     };
+  }
+
+  private async reviewActions(
+    userId: string,
+    orders: CustomerOrderPayload[],
+  ): Promise<Map<string, CustomerOrderReviewAction>> {
+    const completedOrders = orders.filter(
+      (order) => order.status === OrderStatus.COMPLETED,
+    );
+    if (completedOrders.length === 0) return new Map();
+
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        userId,
+        orderId: { in: completedOrders.map((order) => order.id) },
+      },
+      select: { orderId: true, productId: true },
+    });
+    const reviewedByOrder = new Map<string, Set<string>>();
+    for (const review of reviews) {
+      const productIds = reviewedByOrder.get(review.orderId) ?? new Set();
+      productIds.add(review.productId);
+      reviewedByOrder.set(review.orderId, productIds);
+    }
+
+    return new Map(
+      completedOrders.map((order) => {
+        const eligibleProductIds = new Set(
+          order.items
+            .map((item) => item.productId)
+            .filter((productId): productId is string => productId !== null),
+        );
+        const reviewedProductIds = reviewedByOrder.get(order.id) ?? new Set();
+        const reviewedCount = [...eligibleProductIds].filter((productId) =>
+          reviewedProductIds.has(productId),
+        ).length;
+        const pendingCount = eligibleProductIds.size - reviewedCount;
+        const action =
+          pendingCount > 0
+            ? {
+                type: CustomerOrderReviewActionType.WRITE,
+                count: pendingCount,
+              }
+            : reviewedCount > 0
+              ? {
+                  type: CustomerOrderReviewActionType.VIEW,
+                  count: reviewedCount,
+                }
+              : NO_REVIEW_ACTION;
+        return [order.id, action] as const;
+      }),
+    );
   }
 
   private notFound(): never {

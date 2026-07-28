@@ -2,7 +2,7 @@ model Review {
   id           String    @id @default(ulid())
   userId       String    @map("user_id")
   productId    String    @map("product_id")
-  orderId      String?   @map("order_id")
+  orderId      String    @map("order_id")
   branchId     String?   @map("branch_id")
   rating       Int
   content      String?
@@ -13,19 +13,19 @@ model Review {
 
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order     Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
   branch    Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   repliedBy User?   @relation("ReviewRepliedBy", fields: [repliedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([userId, productId])
-  @@index([productId])
+  @@unique([userId, orderId, productId])
+  @@index([userId, createdAt])
+  @@index([productId, isVisible, createdAt])
   @@index([orderId])
   @@index([branchId])
   @@index([repliedById])
-  @@index([isVisible])
   @@map("reviews")
 }
 

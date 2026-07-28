@@ -192,6 +192,31 @@ describe('CheckoutService internal shipping hotfix', () => {
     );
   });
 
+  it('keeps customer note outside the preview fingerprint', async () => {
+    const { service } = createService();
+    const input = {
+      selectedCartItemIds: [CART_ITEM_ID],
+      paymentMethod: 'COD' as const,
+      address: {
+        source: 'SAVED_ADDRESS' as const,
+        customerAddressId: '01K7Y7MWNCW7BNBBNTWAB9DYSH',
+      },
+    };
+
+    const first = await service.preview(actor, BRANCH_ID, {
+      ...input,
+      note: 'Giao giờ hành chính',
+    });
+    const second = await service.preview(actor, BRANCH_ID, {
+      ...input,
+      note: 'Gọi trước khi giao',
+    });
+
+    expect(second.previewReference).toBe(first.previewReference);
+    expect(first.note).toBe('Giao giờ hành chính');
+    expect(second.note).toBe('Gọi trước khi giao');
+  });
+
   it('uses one two-level reverse for current location and returns provinceCode', async () => {
     const { service, vietmap } = createService();
     vietmap.reverse.mockResolvedValue({

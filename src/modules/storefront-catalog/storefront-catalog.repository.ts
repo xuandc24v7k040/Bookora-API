@@ -174,6 +174,11 @@ export interface PublicProductFacets {
   attributes: PublicProductFacetItem[];
 }
 
+export interface PublicProductRatingAggregate {
+  averageRating: number | null;
+  reviewCount: number;
+}
+
 @Injectable()
 export class StorefrontCatalogRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -323,6 +328,30 @@ export class StorefrontCatalogRepository {
       );
     }
     return sales;
+  }
+
+  async ratingAggregates(
+    productIds: string[],
+  ): Promise<Map<string, PublicProductRatingAggregate>> {
+    if (!productIds.length) return new Map();
+    const rows = await this.prisma.review.groupBy({
+      by: ['productId'],
+      where: { productId: { in: productIds }, isVisible: true },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    return new Map(
+      rows.map((row) => [
+        row.productId,
+        {
+          averageRating:
+            row._avg.rating === null
+              ? null
+              : Number(row._avg.rating.toFixed(2)),
+          reviewCount: row._count._all,
+        },
+      ]),
+    );
   }
 
   private listWhere(

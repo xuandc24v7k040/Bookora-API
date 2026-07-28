@@ -98,6 +98,7 @@ describe('StorefrontCatalogService', () => {
     listRelated: jest.fn(),
     findPublicVariants: jest.fn(),
     findAvailability: jest.fn(),
+    ratingAggregates: jest.fn(),
   };
   const service = new StorefrontCatalogService(
     repository as unknown as StorefrontCatalogRepository,
@@ -107,6 +108,7 @@ describe('StorefrontCatalogService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     repository.completedSalesByProduct.mockResolvedValue(new Map());
+    repository.ratingAggregates.mockResolvedValue(new Map());
   });
 
   it('rejects an inverted price range with the public machine code', async () => {

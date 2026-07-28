@@ -526,7 +526,6 @@ export class CheckoutService {
       })),
       address,
       paymentMethod,
-      note,
       shippingFee: quote?.shippingFee ?? null,
       shippingQuoteReference: quote?.requestFingerprint ?? null,
     });

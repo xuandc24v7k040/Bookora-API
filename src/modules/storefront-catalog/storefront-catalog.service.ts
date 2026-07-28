@@ -17,6 +17,7 @@ import {
 import {
   StorefrontCatalogRepository,
   type PublicProductRecord,
+  type PublicProductRatingAggregate,
 } from './storefront-catalog.repository';
 import { StorefrontPriceService } from './storefront-price.service';
 
@@ -41,6 +42,8 @@ export interface ListItem {
   };
   releaseDate: string | null;
   rank: number | null;
+  averageRating: number | null;
+  reviewCount: number;
 }
 
 @Injectable()
@@ -60,7 +63,12 @@ export class StorefrontCatalogService {
       this.repository.listProducts({}, now),
       this.repository.completedSalesByProduct(),
     ]);
-    const items = records.map((record) => this.toListItem(record, now));
+    const ratings = await this.repository.ratingAggregates(
+      records.map((record) => record.id),
+    );
+    const items = records.map((record) =>
+      this.toListItem(record, now, ratings),
+    );
     const popular = this.sortPopular(items, completedSales);
 
     return {
@@ -113,7 +121,12 @@ export class StorefrontCatalogService {
     const pageSize = query.pageSize ?? 12;
     const totalItems = result.totalItems;
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-    const items = result.records.map((record) => this.toListItem(record, now));
+    const ratings = await this.repository.ratingAggregates(
+      result.records.map((record) => record.id),
+    );
+    const items = result.records.map((record) =>
+      this.toListItem(record, now, ratings),
+    );
 
     return {
       items,
@@ -155,6 +168,14 @@ export class StorefrontCatalogService {
       );
     });
     const now = new Date();
+    const ratings = await this.repository.ratingAggregates([
+      record.id,
+      ...relatedSorted.map((item) => item.id),
+    ]);
+    const detailRating = ratings.get(record.id) ?? {
+      averageRating: null,
+      reviewCount: 0,
+    };
     const categories = this.detailCategories(record);
     const primaryCategoryBreadcrumb = this.primaryCategory(record);
 
@@ -165,6 +186,7 @@ export class StorefrontCatalogService {
       shortDescription: record.shortDescription,
       description: record.description,
       releaseDate: record.releaseDate?.toISOString() ?? null,
+      ...detailRating,
       categories,
       primaryCategory: primaryCategoryBreadcrumb,
       authors: record.authors.map(({ author }) => author),
@@ -191,7 +213,7 @@ export class StorefrontCatalogService {
       })),
       relatedProducts: relatedSorted
         .slice(0, STOREFRONT_RELATED_LIMIT)
-        .map((item) => this.toListItem(item, now)),
+        .map((item) => this.toListItem(item, now, ratings)),
       seo: {
         title: `${record.name} | Bookora`,
         description:
@@ -270,7 +292,11 @@ export class StorefrontCatalogService {
     };
   }
 
-  private toListItem(record: PublicProductRecord, now: Date): ListItem {
+  private toListItem(
+    record: PublicProductRecord,
+    now: Date,
+    ratings: Map<string, PublicProductRatingAggregate>,
+  ): ListItem {
     const defaultVariant =
       record.variants.find((variant) => variant.isDefault) ??
       record.variants[0];
@@ -279,6 +305,10 @@ export class StorefrontCatalogService {
     if (!defaultVariant || !primaryImage) {
       throw new Error('Public product invariant was not satisfied.');
     }
+    const rating = ratings.get(record.id) ?? {
+      averageRating: null,
+      reviewCount: 0,
+    };
     return {
       id: record.id,
       name: record.name,
@@ -289,6 +319,7 @@ export class StorefrontCatalogService {
       price: this.prices.resolve(defaultVariant, now),
       releaseDate: record.releaseDate?.toISOString() ?? null,
       rank: null,
+      ...rating,
     };
   }
 

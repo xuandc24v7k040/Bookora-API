@@ -66,6 +66,7 @@ function order(overrides: Record<string, unknown> = {}) {
 function createHarness() {
   const orderFindMany = jest.fn();
   const orderCount = jest.fn();
+  const reviewFindMany = jest.fn();
   const tx = {
     order: {
       findFirst: jest.fn(),
@@ -91,6 +92,7 @@ function createHarness() {
       count: orderCount,
       findFirst: jest.fn(),
     },
+    review: { findMany: reviewFindMany },
     $transaction: jest.fn((input: unknown) =>
       Array.isArray(input)
         ? Promise.all(input)
@@ -102,6 +104,7 @@ function createHarness() {
     prisma,
     orderCount,
     orderFindMany,
+    reviewFindMany,
     service: new CustomerOrdersService(prisma),
   };
 }
@@ -211,6 +214,67 @@ describe('CustomerOrdersService list', () => {
       }),
     );
     expect(orderCount).toHaveBeenCalledWith({ where });
+  });
+
+  it('derives WRITE, VIEW, and NONE from one batch review query with distinct products', async () => {
+    const { orderCount, orderFindMany, reviewFindMany, service } =
+      createHarness();
+    orderFindMany.mockResolvedValue([
+      order({
+        id: 'order-write',
+        status: OrderStatus.COMPLETED,
+        items: [
+          ...order().items,
+          {
+            ...order().items[0],
+            id: 'item-2',
+            variantId: 'variant-2',
+            quantity: 3,
+          },
+          {
+            ...order().items[0],
+            id: 'item-3',
+            productId: 'product-2',
+            variantId: 'variant-3',
+          },
+        ],
+      }),
+      order({
+        id: 'order-view',
+        status: OrderStatus.COMPLETED,
+        items: [
+          ...order().items,
+          {
+            ...order().items[0],
+            id: 'item-4',
+            productId: 'product-2',
+          },
+        ],
+      }),
+      order({ id: 'order-shipping', status: OrderStatus.SHIPPING }),
+    ]);
+    orderCount.mockResolvedValue(3);
+    reviewFindMany.mockResolvedValue([
+      { orderId: 'order-write', productId: 'product-1' },
+      { orderId: 'order-view', productId: 'product-1' },
+      { orderId: 'order-view', productId: 'product-2' },
+    ]);
+
+    const result = await service.list(actor, { page: 1, limit: 5 });
+
+    expect(reviewFindMany).toHaveBeenCalledTimes(1);
+    expect(reviewFindMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'customer-1',
+        orderId: { in: ['order-write', 'order-view'] },
+      },
+      select: { orderId: true, productId: true },
+    });
+    expect(result.items.map((item) => item.reviewAction)).toEqual([
+      { type: 'WRITE', count: 1 },
+      { type: 'VIEW', count: 2 },
+      { type: 'NONE', count: 0 },
+    ]);
   });
 });
 

@@ -138,6 +138,20 @@ export class CustomerOrderAllowedActionsDto {
   retryPayment!: boolean;
 }
 
+export enum CustomerOrderReviewActionType {
+  WRITE = 'WRITE',
+  VIEW = 'VIEW',
+  NONE = 'NONE',
+}
+
+export class CustomerOrderReviewActionDto {
+  @ApiProperty({ enum: CustomerOrderReviewActionType })
+  type!: CustomerOrderReviewActionType;
+
+  @ApiProperty({ minimum: 0 })
+  count!: number;
+}
+
 export class CustomerOrderResponseDto {
   @ApiProperty()
   id!: string;
@@ -204,6 +218,9 @@ export class CustomerOrderResponseDto {
 
   @ApiProperty({ type: CustomerOrderAllowedActionsDto })
   allowedActions!: CustomerOrderAllowedActionsDto;
+
+  @ApiProperty({ type: CustomerOrderReviewActionDto })
+  reviewAction!: CustomerOrderReviewActionDto;
 
   @ApiProperty({ type: [CustomerOrderItemResponseDto] })
   items!: CustomerOrderItemResponseDto[];
