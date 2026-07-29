@@ -83,6 +83,14 @@ export class PublicReviewQueryDto {
   @IsOptional()
   page?: number = 1;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: 20, default: 5 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  @IsOptional()
+  limit?: number = 5;
+
   @ApiPropertyOptional({ minimum: 1, maximum: 5 })
   @Type(() => Number)
   @IsInt()

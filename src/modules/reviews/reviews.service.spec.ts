@@ -127,7 +127,7 @@ describe('ReviewsService public review contract', () => {
         },
       ],
       totalItems: 1,
-      pageSize: 5,
+      pageSize: 4,
       aggregate: { _count: { _all: 7 }, _avg: { rating: 4.86 } },
       distribution: [
         { rating: 5, _count: { _all: 6 } },
@@ -137,12 +137,14 @@ describe('ReviewsService public review contract', () => {
 
     const result = await service.publicList('product-1', {
       page: 1,
+      limit: 4,
       rating: 5,
       verifiedPurchase: true,
     });
 
     expect(repository.listPublic).toHaveBeenCalledWith('product-1', {
       page: 1,
+      limit: 4,
       rating: 5,
       verifiedPurchase: true,
     });

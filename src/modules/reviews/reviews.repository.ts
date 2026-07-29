@@ -93,7 +93,7 @@ export class ReviewsRepository {
 
   async listPublic(productId: string, query: PublicReviewQueryDto) {
     const page = query.page ?? 1;
-    const pageSize = 5;
+    const pageSize = query.limit ?? 5;
     const summaryWhere: Prisma.ReviewWhereInput = {
       productId,
       isVisible: true,

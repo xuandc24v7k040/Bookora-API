@@ -23879,6 +23879,17 @@
             }
           },
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 20,
+              "default": 5,
+              "type": "number"
+            }
+          },
+          {
             "name": "rating",
             "required": false,
             "in": "query",
