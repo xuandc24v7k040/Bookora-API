@@ -33,6 +33,19 @@ export default registerAs('auth', () => ({
       60,
     ),
   },
+  passwordRecovery: {
+    emailMaxAttempts: getEnvNumber('AUTH_PASSWORD_RESET_EMAIL_MAX_ATTEMPTS', 5),
+    emailLockSeconds: getEnvNumber(
+      'AUTH_PASSWORD_RESET_EMAIL_LOCK_SECONDS',
+      15 * 60,
+    ),
+    ipMaxAttempts: getEnvNumber('AUTH_PASSWORD_RESET_IP_MAX_ATTEMPTS', 15),
+    ipLockSeconds: getEnvNumber('AUTH_PASSWORD_RESET_IP_LOCK_SECONDS', 15 * 60),
+    attemptWindowSeconds: getEnvNumber(
+      'AUTH_PASSWORD_RESET_ATTEMPT_WINDOW_SECONDS',
+      15 * 60,
+    ),
+  },
   throttle: {
     login: {
       ttlSeconds: getEnvNumberFromKeys(
@@ -55,6 +68,10 @@ export default registerAs('auth', () => ({
     csrf: {
       ttlSeconds: getEnvNumber('AUTH_CSRF_TTL_SECONDS', 60),
       limit: getEnvNumber('AUTH_CSRF_LIMIT', 10),
+    },
+    forgotPassword: {
+      ttlSeconds: getEnvNumber('AUTH_FORGOT_PASSWORD_TTL_SECONDS', 60),
+      limit: getEnvNumber('AUTH_FORGOT_PASSWORD_LIMIT', 10),
     },
   },
   google: {
@@ -79,6 +96,10 @@ export default registerAs('auth', () => ({
     expectedActions: {
       login: getEnvString('TURNSTILE_LOGIN_ACTION', 'login'),
       register: getEnvString('TURNSTILE_REGISTER_ACTION', 'register'),
+      passwordReset: getEnvString(
+        'TURNSTILE_PASSWORD_RESET_ACTION',
+        'password-reset',
+      ),
     },
     timeoutMs: getEnvNumber('TURNSTILE_TIMEOUT_MS', 3000),
   },

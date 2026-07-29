@@ -16,7 +16,7 @@ interface TurnstileVerifyResponse {
   'error-codes'?: string[];
 }
 
-type TurnstileAction = 'login' | 'register';
+type TurnstileAction = 'login' | 'register' | 'passwordReset';
 
 @Injectable()
 export class TurnstileService {

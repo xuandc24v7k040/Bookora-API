@@ -25,6 +25,11 @@ const MIGRATION_PATHS = [
   '20260723190000_phase15_checkout_orders',
   '20260723210000_phase15_schema_simplification',
   '20260726170000_inventory_adjustment_movement_ledger',
+  '20260727210000_phase16_admin_order_management',
+  '20260727223000_phase16_customer_receipt_confirmation',
+  '20260727233000_phase17_wishlist_reviews_dashboard',
+  '20260728160000_phase17_5_password_recovery',
+  '20260729010000_phase17_5_internal_note_baseline_hotfix',
 ] as const;
 
 export interface DisposablePostgresDatabase {

@@ -15,6 +15,11 @@ import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
+import { MailModule } from '../mail/mail.module';
+import { PasswordRecoveryController } from './password-recovery/password-recovery.controller';
+import { PasswordRecoveryService } from './password-recovery/password-recovery.service';
+import { PasswordRecoveryAttemptService } from './password-recovery/password-recovery-attempt.service';
+import { PasswordResetTokensRepository } from './password-recovery/password-reset-tokens.repository';
 
 @Module({
   imports: [
@@ -22,8 +27,9 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
     JwtModule.register({}),
     UsersModule,
     AuthorizationModule,
+    MailModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, PasswordRecoveryController],
   providers: [
     AuthService,
     TurnstileService,
@@ -36,6 +42,9 @@ import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
     GoogleOauthGuard,
     JwtAccessStrategy,
     GoogleStrategy,
+    PasswordRecoveryService,
+    PasswordRecoveryAttemptService,
+    PasswordResetTokensRepository,
   ],
   exports: [AuthService],
 })

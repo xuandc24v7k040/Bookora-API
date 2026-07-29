@@ -49,8 +49,12 @@ export class AuthSessionsRepository {
     });
   }
 
-  revokeActiveByUserId(userId: string, revokedAt = new Date()) {
-    return this.prisma.authSession.updateMany({
+  revokeActiveByUserId(
+    userId: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+    revokedAt = new Date(),
+  ) {
+    return client.authSession.updateMany({
       where: {
         userId,
         revokedAt: null,

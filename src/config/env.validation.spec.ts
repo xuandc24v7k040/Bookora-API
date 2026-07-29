@@ -7,6 +7,11 @@ function validConfig(): Record<string, unknown> {
   );
   return {
     ...config,
+    RESEND_API_KEY: 're_test_key',
+    MAIL_FROM: 'Bookora <no-reply@example.test>',
+    PASSWORD_RESET_TOKEN_HASH_SECRET:
+      'test-password-reset-secret-at-least-32-characters',
+    PASSWORD_RESET_TTL_MINUTES: '15',
     NODE_ENV: 'development',
     API_PREFIX: 'api',
     STORAGE_PROVIDER: 'r2',
@@ -49,5 +54,39 @@ describe('VNPAY environment validation', () => {
           ' "http://localhost:8000/api/v1/payments/vnpay/return" ',
       }),
     ).toThrow('must not contain quotes or surrounding whitespace');
+  });
+});
+
+describe('password recovery environment validation', () => {
+  it('accepts a positive integer TTL override', () => {
+    expect(
+      validateEnv({
+        ...validConfig(),
+        PASSWORD_RESET_TTL_MINUTES: '2',
+      }),
+    ).toBeDefined();
+  });
+
+  it.each(['0', '-1', '1.5'])(
+    'rejects an invalid TTL of %s minutes',
+    (value) => {
+      expect(() =>
+        validateEnv({
+          ...validConfig(),
+          PASSWORD_RESET_TTL_MINUTES: value,
+        }),
+      ).toThrow('PASSWORD_RESET_TTL_MINUTES must be a positive integer');
+    },
+  );
+
+  it('rejects a short password reset token hash secret', () => {
+    expect(() =>
+      validateEnv({
+        ...validConfig(),
+        PASSWORD_RESET_TOKEN_HASH_SECRET: 'too-short',
+      }),
+    ).toThrow(
+      'PASSWORD_RESET_TOKEN_HASH_SECRET must contain at least 32 characters',
+    );
   });
 });

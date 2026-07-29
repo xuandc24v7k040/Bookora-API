@@ -87,6 +87,26 @@ export function validateEnv(
     errors.push('TURNSTILE_TIMEOUT_MS must be greater than 0');
   }
 
+  const passwordResetTtlMinutes = Number(
+    readEnvValue(config, 'PASSWORD_RESET_TTL_MINUTES'),
+  );
+  if (
+    !Number.isInteger(passwordResetTtlMinutes) ||
+    passwordResetTtlMinutes <= 0
+  ) {
+    errors.push('PASSWORD_RESET_TTL_MINUTES must be a positive integer');
+  }
+
+  const passwordResetSecret = readEnvValue(
+    config,
+    'PASSWORD_RESET_TOKEN_HASH_SECRET',
+  );
+  if (!passwordResetSecret || passwordResetSecret.length < 32) {
+    errors.push(
+      'PASSWORD_RESET_TOKEN_HASH_SECRET must contain at least 32 characters',
+    );
+  }
+
   const expectedHostnames = readEnvValue(
     config,
     'TURNSTILE_EXPECTED_HOSTNAMES',

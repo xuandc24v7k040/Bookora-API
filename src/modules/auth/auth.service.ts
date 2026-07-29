@@ -490,7 +490,7 @@ export class AuthService {
     return null;
   }
 
-  private clearAuthCookies(response: Response) {
+  clearAuthCookies(response: Response) {
     const options = this.baseCookieOptions();
     response.clearCookie('accessToken', options);
     response.clearCookie('refreshToken', options);

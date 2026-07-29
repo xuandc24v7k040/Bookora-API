@@ -17,4 +17,6 @@ enum AuthProvider {
 enum AuthAttemptType {
   EMAIL
   IP
+  PASSWORD_RESET_EMAIL
+  PASSWORD_RESET_IP
 }

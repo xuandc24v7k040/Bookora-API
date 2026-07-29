@@ -19,6 +19,11 @@ const FIXTURE_EMAILS = DEVELOPMENT_USERS.map((user) => user.email);
 const BRANCH_USER_EMAILS = DEVELOPMENT_USERS.filter(
   (user) => user.type === UserType.BRANCH,
 ).map((user) => user.email);
+const SUPER_ADMIN_EXCLUDED_PERMISSION_CODES: readonly string[] = [
+  'orders.update_status',
+  'orders.cancel',
+  'orders.update_note',
+];
 
 describe('development seed fixtures (e2e)', () => {
   jest.setTimeout(120_000);
@@ -41,6 +46,17 @@ describe('development seed fixtures (e2e)', () => {
 
     try {
       await runMigrations(database);
+      await expect(
+        database.query<{ column_name: string }>(
+          `
+          SELECT column_name
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'orders'
+            AND column_name = 'internal_note'
+          `,
+        ),
+      ).resolves.toEqual([{ column_name: 'internal_note' }]);
       prisma = createPrisma(database);
       await prisma.$connect();
       const outsider = await prisma.user.create({
@@ -231,7 +247,15 @@ async function expectSuperAdmin(prisma: PrismaClient): Promise<void> {
   )
     .map(({ code }) => code)
     .sort((left, right) => left.localeCompare(right));
-  expect(superAdminPermissionCodes).toEqual(catalogPermissionCodes);
+  expect(superAdminPermissionCodes).toEqual(
+    catalogPermissionCodes.filter(
+      (code) => !SUPER_ADMIN_EXCLUDED_PERMISSION_CODES.includes(code),
+    ),
+  );
+  expect(superAdminPermissionCodes).toContain('orders.read');
+  expect(superAdminPermissionCodes).toEqual(
+    expect.not.arrayContaining(SUPER_ADMIN_EXCLUDED_PERMISSION_CODES),
+  );
   expect(new Set(superAdminPermissionCodes).size).toBe(
     superAdminPermissionCodes.length,
   );

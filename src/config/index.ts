@@ -7,6 +7,7 @@ import runtimeConfig from './runtime.config';
 import storageConfig from './storage.config';
 import shippingConfig from './shipping.config';
 import paymentConfig from './payment.config';
+import mailConfig from './mail.config';
 
 export const configurations = [
   appConfig,
@@ -17,6 +18,7 @@ export const configurations = [
   storageConfig,
   shippingConfig,
   paymentConfig,
+  mailConfig,
 ];
 
 export {
@@ -28,5 +30,6 @@ export {
   storageConfig,
   shippingConfig,
   paymentConfig,
+  mailConfig,
   validateEnv,
 };
