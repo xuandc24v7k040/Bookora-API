@@ -30,6 +30,8 @@ import { AdminOrdersModule } from '@/modules/admin-orders/admin-orders.module';
 import { ReviewsModule } from '@/modules/reviews/reviews.module';
 import { WishlistsModule } from '@/modules/wishlists/wishlists.module';
 import { AccountDashboardModule } from '@/modules/account-dashboard/account-dashboard.module';
+import { DashboardModule } from '@/modules/dashboard/dashboard.module';
+import { RevenueReportsModule } from '@/modules/revenue-reports/revenue-reports.module';
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { AccountDashboardModule } from '@/modules/account-dashboard/account-dash
     ReviewsModule,
     WishlistsModule,
     AccountDashboardModule,
+    DashboardModule,
+    RevenueReportsModule,
     AuthModule,
   ],
 })

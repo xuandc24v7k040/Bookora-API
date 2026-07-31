@@ -8,8 +8,13 @@ import {
 
 const EXPECTED_STAFF_PERMISSION_CODES = [
   'dashboard.read',
+  'reports.revenue.read',
+  'reports.export',
   'orders.read',
   'orders.create',
+  'orders.update_status',
+  'orders.cancel',
+  'orders.update_note',
   'payments.create',
   'products.read',
   'inventory.read',
@@ -26,9 +31,12 @@ const EXPECTED_STAFF_PERMISSION_CODES = [
 describe('production authorization catalog seed', () => {
   it('defines the exact authoritative STAFF permission set', () => {
     expect(STAFF_PERMISSION_CODES).toEqual(EXPECTED_STAFF_PERMISSION_CODES);
-    expect(STAFF_PERMISSION_CODES).toHaveLength(14);
-    expect(STAFF_PERMISSION_CODES).not.toEqual(
+    expect(STAFF_PERMISSION_CODES).toHaveLength(19);
+    expect(STAFF_PERMISSION_CODES).toEqual(
       expect.arrayContaining([
+        'dashboard.read',
+        'reports.revenue.read',
+        'reports.export',
         'orders.update_status',
         'orders.cancel',
         'orders.update_note',
@@ -44,6 +52,7 @@ describe('production authorization catalog seed', () => {
     expect(
       STAFF_PERMISSION_CODES.some((code) => code.startsWith('staff.')),
     ).toBe(false);
+    expect(STAFF_PERMISSION_CODES).not.toContain('staff.read');
     expect(
       STAFF_PERMISSION_CODES.filter((code) =>
         code.startsWith('stock_receipts.'),
@@ -87,6 +96,14 @@ describe('production authorization catalog seed', () => {
         expect.objectContaining({
           code: 'stock_receipts.confirm',
           name: 'Xác nhận phiếu nhập kho',
+        }),
+        expect.objectContaining({
+          code: 'reports.revenue.read',
+          name: 'Xem báo cáo doanh thu',
+        }),
+        expect.objectContaining({
+          code: 'reports.export',
+          name: 'Xuất báo cáo',
         }),
       ]),
     );

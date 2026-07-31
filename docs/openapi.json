@@ -25418,6 +25418,969 @@
         ],
         "description": "Tổng quan tài khoản bằng dữ liệu Order, Review và Wishlist thật"
       }
+    },
+    "/dashboard/overview": {
+      "get": {
+        "operationId": "dashboardOverview",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "30D",
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "example": "2026-07-30",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy dữ liệu Dashboard thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy dữ liệu Dashboard thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DashboardOverviewDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy dữ liệu Dashboard theo phạm vi được phân quyền",
+        "tags": [
+          "dashboard"
+        ],
+        "description": "Lấy dữ liệu Dashboard theo phạm vi được phân quyền"
+      }
+    },
+    "/reports/revenue/summary": {
+      "get": {
+        "operationId": "revenueReportSummary",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          },
+          {
+            "name": "paymentMethod",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "ALL",
+              "type": "string",
+              "enum": [
+                "ALL",
+                "COD",
+                "VNPAY"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy tổng hợp doanh thu thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy tổng hợp doanh thu thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RevenueSummaryDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Tổng hợp doanh thu",
+        "tags": [
+          "revenue-reports"
+        ],
+        "description": "Tổng hợp doanh thu"
+      }
+    },
+    "/reports/revenue/trend": {
+      "get": {
+        "operationId": "revenueReportTrend",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          },
+          {
+            "name": "paymentMethod",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "ALL",
+              "type": "string",
+              "enum": [
+                "ALL",
+                "COD",
+                "VNPAY"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy xu hướng doanh thu thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy xu hướng doanh thu thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RevenueTrendDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Doanh thu theo thời gian",
+        "tags": [
+          "revenue-reports"
+        ],
+        "description": "Doanh thu theo thời gian"
+      }
+    },
+    "/reports/revenue/branches": {
+      "get": {
+        "operationId": "revenueReportBranches",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          },
+          {
+            "name": "paymentMethod",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "ALL",
+              "type": "string",
+              "enum": [
+                "ALL",
+                "COD",
+                "VNPAY"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy doanh thu theo chi nhánh thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy doanh thu theo chi nhánh thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RevenueBranchesDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Doanh thu theo chi nhánh",
+        "tags": [
+          "revenue-reports"
+        ],
+        "description": "Doanh thu theo chi nhánh"
+      }
+    },
+    "/reports/revenue/table": {
+      "get": {
+        "operationId": "revenueReportTable",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          },
+          {
+            "name": "paymentMethod",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "ALL",
+              "type": "string",
+              "enum": [
+                "ALL",
+                "COD",
+                "VNPAY"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy bảng tổng hợp doanh thu thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy bảng tổng hợp doanh thu thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RevenueTableRowDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Bảng tổng hợp doanh thu phân trang",
+        "tags": [
+          "revenue-reports"
+        ],
+        "description": "Bảng tổng hợp doanh thu phân trang"
+      }
+    },
+    "/reports/revenue/export": {
+      "get": {
+        "operationId": "revenueReportExport",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "preset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7D",
+                "30D",
+                "90D"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "DAY",
+              "type": "string",
+              "enum": [
+                "DAY",
+                "WEEK",
+                "MONTH"
+              ]
+            }
+          },
+          {
+            "name": "paymentMethod",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "ALL",
+              "type": "string",
+              "enum": [
+                "ALL",
+                "COD",
+                "VNPAY"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "asc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tệp CSV UTF-8 BOM theo đúng bộ lọc hiện tại",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Xuất báo cáo doanh thu CSV",
+        "tags": [
+          "revenue-reports"
+        ],
+        "description": "Xuất báo cáo doanh thu CSV"
+      }
     }
   },
   "info": {
@@ -34954,6 +35917,693 @@
           "shippingOrderCount",
           "pendingReviewCount",
           "latestWishlistItems"
+        ]
+      },
+      "AnalyticsBranchDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "isActive"
+        ]
+      },
+      "AnalyticsScopeDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "GLOBAL",
+              "BRANCH"
+            ]
+          },
+          "branch": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnalyticsBranchDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "AnalyticsPeriodDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "7D",
+              "30D",
+              "90D"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "timezone"
+        ]
+      },
+      "DashboardMetricDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "previousValue": {
+            "type": "number"
+          },
+          "changePercent": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "value",
+          "previousValue"
+        ]
+      },
+      "DashboardKpisDto": {
+        "type": "object",
+        "properties": {
+          "completedRevenue": {
+            "$ref": "#/components/schemas/DashboardMetricDto"
+          },
+          "totalOrders": {
+            "$ref": "#/components/schemas/DashboardMetricDto"
+          },
+          "soldQuantity": {
+            "$ref": "#/components/schemas/DashboardMetricDto"
+          },
+          "averageOrderValue": {
+            "$ref": "#/components/schemas/DashboardMetricDto"
+          }
+        },
+        "required": [
+          "completedRevenue",
+          "totalOrders",
+          "soldQuantity",
+          "averageOrderValue"
+        ]
+      },
+      "DashboardTrendPointDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "format": "date"
+          },
+          "revenue": {
+            "type": "number"
+          },
+          "completedOrders": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "revenue",
+          "completedOrders"
+        ]
+      },
+      "DashboardOrderStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_PAYMENT",
+              "PAYMENT_FAILED",
+              "PENDING",
+              "CONFIRMED",
+              "PACKING",
+              "SHIPPING",
+              "COMPLETED",
+              "CANCELLED",
+              "RETURNED"
+            ]
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ]
+      },
+      "DashboardPaymentMethodDto": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "method",
+          "count"
+        ]
+      },
+      "DashboardTopProductDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "variantLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "soldQuantity": {
+            "type": "number"
+          },
+          "revenue": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "productId",
+          "productName",
+          "soldQuantity",
+          "revenue"
+        ]
+      },
+      "DashboardLowStockDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchName": {
+            "type": "string"
+          },
+          "productId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "variantLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "LOW_STOCK",
+              "OUT_OF_STOCK"
+            ]
+          }
+        },
+        "required": [
+          "branchId",
+          "branchName",
+          "productId",
+          "productName",
+          "variantId",
+          "quantity",
+          "lowStockThreshold",
+          "state"
+        ]
+      },
+      "DashboardBranchPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchName": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "revenue": {
+            "type": "number"
+          },
+          "completedOrders": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "branchId",
+          "branchName",
+          "isActive",
+          "revenue",
+          "completedOrders"
+        ]
+      },
+      "DashboardWeeklyPerformanceDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "revenue": {
+            "type": "number"
+          },
+          "completedOrders": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "revenue",
+          "completedOrders"
+        ]
+      },
+      "DashboardTodayOperationsDto": {
+        "type": "object",
+        "properties": {
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pendingOrders": {
+            "type": "number"
+          },
+          "completedToday": {
+            "type": "number"
+          },
+          "cancelledToday": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "snapshotAt",
+          "pendingOrders",
+          "completedToday",
+          "cancelledToday",
+          "completionRate"
+        ]
+      },
+      "DashboardOverviewDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/AnalyticsScopeDto"
+          },
+          "period": {
+            "$ref": "#/components/schemas/AnalyticsPeriodDto"
+          },
+          "comparisonPeriod": {
+            "$ref": "#/components/schemas/AnalyticsPeriodDto"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/DashboardKpisDto"
+          },
+          "revenueTrend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTrendPointDto"
+            }
+          },
+          "orderStatus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardOrderStatusDto"
+            }
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardPaymentMethodDto"
+            }
+          },
+          "topProducts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTopProductDto"
+            }
+          },
+          "lowStock": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardLowStockDto"
+            }
+          },
+          "branchPerformance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardBranchPerformanceDto"
+            }
+          },
+          "weeklyPerformance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardWeeklyPerformanceDto"
+            }
+          },
+          "todayOperations": {
+            "$ref": "#/components/schemas/DashboardTodayOperationsDto"
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "comparisonPeriod",
+          "kpis",
+          "revenueTrend",
+          "orderStatus",
+          "paymentMethods",
+          "topProducts",
+          "lowStock"
+        ]
+      },
+      "RevenueBranchDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchCode": {
+            "type": "string"
+          },
+          "branchName": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "completedOrders": {
+            "type": "number"
+          },
+          "soldQuantity": {
+            "type": "number"
+          },
+          "totalRevenue": {
+            "type": "number"
+          },
+          "averageOrderValue": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "branchId",
+          "branchCode",
+          "branchName",
+          "isActive",
+          "completedOrders",
+          "soldQuantity",
+          "totalRevenue",
+          "averageOrderValue"
+        ]
+      },
+      "RevenueSummaryDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/AnalyticsScopeDto"
+          },
+          "period": {
+            "$ref": "#/components/schemas/AnalyticsPeriodDto"
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": [
+              "DAY",
+              "WEEK",
+              "MONTH"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "completedRevenue": {
+            "type": "number"
+          },
+          "completedOrders": {
+            "type": "number"
+          },
+          "soldQuantity": {
+            "type": "number"
+          },
+          "averageOrderValue": {
+            "type": "number"
+          },
+          "merchandiseRevenue": {
+            "type": "number"
+          },
+          "shippingRevenue": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          },
+          "leadingBranch": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueBranchDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "groupBy",
+          "paymentMethod",
+          "completedRevenue",
+          "completedOrders",
+          "soldQuantity",
+          "averageOrderValue",
+          "merchandiseRevenue",
+          "shippingRevenue",
+          "completionRate"
+        ]
+      },
+      "RevenueTrendBucketDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "completedOrders": {
+            "type": "number"
+          },
+          "soldQuantity": {
+            "type": "number"
+          },
+          "merchandiseRevenue": {
+            "type": "number"
+          },
+          "shippingRevenue": {
+            "type": "number"
+          },
+          "totalRevenue": {
+            "type": "number"
+          },
+          "averageOrderValue": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "from",
+          "to",
+          "completedOrders",
+          "soldQuantity",
+          "merchandiseRevenue",
+          "shippingRevenue",
+          "totalRevenue",
+          "averageOrderValue"
+        ]
+      },
+      "RevenueTrendDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueTrendBucketDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "RevenueBranchesDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueBranchDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "RevenueTableRowDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "completedOrders": {
+            "type": "number"
+          },
+          "soldQuantity": {
+            "type": "number"
+          },
+          "merchandiseRevenue": {
+            "type": "number"
+          },
+          "shippingRevenue": {
+            "type": "number"
+          },
+          "totalRevenue": {
+            "type": "number"
+          },
+          "averageOrderValue": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "from",
+          "to",
+          "completedOrders",
+          "soldQuantity",
+          "merchandiseRevenue",
+          "shippingRevenue",
+          "totalRevenue",
+          "averageOrderValue"
         ]
       },
       "ErrorResponseDto": {

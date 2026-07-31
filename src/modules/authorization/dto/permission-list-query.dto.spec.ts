@@ -23,8 +23,23 @@ describe('PermissionListQueryDto', () => {
     await expect(validate(query)).resolves.toHaveLength(0);
   });
 
+  it.each(['reports.revenue', 'inventory.movements'])(
+    'accepts hierarchical resource %s',
+    async (resource) => {
+      const errors = await validate(
+        plainToInstance(PermissionListQueryDto, { resource }),
+      );
+
+      expect(errors).toHaveLength(0);
+    },
+  );
+
   it.each([
     [{ resource: 'Role Admin' }, 'resource'],
+    [{ resource: '.reports' }, 'resource'],
+    [{ resource: 'reports.' }, 'resource'],
+    [{ resource: 'reports..revenue' }, 'resource'],
+    [{ resource: 'reports-revenue' }, 'resource'],
     [{ action: 'READ' }, 'action'],
     [{ guardName: 'api' }, 'guardName'],
     [{ sortBy: 'usageCount' }, 'sortBy'],

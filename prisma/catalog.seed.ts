@@ -67,6 +67,16 @@ export const permissionCatalog = [
     description: 'Cho phép xem dữ liệu tổng quan vận hành',
   },
   {
+    code: 'reports.revenue.read',
+    name: 'Xem báo cáo doanh thu',
+    description: 'Cho phép xem báo cáo doanh thu theo phạm vi được phân quyền',
+  },
+  {
+    code: 'reports.export',
+    name: 'Xuất báo cáo',
+    description: 'Cho phép xuất CSV báo cáo đã được cấp quyền đọc',
+  },
+  {
     code: 'users.read',
     name: 'Xem người dùng',
     description: 'Cho phép xem danh sách và thông tin người dùng hệ thống',
@@ -441,8 +451,13 @@ export const permissionCodes = permissionCatalog.map(({ code }) => code);
 
 export const STAFF_PERMISSION_CODES = [
   'dashboard.read',
+  'reports.revenue.read',
+  'reports.export',
   'orders.read',
   'orders.create',
+  'orders.update_status',
+  'orders.cancel',
+  'orders.update_note',
   'payments.create',
   'products.read',
   'inventory.read',
@@ -459,6 +474,8 @@ export const STAFF_PERMISSION_CODES = [
 const rolePermissionCodes: Record<string, readonly string[]> = {
   BRANCH_ADMIN: [
     'dashboard.read',
+    'reports.revenue.read',
+    'reports.export',
     'orders.read',
     'orders.update_status',
     'orders.cancel',
@@ -484,7 +501,6 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
   ],
   STAFF: STAFF_PERMISSION_CODES,
   CASHIER: [
-    'dashboard.read',
     'orders.read',
     'orders.create',
     'orders.update_status',
@@ -493,7 +509,6 @@ const rolePermissionCodes: Record<string, readonly string[]> = {
     'payments.create',
   ],
   INVENTORY: [
-    'dashboard.read',
     'products.read',
     'inventory.read',
     'inventory.update_threshold',

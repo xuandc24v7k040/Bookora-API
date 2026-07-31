@@ -81,8 +81,10 @@ for (const item of operations) {
       continue;
     }
 
-    const schema = response.content?.['application/json']?.schema;
-    if (!schema) {
+    const hasSchema = Object.values(response.content ?? {}).some(
+      (mediaType) => mediaType?.schema,
+    );
+    if (!hasSchema) {
       failures.push(`${key} response ${status} thiếu schema`);
     }
   }

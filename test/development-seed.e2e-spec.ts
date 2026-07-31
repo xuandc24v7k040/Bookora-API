@@ -8,6 +8,7 @@ import {
   assertDevelopmentSeedAllowed,
   seedDevelopmentFixtures,
 } from '../prisma/development.seed';
+import { STAFF_PERMISSION_CODES } from '../prisma/catalog.seed';
 import {
   createDisposablePostgresDatabase,
   runMigrations,
@@ -303,6 +304,21 @@ async function expectStaffCanTho(prisma: PrismaClient): Promise<void> {
     branchCode: 'can-tho',
     roleCodes: ['STAFF'],
   });
+
+  const staffRole = await prisma.role.findUniqueOrThrow({
+    where: { code: 'STAFF' },
+    select: {
+      rolePermissions: {
+        select: { permission: { select: { code: true } } },
+      },
+    },
+  });
+  const permissionCodes = staffRole.rolePermissions
+    .map(({ permission }) => permission.code)
+    .sort();
+
+  expect(permissionCodes).toEqual([...STAFF_PERMISSION_CODES].sort());
+  expect(permissionCodes).not.toContain('staff.read');
 }
 
 async function expectCashierHauGiang(prisma: PrismaClient): Promise<void> {

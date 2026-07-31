@@ -8,11 +8,17 @@ describe('authorization seed branch-admin permissions', () => {
   );
   const branchAdminBlock = source.slice(
     source.indexOf('BRANCH_ADMIN: ['),
-    source.indexOf('STAFF: []'),
+    source.indexOf('STAFF: STAFF_PERMISSION_CODES'),
   );
 
   it('grants branch-scoped offboarding but not branch assignment', () => {
     expect(branchAdminBlock).toContain("'staff.delete'");
     expect(branchAdminBlock).not.toContain("'staff.assign_branch'");
+  });
+
+  it('keeps Branch Admin analytics permissions unchanged', () => {
+    expect(branchAdminBlock).toContain("'dashboard.read'");
+    expect(branchAdminBlock).toContain("'reports.revenue.read'");
+    expect(branchAdminBlock).toContain("'reports.export'");
   });
 });

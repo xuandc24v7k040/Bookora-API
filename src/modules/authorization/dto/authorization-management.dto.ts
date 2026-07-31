@@ -304,9 +304,9 @@ export enum PermissionSortField {
 
 @BranchDateRangeIsValid()
 export class PermissionListQueryDto extends CatalogQueryDto {
-  @ApiPropertyOptional({ example: 'roles' })
+  @ApiPropertyOptional({ example: 'reports.revenue' })
   @IsOptional()
-  @Matches(/^[a-z][a-z0-9_]*$/)
+  @Matches(/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$/)
   resource?: string;
 
   @ApiPropertyOptional({ example: 'read' })
