@@ -12,7 +12,8 @@ describe('InternalShippingFeeService', () => {
     [92, 96, 30_000, 'SAME_REGION'],
     [1, 38, 40_000, 'ADJACENT_REGION'],
     [38, 79, 40_000, 'ADJACENT_REGION'],
-    [1, 79, 50_000, 'FAR_REGION'],
+    [1, 92, 50_000, 'FAR_REGION'],
+    [92, 1, 50_000, 'FAR_REGION'],
   ] as const)(
     'calculates %s -> %s',
     (branchProvinceCode, destinationProvinceCode, fee, rule) => {
@@ -55,15 +56,47 @@ describe('InternalShippingFeeService', () => {
   });
 
   it('resolves deterministic normalized province names for legacy branches', () => {
+    for (const name of [
+      'Hà Nội',
+      'Thành phố Hà Nội',
+      'TP Hà Nội',
+      'TP. Hà Nội',
+      'T.P. Hà Nội',
+      '  t.P.   HÀ NỘI  ',
+      'THANH PHO HA NOI',
+    ]) {
+      expect(service.resolveProvinceCode(name)).toBe(1);
+    }
     expect(service.resolveProvinceCode('Thành phố Cần Thơ')).toBe(92);
     expect(service.resolveProvinceCode('  TỈNH   QUẢNG NINH ')).toBe(22);
   });
+
+  it('keeps the intentional legacy Hậu Giang alias on current catalogue code 92', () => {
+    expect(service.resolveProvinceCode('Hậu Giang')).toBe(92);
+    expect(service.resolveProvinceCode('Tỉnh Hậu Giang')).toBe(92);
+    expect(service.resolveProvinceCode('Cần Thơ')).toBe(92);
+  });
+
+  it.each([null, undefined, '', '   ', 'Tỉnh không tồn tại'])(
+    'fails closed for an unresolved province name %p',
+    (name) => {
+      expect(() => service.resolveProvinceCode(name)).toThrow(
+        UnprocessableEntityException,
+      );
+    },
+  );
 
   it('rejects unknown province codes with a friendly domain error', () => {
     expect(() =>
       service.calculate({
         branchProvinceCode: 999,
         destinationProvinceCode: 92,
+      }),
+    ).toThrow(UnprocessableEntityException);
+    expect(() =>
+      service.calculate({
+        branchProvinceCode: 1,
+        destinationProvinceCode: 999,
       }),
     ).toThrow(UnprocessableEntityException);
   });

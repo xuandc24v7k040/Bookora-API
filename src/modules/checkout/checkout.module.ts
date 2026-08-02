@@ -8,6 +8,7 @@ import { CartModule } from '@/modules/cart/cart.module';
 import { CheckoutController } from './checkout.controller';
 import { CheckoutRepository } from './checkout.repository';
 import { CheckoutService } from './checkout.service';
+import { CheckoutLocationProofService } from './checkout-location-proof.service';
 
 @Module({
   imports: [
@@ -18,7 +19,12 @@ import { CheckoutService } from './checkout.service';
     VnpayModule,
   ],
   controllers: [CheckoutController],
-  providers: [CheckoutRepository, InternalShippingFeeService, CheckoutService],
+  providers: [
+    CheckoutRepository,
+    InternalShippingFeeService,
+    CheckoutLocationProofService,
+    CheckoutService,
+  ],
   exports: [CheckoutService],
 })
 export class CheckoutModule {}

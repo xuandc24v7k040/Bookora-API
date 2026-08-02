@@ -12,6 +12,9 @@ function validConfig(): Record<string, unknown> {
     PASSWORD_RESET_TOKEN_HASH_SECRET:
       'test-password-reset-secret-at-least-32-characters',
     PASSWORD_RESET_TTL_MINUTES: '15',
+    CHECKOUT_LOCATION_PROOF_SECRET:
+      'test-checkout-location-proof-secret-at-least-32-characters',
+    CHECKOUT_LOCATION_PROOF_TTL_SECONDS: '600',
     NODE_ENV: 'development',
     API_PREFIX: 'api',
     STORAGE_PROVIDER: 'r2',
@@ -87,6 +90,37 @@ describe('password recovery environment validation', () => {
       }),
     ).toThrow(
       'PASSWORD_RESET_TOKEN_HASH_SECRET must contain at least 32 characters',
+    );
+  });
+});
+
+describe('checkout location proof environment validation', () => {
+  it('accepts a positive integer TTL', () => {
+    expect(
+      validateEnv({
+        ...validConfig(),
+        CHECKOUT_LOCATION_PROOF_TTL_SECONDS: '60',
+      }),
+    ).toBeDefined();
+  });
+
+  it.each(['0', '-1', '1.5'])('rejects an invalid TTL of %s', (value) => {
+    expect(() =>
+      validateEnv({
+        ...validConfig(),
+        CHECKOUT_LOCATION_PROOF_TTL_SECONDS: value,
+      }),
+    ).toThrow('CHECKOUT_LOCATION_PROOF_TTL_SECONDS must be a positive integer');
+  });
+
+  it('rejects a short signing secret', () => {
+    expect(() =>
+      validateEnv({
+        ...validConfig(),
+        CHECKOUT_LOCATION_PROOF_SECRET: 'too-short',
+      }),
+    ).toThrow(
+      'CHECKOUT_LOCATION_PROOF_SECRET must contain at least 32 characters',
     );
   });
 });

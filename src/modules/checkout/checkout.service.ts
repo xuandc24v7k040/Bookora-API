@@ -41,6 +41,7 @@ import {
   CheckoutRepository,
   type CheckoutCartRecord,
 } from './checkout.repository';
+import { CheckoutLocationProofService } from './checkout-location-proof.service';
 import type {
   CheckoutPreviewResponseDto,
   CurrentLocationAddressDto,
@@ -155,6 +156,7 @@ export class CheckoutService {
     private readonly prices: StorefrontPriceService,
     private readonly validation: CartValidationService,
     private readonly internalShippingFee: InternalShippingFeeService,
+    private readonly locationProof: CheckoutLocationProofService,
     private readonly vietmap: VietMapService,
     private readonly vnpay: VnpayService,
     private readonly config: ConfigService,
@@ -590,9 +592,24 @@ export class CheckoutService {
       };
     }
 
+    const proof = this.locationProof.verify(address.locationProof);
+    if (
+      address.provinceCode !== proof.provinceCode ||
+      this.internalShippingFee.normalizeProvinceName(address.provinceName) !==
+        proof.provinceName ||
+      this.normalizeAdministrativeName(address.wardName) !== proof.wardName ||
+      address.latitude !== proof.latitude ||
+      address.longitude !== proof.longitude
+    ) {
+      throw new UnprocessableEntityException({
+        code: 'CHECKOUT_LOCATION_PROOF_MISMATCH',
+        message:
+          'Thông tin vị trí không khớp xác nhận. Vui lòng lấy lại vị trí hiện tại.',
+      });
+    }
     this.internalShippingFee.calculate({
-      branchProvinceCode: address.provinceCode,
-      destinationProvinceCode: address.provinceCode,
+      branchProvinceCode: proof.provinceCode,
+      destinationProvinceCode: proof.provinceCode,
     });
     return {
       source: DeliveryAddressSource.CURRENT_LOCATION,
@@ -605,7 +622,7 @@ export class CheckoutService {
         address.provinceName,
       ].join(', '),
       addressLine: address.addressLine,
-      provinceCode: address.provinceCode,
+      provinceCode: proof.provinceCode,
       provinceName: address.provinceName,
       districtName: '',
       wardName: address.wardName,
@@ -966,16 +983,36 @@ export class CheckoutService {
     const provinceCode = this.internalShippingFee.resolveProvinceCode(
       location.province,
     );
+    const wardName = location.ward!;
     return {
       latitude: location.latitude,
       longitude: location.longitude,
       province: location.province,
       provinceCode,
-      ward: location.ward,
+      ward: wardName,
       address: location.address,
       displayAddress: location.displayAddress,
       placeId: null,
+      locationProof: this.locationProof.issue({
+        provinceCode,
+        provinceName: this.internalShippingFee.normalizeProvinceName(
+          location.province!,
+        ),
+        wardName: this.normalizeAdministrativeName(wardName),
+        latitude: location.latitude,
+        longitude: location.longitude,
+      }),
     };
+  }
+
+  private normalizeAdministrativeName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/đ/gi, 'd')
+      .toLocaleLowerCase('vi-VN')
+      .trim()
+      .replace(/\s+/g, ' ');
   }
 
   private ensureCurrentHierarchy(location: VietMapLocationResponseDto): void {

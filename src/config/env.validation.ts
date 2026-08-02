@@ -107,6 +107,30 @@ export function validateEnv(
     );
   }
 
+  const checkoutLocationProofSecret = readEnvValue(
+    config,
+    'CHECKOUT_LOCATION_PROOF_SECRET',
+  );
+  if (!checkoutLocationProofSecret || checkoutLocationProofSecret.length < 32) {
+    errors.push(
+      'CHECKOUT_LOCATION_PROOF_SECRET must contain at least 32 characters',
+    );
+  }
+
+  const checkoutLocationProofTtlSeconds = readEnvValue(
+    config,
+    'CHECKOUT_LOCATION_PROOF_TTL_SECONDS',
+  );
+  if (
+    checkoutLocationProofTtlSeconds !== undefined &&
+    (!/^\d+$/.test(checkoutLocationProofTtlSeconds) ||
+      Number(checkoutLocationProofTtlSeconds) <= 0)
+  ) {
+    errors.push(
+      'CHECKOUT_LOCATION_PROOF_TTL_SECONDS must be a positive integer',
+    );
+  }
+
   const expectedHostnames = readEnvValue(
     config,
     'TURNSTILE_EXPECTED_HOSTNAMES',

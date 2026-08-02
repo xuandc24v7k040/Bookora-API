@@ -154,7 +154,7 @@ export class InternalShippingFeeService {
     };
   }
 
-  private normalizeProvinceName(value: string): string {
+  normalizeProvinceName(value: string): string {
     return value
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
@@ -162,6 +162,6 @@ export class InternalShippingFeeService {
       .toLocaleLowerCase('vi-VN')
       .trim()
       .replace(/\s+/g, ' ')
-      .replace(/^(?:thanh pho|tinh)\s+/, '');
+      .replace(/^(?:(?:t\s*\.\s*p\s*\.?|tp\s*\.?)|thanh pho|tinh)\s+/, '');
   }
 }

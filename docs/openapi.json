@@ -2191,7 +2191,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "example": "roles",
+              "example": "reports.revenue",
               "type": "string"
             }
           },
@@ -33744,6 +33744,11 @@
           "locationPlaceId": {
             "type": "string",
             "maxLength": 2048
+          },
+          "locationProof": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 4096
           }
         },
         "required": [
@@ -33755,7 +33760,8 @@
           "provinceCode",
           "wardName",
           "latitude",
-          "longitude"
+          "longitude",
+          "locationProof"
         ]
       },
       "PreviewCheckoutDto": {
@@ -33898,6 +33904,9 @@
           "placeId": {
             "type": "string",
             "nullable": true
+          },
+          "locationProof": {
+            "type": "string"
           }
         },
         "required": [
@@ -33908,7 +33917,8 @@
           "ward",
           "address",
           "displayAddress",
-          "placeId"
+          "placeId",
+          "locationProof"
         ]
       },
       "PlaceOrderResponseDto": {

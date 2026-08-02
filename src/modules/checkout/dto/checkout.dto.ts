@@ -113,6 +113,12 @@ export class CurrentLocationAddressDto {
   @IsString()
   @MaxLength(2048)
   locationPlaceId?: string;
+
+  @ApiProperty({ minLength: 20, maxLength: 4096 })
+  @IsString()
+  @MinLength(20)
+  @MaxLength(4096)
+  locationProof!: string;
 }
 
 export class CurrentLocationResolveDto {
@@ -334,6 +340,7 @@ export class CurrentLocationReverseResponseDto {
   @ApiProperty() address!: string;
   @ApiProperty() displayAddress!: string;
   @ApiProperty({ nullable: true, type: String }) placeId!: string | null;
+  @ApiProperty() locationProof!: string;
 }
 
 export class PlaceOrderResponseDto {
