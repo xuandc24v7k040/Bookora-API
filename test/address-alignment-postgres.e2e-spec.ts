@@ -45,7 +45,7 @@ describe('two-level address PostgreSQL migration (e2e)', () => {
           );
 
         INSERT INTO "user_addresses"
-          ("id", "user_id", "receiver_name", "receiver_phone", "province", "district", "ward", "detail", "ghn_district_id", "latitude", "longitude", "updated_at")
+          ("id", "user_id", "receiver_name", "receiver_phone", "province", "district", "ward", "detail", "latitude", "longitude", "updated_at")
         VALUES (
           '01K20000000000000000000004',
           '01K20000000000000000000001',
@@ -55,7 +55,6 @@ describe('two-level address PostgreSQL migration (e2e)', () => {
           'Ninh Kiều',
           'Xuân Khánh',
           'Số 3 đường Trung Tâm',
-          1442,
           10.0452000,
           105.7469000,
           CURRENT_TIMESTAMP
@@ -115,7 +114,7 @@ describe('two-level address PostgreSQL migration (e2e)', () => {
               (table_name = 'branches' AND column_name = 'district')
               OR (
                 table_name = 'user_addresses'
-                AND column_name IN ('district', 'ghn_district_id')
+                AND column_name = 'district'
               )
             )
         `,

@@ -1209,7 +1209,7 @@ export class ProductsRepository {
         isbn: dto.isbn ?? null,
         publicationYear: dto.publicationYear ?? null,
         pageCount: dto.pageCount ?? null,
-        weightGram: dto.weightGram ?? null,
+        weightGram: dto.weightGram,
         packageSize: dto.packageSize ?? null,
         originalPrice: price.originalPrice,
         salePrice: price.salePrice,

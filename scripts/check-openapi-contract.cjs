@@ -277,15 +277,15 @@ for (const name of ['createdFrom', 'createdTo']) {
   }
 }
 
-const ghnLegacyHierarchySchemas = new Set([
-  'CurrentLocationAddressDto',
-  'CurrentLocationResolveDto',
-  'CurrentLocationSuggestionDto',
-  'VietMapLocationResponseDto',
-]);
-
 for (const [schemaName, schema] of Object.entries(schemas)) {
-  if (!ghnLegacyHierarchySchemas.has(schemaName)) {
+  if (
+    ![
+      'CurrentLocationAddressDto',
+      'CurrentLocationResolveDto',
+      'CurrentLocationSuggestionDto',
+      'VietMapLocationResponseDto',
+    ].includes(schemaName)
+  ) {
     assertNoObsoleteAddressProperties(schemaName, schema);
   }
 }

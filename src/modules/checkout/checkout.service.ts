@@ -42,6 +42,11 @@ import {
   type CheckoutCartRecord,
 } from './checkout.repository';
 import { CheckoutLocationProofService } from './checkout-location-proof.service';
+import {
+  calculateTotalProductWeightGram,
+  INVALID_PRODUCT_WEIGHT_MESSAGE,
+  ProductWeightCalculationError,
+} from './product-weight.util';
 import type {
   CheckoutPreviewResponseDto,
   CurrentLocationAddressDto,
@@ -62,6 +67,7 @@ interface ResolvedCheckoutItem {
   variantOptions: Array<{ name: string; value: string }>;
   imageUrl: string | null;
   sku: string | null;
+  weightGram: number;
   quantity: number;
   availableQuantity: number;
   unitPrice: number;
@@ -81,12 +87,7 @@ interface ResolvedCheckoutAddress {
   addressLine: string;
   provinceCode: number;
   provinceName: string;
-  districtName: string;
   wardName: string;
-  ghnProvinceId: number | null;
-  ghnDistrictId: number | null;
-  ghnWardCode: string | null;
-  ghnMappingVerifiedAt: Date | null;
   latitude: number | null;
   longitude: number | null;
   locationAccuracyMeters: number | null;
@@ -95,10 +96,6 @@ interface ResolvedCheckoutAddress {
 }
 
 interface InternalCheckoutShippingQuote {
-  provider: 'GHN';
-  serviceId: 0;
-  serviceTypeId: 0;
-  serviceName: 'GHN Tiêu chuẩn';
   shippingFee: number;
   serviceFee: number;
   insuranceFee: 0;
@@ -121,6 +118,7 @@ interface CheckoutState {
   note: string | null;
   subtotalAmount: number;
   discountAmount: number;
+  totalProductWeightGram: number;
   totalAmount: number;
   previewReference: string;
   blockingIssues: string[];
@@ -465,6 +463,7 @@ export class CheckoutService {
           item.variant.product.media[0]?.url ??
           null,
         sku: item.variant.sku,
+        weightGram: item.variant.weightGram,
         quantity: item.quantity,
         availableQuantity,
         unitPrice: price.current,
@@ -503,6 +502,16 @@ export class CheckoutService {
       (sum, item) => sum + item.discountAmount,
       0,
     );
+    let totalProductWeightGram: number;
+    try {
+      totalProductWeightGram = calculateTotalProductWeightGram(eligibleItems);
+    } catch (error) {
+      if (!(error instanceof ProductWeightCalculationError)) throw error;
+      throw new UnprocessableEntityException({
+        code: 'CHECKOUT_PRODUCT_WEIGHT_INVALID',
+        message: INVALID_PRODUCT_WEIGHT_MESSAGE,
+      });
+    }
     const paymentMethod = dto.paymentMethod ?? null;
     const address = dto.address
       ? await this.resolveAddress(userId, dto.address)
@@ -530,6 +539,7 @@ export class CheckoutService {
       paymentMethod,
       shippingFee: quote?.shippingFee ?? null,
       shippingQuoteReference: quote?.requestFingerprint ?? null,
+      totalProductWeightGram,
     });
     return {
       cart,
@@ -541,6 +551,7 @@ export class CheckoutService {
       note,
       subtotalAmount,
       discountAmount,
+      totalProductWeightGram,
       totalAmount,
       previewReference,
       blockingIssues,
@@ -578,12 +589,7 @@ export class CheckoutService {
         addressLine: saved.detail,
         provinceCode: saved.provinceCode,
         provinceName: saved.province,
-        districtName: '',
         wardName: saved.ward,
-        ghnProvinceId: saved.ghnProvinceId,
-        ghnDistrictId: saved.ghnDistrictId,
-        ghnWardCode: saved.ghnWardCode,
-        ghnMappingVerifiedAt: saved.ghnMappingVerifiedAt,
         latitude: saved.latitude === null ? null : Number(saved.latitude),
         longitude: saved.longitude === null ? null : Number(saved.longitude),
         locationAccuracyMeters: null,
@@ -624,12 +630,7 @@ export class CheckoutService {
       addressLine: address.addressLine,
       provinceCode: proof.provinceCode,
       provinceName: address.provinceName,
-      districtName: '',
       wardName: address.wardName,
-      ghnProvinceId: null,
-      ghnDistrictId: null,
-      ghnWardCode: null,
-      ghnMappingVerifiedAt: null,
       latitude: address.latitude,
       longitude: address.longitude,
       locationAccuracyMeters: address.locationAccuracyMeters ?? null,
@@ -649,10 +650,6 @@ export class CheckoutService {
     const shippingFee = result.fee.toNumber();
     const quotedAt = new Date();
     return {
-      provider: 'GHN',
-      serviceId: 0,
-      serviceTypeId: 0,
-      serviceName: 'GHN Tiêu chuẩn',
       shippingFee,
       serviceFee: shippingFee,
       insuranceFee: 0,
@@ -786,12 +783,7 @@ export class CheckoutService {
       shippingAddress: address.formattedAddress,
       shippingAddressLine: address.addressLine,
       shippingProvinceName: address.provinceName,
-      shippingDistrictName: address.districtName,
       shippingWardName: address.wardName,
-      shippingGhnProvinceId: address.ghnProvinceId ?? 0,
-      shippingGhnDistrictId: address.ghnDistrictId ?? 0,
-      shippingGhnWardCode: address.ghnWardCode ?? '',
-      shippingGhnMappingVerifiedAt: address.ghnMappingVerifiedAt,
       shippingLatitude: address.latitude,
       shippingLongitude: address.longitude,
       shippingLocationAccuracyMeters: address.locationAccuracyMeters,
@@ -799,10 +791,6 @@ export class CheckoutService {
       shippingLocationPlaceId: address.locationPlaceId,
       branchNameSnapshot: state.cart.branch.name,
       branchAddressSnapshot: state.cart.branch.address,
-      shippingProviderSnapshot: quote.provider,
-      shippingServiceId: quote.serviceId,
-      shippingServiceTypeId: quote.serviceTypeId,
-      shippingServiceName: quote.serviceName,
       shippingFeeBreakdownSnapshot: quote.breakdown,
       shippingQuoteReference: quote.requestFingerprint,
       note: state.note,
@@ -930,14 +918,9 @@ export class CheckoutService {
         formattedAddress: state.address?.formattedAddress ?? null,
         latitude: state.address?.latitude ?? null,
         longitude: state.address?.longitude ?? null,
-        isGhnMapped: Boolean(state.address),
       },
       shippingQuote: state.quote
         ? {
-            provider: state.quote.provider,
-            serviceId: state.quote.serviceId,
-            serviceTypeId: state.quote.serviceTypeId,
-            serviceName: state.quote.serviceName,
             shippingFee: state.quote.shippingFee,
             serviceFee: state.quote.serviceFee,
             insuranceFee: state.quote.insuranceFee,
@@ -952,10 +935,10 @@ export class CheckoutService {
       paymentMethod: state.paymentMethod,
       subtotalAmount: state.subtotalAmount,
       discountAmount: state.discountAmount,
+      totalProductWeightGram: state.totalProductWeightGram,
       shippingFee: state.quote?.shippingFee ?? null,
       shippingFeeRule: state.quote?.rule ?? null,
       shippingMethodCode: 'STANDARD',
-      shippingProviderCode: 'GHN',
       totalAmount: state.totalAmount,
       note: state.note,
       canPlaceOrder:

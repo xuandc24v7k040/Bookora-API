@@ -224,19 +224,14 @@ describe('schema refactor target invariants (e2e)', () => {
         subtotal_amount, discount_amount, shipping_fee, total_amount,
         delivery_address_source, receiver_name, receiver_phone,
         shipping_address, shipping_address_line, shipping_province_name,
-        shipping_district_name, shipping_ward_name, shipping_ghn_province_id,
-        shipping_ghn_district_id, shipping_ghn_ward_code,
-        branch_name_snapshot, branch_address_snapshot,
-        shipping_provider_snapshot, shipping_service_id,
-        shipping_service_type_id, shipping_service_name,
+        shipping_ward_name, branch_name_snapshot, branch_address_snapshot,
         shipping_fee_breakdown_snapshot, shipping_quote_reference,
         created_at, updated_at
       ) VALUES (
         'order-one', 'ORDER-ONE', 'user-one', 'branch-one',
         'schema-refactor-order-one', 'PENDING', 100, 0, 0, 100,
         'CURRENT_LOCATION', 'Receiver', '0123456789', 'Address',
-        'Address line', 'Province', 'District', 'Ward', 0, 0, '',
-        'Branch One', 'Address', 'TEST', 0, 0, 'Test service',
+        'Address line', 'Province', 'Ward', 'Branch One', 'Address',
         '{}'::jsonb, 'schema-refactor-quote', NOW(), NOW()
       )
     `);

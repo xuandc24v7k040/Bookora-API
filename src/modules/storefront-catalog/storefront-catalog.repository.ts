@@ -125,6 +125,7 @@ export const publicProductSelect = {
       saleEndAt: true,
       isDefault: true,
       isbn: true,
+      barcode: true,
       publicationYear: true,
       pageCount: true,
       weightGram: true,

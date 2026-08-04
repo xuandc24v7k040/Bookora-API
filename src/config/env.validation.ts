@@ -150,7 +150,6 @@ export function validateEnv(
   }
 
   for (const key of [
-    'GHN_BASE_URL',
     'VNPAY_PAYMENT_URL',
     'VNPAY_QUERY_URL',
     'VNPAY_RETURN_URL',
@@ -215,22 +214,6 @@ export function validateEnv(
     }
   }
 
-  if (Number(readEnvValue(config, 'GHN_SHOP_ID')) <= 0) {
-    errors.push('GHN_SHOP_ID must be a positive integer');
-  }
-  if (Number(readEnvValue(config, 'GHN_TIMEOUT_MS')) <= 0) {
-    errors.push('GHN_TIMEOUT_MS must be greater than 0');
-  }
-  for (const key of [
-    'GHN_DEFAULT_ITEM_WEIGHT_GRAMS',
-    'GHN_DEFAULT_PACKAGE_LENGTH_CM',
-    'GHN_DEFAULT_PACKAGE_WIDTH_CM',
-    'GHN_DEFAULT_PACKAGE_HEIGHT_CM',
-  ]) {
-    if (Number(readEnvValue(config, key)) <= 0) {
-      errors.push(`${key} must be greater than 0`);
-    }
-  }
   if (Number(readEnvValue(config, 'VNPAY_PAYMENT_EXPIRE_MINUTES')) <= 0) {
     errors.push('VNPAY_PAYMENT_EXPIRE_MINUTES must be greater than 0');
   }

@@ -271,8 +271,6 @@ export class AdminOrderDetailDto {
   @ApiProperty() receiverName!: string;
   @ApiProperty() receiverPhone!: string;
   @ApiProperty() shippingAddress!: string;
-  @ApiProperty() shippingServiceName!: string;
-  @ApiProperty() shippingProvider!: string;
   @ApiPropertyOptional({ type: String, nullable: true })
   estimatedDeliveryAt!: string | null;
   @ApiProperty() subtotalAmount!: number;

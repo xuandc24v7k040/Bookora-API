@@ -86,7 +86,7 @@ export class CheckoutController {
   @ApiSecurity('csrf')
   @ApiOperation({
     operationId: 'checkoutResolveCurrentLocation',
-    summary: 'Resolve vị trí Checkout qua Vietmap hybrid và GHN',
+    summary: 'Resolve vị trí Checkout qua VietMap và danh mục hành chính',
   })
   @ApiBaseResponse(CurrentLocationSuggestionDto, {
     description: 'Địa chỉ gợi ý từ vị trí hiện tại.',

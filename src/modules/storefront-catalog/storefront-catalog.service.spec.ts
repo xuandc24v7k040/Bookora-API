@@ -66,6 +66,7 @@ function product(
         saleEndAt: null,
         isDefault: true,
         isbn: null,
+        barcode: '8930000000012',
         publicationYear: 2026,
         pageCount: 200,
         weightGram: 300,
@@ -184,6 +185,7 @@ describe('StorefrontCatalogService', () => {
 
     expect(detail.generalMedia).toHaveLength(1);
     expect(detail.variants[0]?.media).toEqual([]);
+    expect(detail.variants[0]?.barcode).toBe('8930000000012');
     expect(detail.relatedProducts[0]?.slug).toBe('lien-quan');
     expect(detail.primaryCategory).toEqual({
       id,

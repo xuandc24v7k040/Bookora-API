@@ -285,15 +285,16 @@ export class PublicVariantDto {
   @ApiProperty() isDefault!: boolean;
   @ApiProperty({ type: PublicPriceDto }) price!: PublicPriceDto;
   @ApiPropertyOptional({ type: String, nullable: true }) isbn!: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) barcode!:
+    | string
+    | null;
   @ApiPropertyOptional({ type: Number, nullable: true }) publicationYear!:
     | number
     | null;
   @ApiPropertyOptional({ type: Number, nullable: true }) pageCount!:
     | number
     | null;
-  @ApiPropertyOptional({ type: Number, nullable: true }) weightGram!:
-    | number
-    | null;
+  @ApiProperty({ type: Number, minimum: 1 }) weightGram!: number;
   @ApiPropertyOptional({ type: String, nullable: true }) packageSize!:
     | string
     | null;

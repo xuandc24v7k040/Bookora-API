@@ -215,7 +215,6 @@ export class CustomerOrdersService {
       shippingAddress: order.shippingAddress,
       branchName: order.branchNameSnapshot,
       branchId: order.branchId,
-      shippingServiceName: order.shippingServiceName,
       note: order.note,
       placedAt: order.placedAt.toISOString(),
       cancelledAt: order.cancelledAt?.toISOString() ?? null,

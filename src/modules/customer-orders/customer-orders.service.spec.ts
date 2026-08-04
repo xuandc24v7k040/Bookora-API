@@ -29,7 +29,6 @@ function order(overrides: Record<string, unknown> = {}) {
     receiverName: 'Nguyễn An',
     receiverPhone: '0900000000',
     shippingAddress: 'Hà Nội',
-    shippingServiceName: 'Giao hàng tiêu chuẩn',
     note: null,
     placedAt: new Date('2026-07-24T02:00:00.000Z'),
     createdAt: new Date('2026-07-24T02:00:00.000Z'),

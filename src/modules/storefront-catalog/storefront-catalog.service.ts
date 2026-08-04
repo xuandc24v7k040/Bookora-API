@@ -199,6 +199,7 @@ export class StorefrontCatalogService {
         isDefault: variant.isDefault,
         price: this.prices.resolve(variant, now),
         isbn: variant.isbn,
+        barcode: variant.barcode,
         publicationYear: variant.publicationYear,
         pageCount: variant.pageCount,
         weightGram: variant.weightGram,

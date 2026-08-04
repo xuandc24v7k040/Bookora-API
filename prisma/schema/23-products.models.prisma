@@ -155,7 +155,7 @@ model ProductVariant {
   isbn            String?
   publicationYear Int?      @map("publication_year")
   pageCount       Int?      @map("page_count")
-  weightGram      Int?      @map("weight_gram")
+  weightGram      Int       @map("weight_gram")
   packageSize     String?   @map("package_size")
   originalPrice   Decimal   @map("original_price") @db.Decimal(15, 2)
   salePrice       Decimal?  @map("sale_price") @db.Decimal(15, 2)

@@ -87,10 +87,6 @@ export class CustomerAddressesService {
         ? {
             latitude: null,
             longitude: null,
-            ghnProvinceId: null,
-            ghnDistrictId: null,
-            ghnWardCode: null,
-            ghnMappingVerifiedAt: null,
           }
         : {}),
       ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),

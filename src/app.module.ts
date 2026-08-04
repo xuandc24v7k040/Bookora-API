@@ -24,7 +24,6 @@ import { StorefrontCatalogModule } from '@/modules/storefront-catalog/storefront
 import { CartModule } from '@/modules/cart/cart.module';
 import { CheckoutModule } from '@/modules/checkout/checkout.module';
 import { PaymentsModule } from '@/modules/payments/payments.module';
-import { ShippingModule } from '@/modules/shipping/shipping.module';
 import { CustomerOrdersModule } from '@/modules/customer-orders/customer-orders.module';
 import { AdminOrdersModule } from '@/modules/admin-orders/admin-orders.module';
 import { ReviewsModule } from '@/modules/reviews/reviews.module';
@@ -66,7 +65,6 @@ import { RevenueReportsModule } from '@/modules/revenue-reports/revenue-reports.
     StorefrontBranchesModule,
     StorefrontCatalogModule,
     CartModule,
-    ShippingModule,
     CheckoutModule,
     PaymentsModule,
     CustomerOrdersModule,

@@ -68,7 +68,7 @@ describe('CustomerAddressesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('clears verified GHN metadata when address fields change', async () => {
+  it('clears stale coordinates when address fields change', async () => {
     const current = {
       id: '01K0000000000000000000000B',
       provinceCode: 92,
@@ -76,10 +76,6 @@ describe('CustomerAddressesService', () => {
       wardCode: 31135,
       ward: 'Phường Ninh Kiều',
       detail: 'Hẻm tổ 7',
-      ghnProvinceId: 220,
-      ghnDistrictId: 1572,
-      ghnWardCode: '550307',
-      ghnMappingVerifiedAt: new Date(),
     };
     repository.findOwned.mockResolvedValue(current);
     repository.updateOwned.mockImplementation(
@@ -111,10 +107,6 @@ describe('CustomerAddressesService', () => {
       expect.objectContaining({
         latitude: null,
         longitude: null,
-        ghnProvinceId: null,
-        ghnDistrictId: null,
-        ghnWardCode: null,
-        ghnMappingVerifiedAt: null,
       }),
     );
 
@@ -129,10 +121,6 @@ describe('CustomerAddressesService', () => {
       expect.objectContaining({
         latitude: null,
         longitude: null,
-        ghnProvinceId: null,
-        ghnDistrictId: null,
-        ghnWardCode: null,
-        ghnMappingVerifiedAt: null,
       }),
     );
   });

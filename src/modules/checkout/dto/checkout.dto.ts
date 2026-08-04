@@ -256,14 +256,9 @@ export class CheckoutAddressResponseDto {
   formattedAddress!: string | null;
   @ApiProperty({ nullable: true, type: Number }) latitude!: number | null;
   @ApiProperty({ nullable: true, type: Number }) longitude!: number | null;
-  @ApiProperty() isGhnMapped!: boolean;
 }
 
 export class ShippingQuoteResponseDto {
-  @ApiProperty() provider!: string;
-  @ApiProperty() serviceId!: number;
-  @ApiProperty() serviceTypeId!: number;
-  @ApiProperty() serviceName!: string;
   @ApiProperty() shippingFee!: number;
   @ApiProperty() serviceFee!: number;
   @ApiProperty() insuranceFee!: number;
@@ -297,6 +292,7 @@ export class CheckoutPreviewResponseDto {
   paymentMethod!: PaymentMethod | null;
   @ApiProperty() subtotalAmount!: number;
   @ApiProperty() discountAmount!: number;
+  @ApiProperty({ minimum: 1 }) totalProductWeightGram!: number;
   @ApiProperty({ nullable: true, type: Number }) shippingFee!: number | null;
   @ApiProperty({
     enum: ['SAME_PROVINCE', 'SAME_REGION', 'ADJACENT_REGION', 'FAR_REGION'],
@@ -310,8 +306,6 @@ export class CheckoutPreviewResponseDto {
     | null;
   @ApiProperty({ enum: ['STANDARD'] })
   shippingMethodCode!: 'STANDARD';
-  @ApiProperty({ enum: ['GHN'] })
-  shippingProviderCode!: 'GHN';
   @ApiProperty() totalAmount!: number;
   @ApiProperty({ nullable: true, type: String }) note!: string | null;
   @ApiProperty() canPlaceOrder!: boolean;

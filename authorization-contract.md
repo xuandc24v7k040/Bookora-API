@@ -622,7 +622,7 @@ Không backfill, drop, rename hoặc reset dữ liệu. Existing rows nhận `NU
 Migration `20260714170000_two_level_addresses` bảo toàn district legacy vào
 `branches.address` hoặc `user_addresses.detail` nếu chuỗi chưa chứa giá trị
 đó, sau đó xóa `branches.district`, `user_addresses.district` và
-`user_addresses.ghn_district_id`. Các cột province, ward, latitude và
+legacy shipping district identifier của `user_addresses`. Các cột province, ward, latitude và
 longitude được giữ nguyên; không backfill tọa độ giả.
 
 Development seed authoritative có 7 branch-role mappings. Mapping thứ bảy là

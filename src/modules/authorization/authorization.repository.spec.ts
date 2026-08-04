@@ -1091,7 +1091,7 @@ describe('AuthorizationRepository management transactions', () => {
     [{ ward: 'Phường Vị Tân' }],
     [{ latitude: 9.75, longitude: 105.45 }],
   ])(
-    'invalidates Branch GHN metadata when a shipping source changes',
+    'passes branch shipping source changes through unchanged',
     async (change) => {
       tx.branch.findFirst.mockResolvedValue({
         id: 'branch-id',
@@ -1111,19 +1111,13 @@ describe('AuthorizationRepository management transactions', () => {
 
       expect(tx.branch.update).toHaveBeenCalledWith({
         where: { id: 'branch-id' },
-        data: {
-          ...change,
-          ghnProvinceId: null,
-          ghnDistrictId: null,
-          ghnWardCode: null,
-          ghnMappingVerifiedAt: null,
-        },
+        data: change,
         select: expect.any(Object),
       });
     },
   );
 
-  it('keeps Branch GHN metadata for unrelated or unchanged edits', async () => {
+  it('passes unrelated or unchanged branch edits through unchanged', async () => {
     tx.branch.findFirst.mockResolvedValue({
       id: 'branch-id',
       isActive: true,

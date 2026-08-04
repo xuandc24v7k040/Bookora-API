@@ -72,8 +72,6 @@ function orderFixture(status: OrderStatus = OrderStatus.PACKING) {
     receiverName: 'Nguyễn An',
     receiverPhone: '0900000000',
     shippingAddress: 'Ninh Kiều, Cần Thơ',
-    shippingServiceName: 'Giao hàng tiêu chuẩn',
-    shippingProviderSnapshot: null,
     estimatedDeliveryAt: null,
     note: null,
     internalNote: null,

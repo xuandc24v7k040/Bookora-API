@@ -248,8 +248,6 @@ export class AdminOrdersService {
       receiverName: order.receiverName,
       receiverPhone: order.receiverPhone,
       shippingAddress: order.shippingAddress,
-      shippingServiceName: order.shippingServiceName,
-      shippingProvider: order.shippingProviderSnapshot,
       estimatedDeliveryAt: order.estimatedDeliveryAt?.toISOString() ?? null,
       subtotalAmount: Number(order.subtotalAmount),
       discountAmount: Number(order.discountAmount),

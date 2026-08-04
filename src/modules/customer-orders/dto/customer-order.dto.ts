@@ -189,9 +189,6 @@ export class CustomerOrderResponseDto {
   @ApiProperty()
   branchId!: string;
 
-  @ApiProperty()
-  shippingServiceName!: string;
-
   @ApiPropertyOptional({ type: String, nullable: true })
   note!: string | null;
 

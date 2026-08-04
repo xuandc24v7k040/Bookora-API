@@ -21689,11 +21689,11 @@
             "csrfHeader": []
           }
         ],
-        "summary": "Resolve vị trí Checkout qua Vietmap hybrid và GHN",
+        "summary": "Resolve vị trí Checkout qua VietMap và danh mục hành chính",
         "tags": [
           "checkout"
         ],
-        "description": "Resolve vị trí Checkout qua Vietmap hybrid và GHN"
+        "description": "Resolve vị trí Checkout qua VietMap và danh mục hành chính"
       }
     },
     "/checkout/current-location/reverse": {
@@ -30026,7 +30026,7 @@
           },
           "weightGram": {
             "type": "number",
-            "nullable": true
+            "minimum": 1
           },
           "packageSize": {
             "type": "string",
@@ -30076,6 +30076,7 @@
           "name",
           "sku",
           "combinationKey",
+          "weightGram",
           "originalPrice",
           "isDefault",
           "isActive",
@@ -30168,8 +30169,8 @@
           },
           "weightGram": {
             "type": "number",
-            "nullable": true,
-            "minimum": 0
+            "minimum": 1,
+            "maximum": 100000
           },
           "packageSize": {
             "type": "string",
@@ -30220,6 +30221,7 @@
         "required": [
           "name",
           "sku",
+          "weightGram",
           "originalPrice",
           "optionValueIds"
         ]
@@ -30268,11 +30270,6 @@
             "nullable": true,
             "minimum": 0
           },
-          "weightGram": {
-            "type": "number",
-            "nullable": true,
-            "minimum": 0
-          },
           "packageSize": {
             "type": "string",
             "nullable": true
@@ -30317,6 +30314,11 @@
               "maxLength": 26
             },
             "uniqueItems": true
+          },
+          "weightGram": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000
           }
         }
       },
@@ -32811,6 +32813,10 @@
             "type": "string",
             "nullable": true
           },
+          "barcode": {
+            "type": "string",
+            "nullable": true
+          },
           "publicationYear": {
             "type": "number",
             "nullable": true
@@ -32821,7 +32827,7 @@
           },
           "weightGram": {
             "type": "number",
-            "nullable": true
+            "minimum": 1
           },
           "packageSize": {
             "type": "string",
@@ -32845,6 +32851,7 @@
           "name",
           "isDefault",
           "price",
+          "weightGram",
           "optionValues",
           "media"
         ]
@@ -33482,9 +33489,6 @@
           "longitude": {
             "type": "number",
             "nullable": true
-          },
-          "isGhnMapped": {
-            "type": "boolean"
           }
         },
         "required": [
@@ -33494,25 +33498,12 @@
           "receiverPhone",
           "formattedAddress",
           "latitude",
-          "longitude",
-          "isGhnMapped"
+          "longitude"
         ]
       },
       "ShippingQuoteResponseDto": {
         "type": "object",
         "properties": {
-          "provider": {
-            "type": "string"
-          },
-          "serviceId": {
-            "type": "number"
-          },
-          "serviceTypeId": {
-            "type": "number"
-          },
-          "serviceName": {
-            "type": "string"
-          },
           "shippingFee": {
             "type": "number"
           },
@@ -33550,10 +33541,6 @@
           }
         },
         "required": [
-          "provider",
-          "serviceId",
-          "serviceTypeId",
-          "serviceName",
           "shippingFee",
           "serviceFee",
           "insuranceFee",
@@ -33608,6 +33595,10 @@
           "discountAmount": {
             "type": "number"
           },
+          "totalProductWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
           "shippingFee": {
             "type": "number",
             "nullable": true
@@ -33626,12 +33617,6 @@
             "type": "string",
             "enum": [
               "STANDARD"
-            ]
-          },
-          "shippingProviderCode": {
-            "type": "string",
-            "enum": [
-              "GHN"
             ]
           },
           "totalAmount": {
@@ -33660,10 +33645,10 @@
           "paymentMethod",
           "subtotalAmount",
           "discountAmount",
+          "totalProductWeightGram",
           "shippingFee",
           "shippingFeeRule",
           "shippingMethodCode",
-          "shippingProviderCode",
           "totalAmount",
           "note",
           "canPlaceOrder",
@@ -34355,9 +34340,6 @@
             "maxLength": 26,
             "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
           },
-          "shippingServiceName": {
-            "type": "string"
-          },
           "note": {
             "type": "string",
             "nullable": true
@@ -34426,7 +34408,6 @@
           "shippingAddress",
           "branchName",
           "branchId",
-          "shippingServiceName",
           "paymentMethod",
           "paymentStatus",
           "placedAt",
@@ -35024,12 +35005,6 @@
           "shippingAddress": {
             "type": "string"
           },
-          "shippingServiceName": {
-            "type": "string"
-          },
-          "shippingProvider": {
-            "type": "string"
-          },
           "estimatedDeliveryAt": {
             "type": "string",
             "nullable": true
@@ -35117,8 +35092,6 @@
           "receiverName",
           "receiverPhone",
           "shippingAddress",
-          "shippingServiceName",
-          "shippingProvider",
           "subtotalAmount",
           "discountAmount",
           "shippingFee",

@@ -17,9 +17,15 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  OmitType,
+  PartialType,
+} from '@nestjs/swagger';
 import {
   ProductOptionPresentationType,
   ProductStatus,
@@ -362,12 +368,17 @@ export class CreateProductVariantDto {
   @IsOptional()
   pageCount?: number | null;
 
-  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 0 })
+  @ApiProperty({ type: Number, minimum: 1, maximum: 100_000 })
   @Type(() => Number)
-  @IsInt({ message: 'Khối lượng phải là số nguyên' })
-  @Min(0)
-  @IsOptional()
-  weightGram?: number | null;
+  @IsDefined({ message: 'Trọng lượng là bắt buộc.' })
+  @IsInt({
+    message: 'Trọng lượng phải là số nguyên dương tính bằng gram.',
+  })
+  @Min(1, {
+    message: 'Trọng lượng phải là số nguyên dương tính bằng gram.',
+  })
+  @Max(100_000, { message: 'Trọng lượng không được vượt quá 100.000 g.' })
+  weightGram!: number;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   @Transform(optionalTrimmed)
@@ -430,8 +441,20 @@ export class CreateProductVariantDto {
 }
 
 export class UpdateProductVariantDto extends PartialType(
-  CreateProductVariantDto,
-) {}
+  OmitType(CreateProductVariantDto, ['weightGram'] as const),
+) {
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 100_000 })
+  @Type(() => Number)
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsInt({
+    message: 'Trọng lượng phải là số nguyên dương tính bằng gram.',
+  })
+  @Min(1, {
+    message: 'Trọng lượng phải là số nguyên dương tính bằng gram.',
+  })
+  @Max(100_000, { message: 'Trọng lượng không được vượt quá 100.000 g.' })
+  weightGram?: number;
+}
 
 export class BulkCreateProductVariantsDto {
   @ApiProperty({ type: [CreateProductVariantDto], maxItems: 200 })

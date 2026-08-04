@@ -56,11 +56,6 @@ function cartFixture(
       latitude: null,
       longitude: null,
       isActive: true,
-      ghnProvinceId: null,
-      ghnDistrictId: null,
-      ghnWardCode: null,
-      ghnShopId: null,
-      ghnMappingVerifiedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -81,7 +76,7 @@ function cartFixture(
           isbn: null,
           publicationYear: null,
           pageCount: null,
-          weightGram: null,
+          weightGram: 350,
           packageSize: null,
           originalPrice: 120_000,
           salePrice: null,
@@ -136,10 +131,6 @@ function savedAddressFixture() {
     updatedAt: new Date(),
     latitude: null,
     longitude: null,
-    ghnProvinceId: null,
-    ghnDistrictId: null,
-    ghnWardCode: null,
-    ghnMappingVerifiedAt: null,
   };
 }
 
@@ -181,7 +172,7 @@ function createService(branchProvince: string | null = 'Hậu Giang') {
 }
 
 describe('CheckoutService internal shipping hotfix', () => {
-  it('previews a saved address without Vietmap or GHN and fills recipient data', async () => {
+  it('previews a saved address without reverse geocoding and fills recipient data', async () => {
     const { service, findOwnedAddress, vietmap } = createService();
     const result = await service.preview(actor, BRANCH_ID, {
       selectedCartItemIds: [CART_ITEM_ID],
@@ -198,8 +189,8 @@ describe('CheckoutService internal shipping hotfix', () => {
     );
     expect(vietmap.reverse).not.toHaveBeenCalled();
     expect(result.shippingFee).toBe(15_000);
+    expect(result.totalProductWeightGram).toBe(350);
     expect(result.shippingFeeRule).toBe('SAME_PROVINCE');
-    expect(result.shippingProviderCode).toBe('GHN');
     expect(result.shippingMethodCode).toBe('STANDARD');
     expect(result.totalAmount).toBe(135_000);
     expect(result.address).toEqual(
