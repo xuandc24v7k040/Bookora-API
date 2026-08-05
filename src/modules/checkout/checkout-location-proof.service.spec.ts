@@ -12,6 +12,7 @@ const input = {
   provinceCode: 92,
   provinceName: 'can tho',
   wardName: 'phuong ninh kieu',
+  destinationType: 'WARD' as const,
   latitude: 10.0452,
   longitude: 105.7469,
 };
@@ -20,7 +21,7 @@ function signedToken(overrides: Record<string, unknown>): string {
   const issuedAt = Math.floor(Date.now() / 1_000);
   const payload = Buffer.from(
     JSON.stringify({
-      version: 1,
+      version: 2,
       purpose: 'checkout-current-location',
       ...input,
       issuedAt,
@@ -67,7 +68,8 @@ describe('CheckoutLocationProofService', () => {
 
   it.each([
     ['purpose', { purpose: 'another-purpose' }],
-    ['version', { version: 2 }],
+    ['version', { version: 1 }],
+    ['destinationType', { destinationType: 'CLIENT_TAMPERED' }],
   ])('rejects a proof with the wrong %s', (_caseName, overrides) => {
     expect(() => service.verify(signedToken(overrides))).toThrow(
       UnprocessableEntityException,

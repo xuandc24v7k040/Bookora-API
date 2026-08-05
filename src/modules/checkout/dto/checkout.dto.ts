@@ -274,7 +274,57 @@ export class ShippingQuoteResponseDto {
     | 'SAME_PROVINCE'
     | 'SAME_REGION'
     | 'ADJACENT_REGION'
-    | 'FAR_REGION';
+    | 'FAR_REGION'
+    | 'SPECIAL_STANDARD';
+  @ApiProperty({ enum: ['BOOKORA_STANDARD_2026_V1'] })
+  policyCode!: 'BOOKORA_STANDARD_2026_V1';
+  @ApiProperty({ enum: [1] }) policyVersion!: 1;
+  @ApiProperty({
+    enum: [
+      'SAME_PROVINCE',
+      'SAME_REGION',
+      'ADJACENT_REGION',
+      'FAR_REGION',
+      'SPECIAL_STANDARD',
+    ],
+  })
+  routeType!:
+    | 'SAME_PROVINCE'
+    | 'SAME_REGION'
+    | 'ADJACENT_REGION'
+    | 'FAR_REGION'
+    | 'SPECIAL_STANDARD';
+  @ApiProperty({ enum: ['WARD', 'COMMUNE'] })
+  destinationType!: 'WARD' | 'COMMUNE';
+  @ApiProperty({
+    enum: ['AUTHORITATIVE', 'DESTINATION_TYPE_FALLBACK_COMMUNE'],
+  })
+  destinationTypeResolution!:
+    | 'AUTHORITATIVE'
+    | 'DESTINATION_TYPE_FALLBACK_COMMUNE';
+  @ApiProperty({ minimum: 1 }) totalItemQuantity!: number;
+  @ApiProperty({ minimum: 1 }) productWeightGram!: number;
+  @ApiProperty({
+    enum: [
+      'SINGLE_BOOK_BAG',
+      'SMALL_BOOK_BOX',
+      'MEDIUM_BOOK_BOX',
+      'LARGE_BOOK_BOX',
+      'BULK_BOOK_BOX',
+    ],
+  })
+  packagingType!:
+    | 'SINGLE_BOOK_BAG'
+    | 'SMALL_BOOK_BOX'
+    | 'MEDIUM_BOOK_BOX'
+    | 'LARGE_BOOK_BOX'
+    | 'BULK_BOOK_BOX';
+  @ApiProperty({ minimum: 1 }) packagingWeightGram!: number;
+  @ApiProperty({ minimum: 1 }) grossWeightGram!: number;
+  @ApiProperty({ minimum: 500, maximum: 20_000 })
+  chargeableWeightGram!: number;
+  @ApiProperty({ minimum: 0 }) fuelSurcharge!: number;
+  @ApiProperty() ruleCode!: string;
 }
 
 export class CheckoutPreviewResponseDto {
@@ -295,7 +345,13 @@ export class CheckoutPreviewResponseDto {
   @ApiProperty({ minimum: 1 }) totalProductWeightGram!: number;
   @ApiProperty({ nullable: true, type: Number }) shippingFee!: number | null;
   @ApiProperty({
-    enum: ['SAME_PROVINCE', 'SAME_REGION', 'ADJACENT_REGION', 'FAR_REGION'],
+    enum: [
+      'SAME_PROVINCE',
+      'SAME_REGION',
+      'ADJACENT_REGION',
+      'FAR_REGION',
+      'SPECIAL_STANDARD',
+    ],
     nullable: true,
   })
   shippingFeeRule!:
@@ -303,6 +359,7 @@ export class CheckoutPreviewResponseDto {
     | 'SAME_REGION'
     | 'ADJACENT_REGION'
     | 'FAR_REGION'
+    | 'SPECIAL_STANDARD'
     | null;
   @ApiProperty({ enum: ['STANDARD'] })
   shippingMethodCode!: 'STANDARD';
@@ -334,6 +391,10 @@ export class CurrentLocationReverseResponseDto {
   @ApiProperty() address!: string;
   @ApiProperty() displayAddress!: string;
   @ApiProperty({ nullable: true, type: String }) placeId!: string | null;
+  @ApiProperty({
+    enum: ['WARD', 'COMMUNE', 'SPECIAL_ZONE', 'UNKNOWN'],
+  })
+  destinationType!: 'WARD' | 'COMMUNE' | 'SPECIAL_ZONE' | 'UNKNOWN';
   @ApiProperty() locationProof!: string;
 }
 

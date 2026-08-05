@@ -1,24 +1,9 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
-import { Prisma } from '@/generated/prisma/client';
-
-export type ShippingRegion = 'NORTH' | 'CENTRAL' | 'SOUTH';
-export type InternalShippingFeeRule =
-  | 'SAME_PROVINCE'
-  | 'SAME_REGION'
-  | 'ADJACENT_REGION'
-  | 'FAR_REGION';
-
-export interface InternalShippingFeeInput {
-  branchProvinceCode: number;
-  destinationProvinceCode: number;
-}
-
-export interface InternalShippingFeeResult {
-  fee: Prisma.Decimal;
-  rule: InternalShippingFeeRule;
-  branchRegion: ShippingRegion;
-  destinationRegion: ShippingRegion;
-}
+import { BOOKORA_STANDARD_2026_V1 } from '../policies/bookora-standard-2026-v1';
+import type {
+  ShippingRegion,
+  ShippingRouteType,
+} from '../policies/shipping-policy.types';
 
 const NORTH_PROVINCE_CODES = [
   1, 4, 8, 11, 12, 14, 15, 19, 20, 22, 24, 25, 31, 33, 37,
@@ -77,39 +62,26 @@ const PROVINCE_CODE_BY_NORMALIZED_NAME: Readonly<Record<string, number>> =
   });
 
 @Injectable()
-export class InternalShippingFeeService {
-  calculate(input: InternalShippingFeeInput): InternalShippingFeeResult {
-    const branchRegion = this.requireRegion(input.branchProvinceCode);
-    const destinationRegion = this.requireRegion(input.destinationProvinceCode);
+export class ShippingRouteResolver {
+  resolve(
+    originProvinceCode: number,
+    destinationProvinceCode: number,
+  ): ShippingRouteType {
+    const originRegion = this.requireRegion(originProvinceCode);
+    const destinationRegion = this.requireRegion(destinationProvinceCode);
 
-    if (input.branchProvinceCode === input.destinationProvinceCode) {
-      return this.result(
-        15_000,
-        'SAME_PROVINCE',
-        branchRegion,
-        destinationRegion,
-      );
+    if (originProvinceCode === destinationProvinceCode) return 'SAME_PROVINCE';
+    if (this.isSpecialRoute(originProvinceCode, destinationProvinceCode)) {
+      return 'SPECIAL_STANDARD';
     }
-    if (branchRegion === destinationRegion) {
-      return this.result(
-        30_000,
-        'SAME_REGION',
-        branchRegion,
-        destinationRegion,
-      );
-    }
+    if (originRegion === destinationRegion) return 'SAME_REGION';
     if (
-      (branchRegion === 'NORTH' && destinationRegion === 'SOUTH') ||
-      (branchRegion === 'SOUTH' && destinationRegion === 'NORTH')
+      (originRegion === 'NORTH' && destinationRegion === 'SOUTH') ||
+      (originRegion === 'SOUTH' && destinationRegion === 'NORTH')
     ) {
-      return this.result(50_000, 'FAR_REGION', branchRegion, destinationRegion);
+      return 'FAR_REGION';
     }
-    return this.result(
-      40_000,
-      'ADJACENT_REGION',
-      branchRegion,
-      destinationRegion,
-    );
+    return 'ADJACENT_REGION';
   }
 
   resolveProvinceCode(provinceName: string | null | undefined): number {
@@ -128,6 +100,17 @@ export class InternalShippingFeeService {
     return code;
   }
 
+  normalizeProvinceName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/đ/gi, 'd')
+      .toLocaleLowerCase('vi-VN')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/^(?:(?:t\s*\.\s*p\s*\.?|tp\s*\.?)|thanh pho|tinh)\s+/, '');
+  }
+
   private requireRegion(provinceCode: number): ShippingRegion {
     const region = PROVINCE_REGION_BY_CODE[provinceCode];
     if (!region) {
@@ -140,28 +123,16 @@ export class InternalShippingFeeService {
     return region;
   }
 
-  private result(
-    fee: number,
-    rule: InternalShippingFeeRule,
-    branchRegion: ShippingRegion,
-    destinationRegion: ShippingRegion,
-  ): InternalShippingFeeResult {
-    return {
-      fee: new Prisma.Decimal(fee),
-      rule,
-      branchRegion,
-      destinationRegion,
-    };
-  }
-
-  normalizeProvinceName(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .replace(/đ/gi, 'd')
-      .toLocaleLowerCase('vi-VN')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .replace(/^(?:(?:t\s*\.\s*p\s*\.?|tp\s*\.?)|thanh pho|tinh)\s+/, '');
+  private isSpecialRoute(origin: number, destination: number): boolean {
+    return (
+      BOOKORA_STANDARD_2026_V1.majorOriginProvinceCodes.some(
+        (code) => code === origin,
+      ) &&
+      BOOKORA_STANDARD_2026_V1.specialRouteProvincePairs.some(
+        ([left, right]) =>
+          (left === origin && right === destination) ||
+          (left === destination && right === origin),
+      )
+    );
   }
 }

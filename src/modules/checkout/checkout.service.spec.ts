@@ -1,8 +1,20 @@
-import { ProductStatus, UserType } from '@/generated/prisma/client';
+import {
+  OrderStatus,
+  PaymentStatus,
+  ProductStatus,
+  UserType,
+} from '@/generated/prisma/client';
 import { ConfigService } from '@nestjs/config';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { CartValidationService } from '@/modules/cart/cart-validation.service';
-import { InternalShippingFeeService } from '@/modules/shipping/internal-shipping-fee.service';
+import { ChargeableWeightCalculator } from '@/modules/shipping/calculators/chargeable-weight.calculator';
+import { PackagingCalculator } from '@/modules/shipping/calculators/packaging.calculator';
+import { ShippingFeeCalculator } from '@/modules/shipping/calculators/shipping-fee.calculator';
+import { DestinationTypeResolver } from '@/modules/shipping/resolvers/destination-type.resolver';
+import { ShippingRouteResolver } from '@/modules/shipping/resolvers/shipping-route.resolver';
+import { ShippingPricingService } from '@/modules/shipping/shipping-pricing.service';
+import { ShippingQuoteFactory } from '@/modules/shipping/shipping-quote.factory';
+import { ShippingRatePolicyService } from '@/modules/shipping/shipping-rate-policy.service';
 import { StorefrontPriceService } from '@/modules/storefront-catalog/storefront-price.service';
 import {
   CheckoutRepository,
@@ -158,17 +170,33 @@ function createService(branchProvince: string | null = 'Hậu Giang') {
     payment: { vnpay: { expireMinutes: 15 } },
   });
   const locationProof = new CheckoutLocationProofService(config);
+  const shippingPricing = new ShippingPricingService(
+    new ShippingRouteResolver(),
+    new DestinationTypeResolver(),
+    new PackagingCalculator(),
+    new ChargeableWeightCalculator(),
+    new ShippingRatePolicyService(),
+    new ShippingFeeCalculator(),
+    new ShippingQuoteFactory(),
+  );
   const service = new CheckoutService(
     repository,
     new StorefrontPriceService(),
     new CartValidationService(),
-    new InternalShippingFeeService(),
+    shippingPricing,
     locationProof,
     vietmap as never,
     { buildPaymentUrl: jest.fn() } as never,
     config,
   );
-  return { service, findOwnedAddress, vietmap, locationProof, transaction };
+  return {
+    service,
+    findCart,
+    findOwnedAddress,
+    vietmap,
+    locationProof,
+    transaction,
+  };
 }
 
 describe('CheckoutService internal shipping hotfix', () => {
@@ -188,11 +216,19 @@ describe('CheckoutService internal shipping hotfix', () => {
       '01K7Y7MWNCW7BNBBNTWAB9DYSH',
     );
     expect(vietmap.reverse).not.toHaveBeenCalled();
-    expect(result.shippingFee).toBe(15_000);
+    expect(result.shippingFee).toBe(32_000);
     expect(result.totalProductWeightGram).toBe(350);
     expect(result.shippingFeeRule).toBe('SAME_PROVINCE');
     expect(result.shippingMethodCode).toBe('STANDARD');
-    expect(result.totalAmount).toBe(135_000);
+    expect(result.totalAmount).toBe(152_000);
+    expect(result.shippingQuote).toEqual(
+      expect.objectContaining({
+        policyCode: 'BOOKORA_STANDARD_2026_V1',
+        packagingType: 'SINGLE_BOOK_BAG',
+        chargeableWeightGram: 500,
+        destinationType: 'WARD',
+      }),
+    );
     expect(result.address).toEqual(
       expect.objectContaining({
         receiverName: 'Nguyễn Văn A',
@@ -227,6 +263,144 @@ describe('CheckoutService internal shipping hotfix', () => {
     expect(second.note).toBe('Gọi trước khi giao');
   });
 
+  it('invalidates the preview hash when quantity changes packaging inputs', async () => {
+    const { service, findCart } = createService();
+    const input = {
+      selectedCartItemIds: [CART_ITEM_ID],
+      paymentMethod: 'COD' as const,
+      address: {
+        source: 'SAVED_ADDRESS' as const,
+        customerAddressId: '01K7Y7MWNCW7BNBBNTWAB9DYSH',
+      },
+    };
+    const first = await service.preview(actor, BRANCH_ID, input);
+    const changedCart = cartFixture();
+    changedCart.items[0].quantity = 2;
+    findCart.mockResolvedValueOnce(changedCart);
+    const second = await service.preview(actor, BRANCH_ID, input);
+
+    expect(second.previewReference).not.toBe(first.previewReference);
+    expect(first.shippingQuote?.packagingType).toBe('SINGLE_BOOK_BAG');
+    expect(second.shippingQuote?.packagingType).toBe('SMALL_BOOK_BOX');
+    expect(second.shippingQuote?.totalItemQuantity).toBe(2);
+  });
+
+  it('uses the commune fallback for a server-resolved special zone', async () => {
+    const { service, findOwnedAddress } = createService();
+    findOwnedAddress.mockResolvedValueOnce({
+      ...savedAddressFixture(),
+      ward: 'Đặc khu Côn Đảo',
+    });
+    const result = await service.preview(actor, BRANCH_ID, {
+      selectedCartItemIds: [CART_ITEM_ID],
+      paymentMethod: 'COD',
+      address: {
+        source: 'SAVED_ADDRESS',
+        customerAddressId: '01K7Y7MWNCW7BNBBNTWAB9DYSH',
+      },
+    });
+
+    expect(result.shippingQuote).toEqual(
+      expect.objectContaining({
+        destinationType: 'COMMUNE',
+        destinationTypeResolution: 'DESTINATION_TYPE_FALLBACK_COMMUNE',
+      }),
+    );
+  });
+
+  it.each(['COD', 'VNPAY'] as const)(
+    'does not create an Order/Payment for a stale %s preview hash',
+    async (paymentMethod) => {
+      const { service, transaction } = createService();
+      const base = {
+        selectedCartItemIds: [CART_ITEM_ID],
+        paymentMethod,
+        address: {
+          source: 'SAVED_ADDRESS' as const,
+          customerAddressId: '01K7Y7MWNCW7BNBBNTWAB9DYSH',
+        },
+        previewReference: 'a'.repeat(64),
+        idempotencyKey: `stale-${paymentMethod.toLowerCase()}`,
+      };
+      const place =
+        paymentMethod === 'COD'
+          ? service.placeCod(actor, BRANCH_ID, base)
+          : service.placeVnpay(actor, BRANCH_ID, base, '127.0.0.1');
+
+      await expect(place).rejects.toMatchObject({
+        response: expect.objectContaining({
+          code: 'CHECKOUT_PREVIEW_CHANGED',
+        }),
+      });
+      expect(transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('snapshots the complete pricing breakdown when placing COD', async () => {
+    const { service, transaction } = createService();
+    const input = {
+      selectedCartItemIds: [CART_ITEM_ID],
+      paymentMethod: 'COD' as const,
+      address: {
+        source: 'SAVED_ADDRESS' as const,
+        customerAddressId: '01K7Y7MWNCW7BNBBNTWAB9DYSH',
+      },
+    };
+    const preview = await service.preview(actor, BRANCH_ID, input);
+    let createdData: Record<string, unknown> | null = null;
+    const tx = {
+      order: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }: { data: Record<string, unknown> }) => {
+            createdData = data;
+            return Promise.resolve({
+              id: '01KORDER000000000000000000',
+              orderCode: 'BK-UNIT-TEST',
+              status: OrderStatus.PENDING,
+              payment: { status: PaymentStatus.UNPAID },
+            });
+          }),
+      },
+      branchProductStock: {
+        findUnique: jest.fn().mockResolvedValue({ quantity: 40 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      inventoryMovement: { create: jest.fn().mockResolvedValue({}) },
+      cartItem: { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    transaction.mockImplementation(
+      async (callback: (client: never) => Promise<unknown>) =>
+        callback(tx as never),
+    );
+
+    await service.placeCod(actor, BRANCH_ID, {
+      ...input,
+      previewReference: preview.previewReference,
+      idempotencyKey: 'snapshot-cod-unit-test',
+    });
+
+    expect(createdData).toEqual(
+      expect.objectContaining({
+        shippingFee: 32_000,
+        shippingQuoteReference: preview.shippingQuote?.requestFingerprint,
+        shippingFeeBreakdownSnapshot: expect.objectContaining({
+          policyCode: 'BOOKORA_STANDARD_2026_V1',
+          policyVersion: 1,
+          packagingPolicyCode: 'PACKAGING_POLICY_V1',
+          routeType: 'SAME_PROVINCE',
+          destinationType: 'WARD',
+          productWeightGram: 350,
+          totalItemQuantity: 1,
+          packagingType: 'SINGLE_BOOK_BAG',
+          chargeableWeightGram: 500,
+          shippingFee: 32_000,
+        }),
+      }),
+    );
+  });
+
   it('uses one two-level reverse for current location and returns provinceCode', async () => {
     const { service, vietmap } = createService();
     vietmap.reverse.mockResolvedValue({
@@ -250,6 +424,7 @@ describe('CheckoutService internal shipping hotfix', () => {
         province: 'Thành phố Cần Thơ',
         provinceCode: 92,
         ward: 'Phường Ninh Kiều',
+        destinationType: 'WARD',
       }),
     );
     expect(vietmap.reverse).toHaveBeenCalledTimes(1);
@@ -275,6 +450,7 @@ describe('CheckoutService internal shipping hotfix', () => {
           provinceCode: 92,
           provinceName: 'can tho',
           wardName: 'phuong ninh kieu',
+          destinationType: 'WARD',
           latitude: 10.0452,
           longitude: 105.7469,
         }),
@@ -282,11 +458,11 @@ describe('CheckoutService internal shipping hotfix', () => {
     });
 
     expect(vietmap.reverse).not.toHaveBeenCalled();
-    expect(result.shippingFee).toBe(15_000);
-    expect(result.totalAmount).toBe(135_000);
+    expect(result.shippingFee).toBe(32_000);
+    expect(result.totalAmount).toBe(152_000);
   });
 
-  it('charges 50,000 for a valid Hà Nội to current-location Cần Thơ proof', async () => {
+  it('uses dynamic far-region pricing for a valid Hà Nội to Cần Thơ proof', async () => {
     const { service, locationProof } = createService('Thành phố Hà Nội');
     const result = await service.preview(actor, BRANCH_ID, {
       selectedCartItemIds: [CART_ITEM_ID],
@@ -294,9 +470,9 @@ describe('CheckoutService internal shipping hotfix', () => {
       address: currentLocationAddress(locationProof),
     });
 
-    expect(result.shippingFee).toBe(50_000);
+    expect(result.shippingFee).toBe(34_000);
     expect(result.shippingFeeRule).toBe('FAR_REGION');
-    expect(result.totalAmount).toBe(170_000);
+    expect(result.totalAmount).toBe(154_000);
   });
 
   it.each([
@@ -417,6 +593,7 @@ function currentLocationAddress(locationProof: CheckoutLocationProofService) {
       provinceCode: 92,
       provinceName: 'can tho',
       wardName: 'phuong ninh kieu',
+      destinationType: 'WARD',
       latitude: 10.0452,
       longitude: 105.7469,
     }),

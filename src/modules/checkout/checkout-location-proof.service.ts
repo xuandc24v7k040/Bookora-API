@@ -1,8 +1,9 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
+import type { ShippingDestinationType } from '@/modules/shipping/policies/shipping-policy.types';
 
-const LOCATION_PROOF_VERSION = 1;
+const LOCATION_PROOF_VERSION = 2;
 const LOCATION_PROOF_PURPOSE = 'checkout-current-location';
 
 interface LocationProofPayload {
@@ -11,6 +12,7 @@ interface LocationProofPayload {
   provinceCode: number;
   provinceName: string;
   wardName: string;
+  destinationType: ShippingDestinationType;
   latitude: number;
   longitude: number;
   issuedAt: number;
@@ -21,6 +23,7 @@ export interface CheckoutLocationProofInput {
   provinceCode: number;
   provinceName: string;
   wardName: string;
+  destinationType: ShippingDestinationType;
   latitude: number;
   longitude: number;
 }
@@ -78,6 +81,7 @@ export class CheckoutLocationProofService {
       !Number.isInteger(payload.provinceCode) ||
       typeof payload.provinceName !== 'string' ||
       typeof payload.wardName !== 'string' ||
+      !this.isDestinationType(payload.destinationType) ||
       !Number.isFinite(payload.latitude) ||
       !Number.isFinite(payload.longitude) ||
       !Number.isInteger(payload.issuedAt) ||
@@ -97,6 +101,7 @@ export class CheckoutLocationProofService {
       provinceCode: payload.provinceCode,
       provinceName: payload.provinceName,
       wardName: payload.wardName,
+      destinationType: payload.destinationType,
       latitude: payload.latitude,
       longitude: payload.longitude,
     };
@@ -109,6 +114,15 @@ export class CheckoutLocationProofService {
     )
       .update(`${LOCATION_PROOF_PURPOSE}.${encodedPayload}`)
       .digest('base64url');
+  }
+
+  private isDestinationType(value: unknown): value is ShippingDestinationType {
+    return (
+      value === 'WARD' ||
+      value === 'COMMUNE' ||
+      value === 'SPECIAL_ZONE' ||
+      value === 'UNKNOWN'
+    );
   }
 
   private invalid(): never {

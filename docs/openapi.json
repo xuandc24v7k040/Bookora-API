@@ -33538,6 +33538,80 @@
               "ADJACENT_REGION",
               "FAR_REGION"
             ]
+          },
+          "policyCode": {
+            "type": "string",
+            "enum": [
+              "BOOKORA_STANDARD_2026_V1"
+            ]
+          },
+          "policyVersion": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "routeType": {
+            "type": "string",
+            "enum": [
+              "SAME_PROVINCE",
+              "SAME_REGION",
+              "ADJACENT_REGION",
+              "FAR_REGION",
+              "SPECIAL_STANDARD"
+            ]
+          },
+          "destinationType": {
+            "type": "string",
+            "enum": [
+              "WARD",
+              "COMMUNE"
+            ]
+          },
+          "destinationTypeResolution": {
+            "type": "string",
+            "enum": [
+              "AUTHORITATIVE",
+              "DESTINATION_TYPE_FALLBACK_COMMUNE"
+            ]
+          },
+          "totalItemQuantity": {
+            "type": "number",
+            "minimum": 1
+          },
+          "productWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "packagingType": {
+            "type": "string",
+            "enum": [
+              "SINGLE_BOOK_BAG",
+              "SMALL_BOOK_BOX",
+              "MEDIUM_BOOK_BOX",
+              "LARGE_BOOK_BOX",
+              "BULK_BOOK_BOX"
+            ]
+          },
+          "packagingWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "grossWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "chargeableWeightGram": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 20000
+          },
+          "fuelSurcharge": {
+            "type": "number",
+            "minimum": 0
+          },
+          "ruleCode": {
+            "type": "string"
           }
         },
         "required": [
@@ -33549,7 +33623,20 @@
           "quotedAt",
           "expiresAt",
           "requestFingerprint",
-          "shippingFeeRule"
+          "shippingFeeRule",
+          "policyCode",
+          "policyVersion",
+          "routeType",
+          "destinationType",
+          "destinationTypeResolution",
+          "totalItemQuantity",
+          "productWeightGram",
+          "packagingType",
+          "packagingWeightGram",
+          "grossWeightGram",
+          "chargeableWeightGram",
+          "fuelSurcharge",
+          "ruleCode"
         ]
       },
       "CheckoutPreviewResponseDto": {
@@ -33609,7 +33696,8 @@
               "SAME_PROVINCE",
               "SAME_REGION",
               "ADJACENT_REGION",
-              "FAR_REGION"
+              "FAR_REGION",
+              "SPECIAL_STANDARD"
             ],
             "nullable": true
           },
@@ -33890,6 +33978,15 @@
             "type": "string",
             "nullable": true
           },
+          "destinationType": {
+            "type": "string",
+            "enum": [
+              "WARD",
+              "COMMUNE",
+              "SPECIAL_ZONE",
+              "UNKNOWN"
+            ]
+          },
           "locationProof": {
             "type": "string"
           }
@@ -33903,6 +34000,7 @@
           "address",
           "displayAddress",
           "placeId",
+          "destinationType",
           "locationProof"
         ]
       },

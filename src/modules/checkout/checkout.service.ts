@@ -31,10 +31,11 @@ import type {
 } from '@/modules/integrations/vietmap/dto/vietmap.dto';
 import { VietMapService } from '@/modules/integrations/vietmap/vietmap.service';
 import { VnpayService } from '@/modules/integrations/vnpay/vnpay.service';
-import {
-  InternalShippingFeeService,
-  type InternalShippingFeeRule,
-} from '@/modules/shipping/internal-shipping-fee.service';
+import type {
+  ShippingDestinationType,
+  ShippingPricingQuote,
+} from '@/modules/shipping/policies/shipping-policy.types';
+import { ShippingPricingService } from '@/modules/shipping/shipping-pricing.service';
 import { StorefrontPriceService } from '@/modules/storefront-catalog/storefront-price.service';
 import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
 import {
@@ -93,19 +94,7 @@ interface ResolvedCheckoutAddress {
   locationAccuracyMeters: number | null;
   locationProvider: string | null;
   locationPlaceId: string | null;
-}
-
-interface InternalCheckoutShippingQuote {
-  shippingFee: number;
-  serviceFee: number;
-  insuranceFee: 0;
-  codFee: 0;
-  remoteAreaFee: 0;
-  quotedAt: Date;
-  expiresAt: Date;
-  requestFingerprint: string;
-  breakdown: Prisma.InputJsonObject;
-  rule: InternalShippingFeeRule;
+  destinationType: ShippingDestinationType;
 }
 
 interface CheckoutState {
@@ -113,7 +102,7 @@ interface CheckoutState {
   items: ResolvedCheckoutItem[];
   eligibleItems: ResolvedCheckoutItem[];
   address: ResolvedCheckoutAddress | null;
-  quote: InternalCheckoutShippingQuote | null;
+  quote: ShippingPricingQuote | null;
   paymentMethod: PaymentMethod | null;
   note: string | null;
   subtotalAmount: number;
@@ -153,7 +142,7 @@ export class CheckoutService {
     private readonly repository: CheckoutRepository,
     private readonly prices: StorefrontPriceService,
     private readonly validation: CartValidationService,
-    private readonly internalShippingFee: InternalShippingFeeService,
+    private readonly shippingPricing: ShippingPricingService,
     private readonly locationProof: CheckoutLocationProofService,
     private readonly vietmap: VietMapService,
     private readonly vnpay: VnpayService,
@@ -512,16 +501,25 @@ export class CheckoutService {
         message: INVALID_PRODUCT_WEIGHT_MESSAGE,
       });
     }
+    const totalItemQuantity = eligibleItems.reduce(
+      (total, item) => total + item.quantity,
+      0,
+    );
     const paymentMethod = dto.paymentMethod ?? null;
     const address = dto.address
       ? await this.resolveAddress(userId, dto.address)
       : null;
     const quote =
       address && paymentMethod
-        ? this.quote(
-            this.internalShippingFee.resolveProvinceCode(cart.branch.province),
-            address,
-          )
+        ? this.shippingPricing.calculate({
+            originProvinceCode: this.shippingPricing.resolveProvinceCode(
+              cart.branch.province,
+            ),
+            destinationProvinceCode: address.provinceCode,
+            destinationType: address.destinationType,
+            totalItemQuantity,
+            productWeightGram: totalProductWeightGram,
+          })
         : null;
     const totalAmount = subtotalAmount + (quote?.shippingFee ?? 0);
     const note = dto.note?.trim() || null;
@@ -532,6 +530,7 @@ export class CheckoutService {
         cartItemId: item.cartItemId,
         variantId: item.variantId,
         quantity: item.quantity,
+        weightGram: item.weightGram,
         unitPrice: item.unitPrice,
         availableQuantity: item.availableQuantity,
       })),
@@ -539,6 +538,7 @@ export class CheckoutService {
       paymentMethod,
       shippingFee: quote?.shippingFee ?? null,
       shippingQuoteReference: quote?.requestFingerprint ?? null,
+      shippingQuote: quote?.breakdown ?? null,
       totalProductWeightGram,
     });
     return {
@@ -574,10 +574,6 @@ export class CheckoutService {
             'Địa chỉ đã chọn không tồn tại hoặc không thuộc tài khoản của bạn.',
         });
       }
-      this.internalShippingFee.calculate({
-        branchProvinceCode: saved.provinceCode,
-        destinationProvinceCode: saved.provinceCode,
-      });
       return {
         source: DeliveryAddressSource.SAVED_ADDRESS,
         sourceCustomerAddressId: saved.id,
@@ -595,13 +591,16 @@ export class CheckoutService {
         locationAccuracyMeters: null,
         locationProvider: null,
         locationPlaceId: null,
+        destinationType: this.shippingPricing.resolveDestinationType(
+          saved.ward,
+        ),
       };
     }
 
     const proof = this.locationProof.verify(address.locationProof);
     if (
       address.provinceCode !== proof.provinceCode ||
-      this.internalShippingFee.normalizeProvinceName(address.provinceName) !==
+      this.shippingPricing.normalizeProvinceName(address.provinceName) !==
         proof.provinceName ||
       this.normalizeAdministrativeName(address.wardName) !== proof.wardName ||
       address.latitude !== proof.latitude ||
@@ -613,10 +612,6 @@ export class CheckoutService {
           'Thông tin vị trí không khớp xác nhận. Vui lòng lấy lại vị trí hiện tại.',
       });
     }
-    this.internalShippingFee.calculate({
-      branchProvinceCode: proof.provinceCode,
-      destinationProvinceCode: proof.provinceCode,
-    });
     return {
       source: DeliveryAddressSource.CURRENT_LOCATION,
       sourceCustomerAddressId: null,
@@ -636,40 +631,7 @@ export class CheckoutService {
       locationAccuracyMeters: address.locationAccuracyMeters ?? null,
       locationProvider: address.locationProvider ?? 'VIETMAP',
       locationPlaceId: address.locationPlaceId ?? null,
-    };
-  }
-
-  private quote(
-    branchProvinceCode: number,
-    address: ResolvedCheckoutAddress,
-  ): InternalCheckoutShippingQuote {
-    const result = this.internalShippingFee.calculate({
-      branchProvinceCode,
-      destinationProvinceCode: address.provinceCode,
-    });
-    const shippingFee = result.fee.toNumber();
-    const quotedAt = new Date();
-    return {
-      shippingFee,
-      serviceFee: shippingFee,
-      insuranceFee: 0,
-      codFee: 0,
-      remoteAreaFee: 0,
-      quotedAt,
-      expiresAt: new Date(quotedAt.getTime() + 24 * 60 * 60 * 1_000),
-      requestFingerprint: this.createPreviewReference({
-        branchProvinceCode,
-        destinationProvinceCode: address.provinceCode,
-        rule: result.rule,
-        shippingFee,
-      }),
-      breakdown: {
-        policy: 'INTERNAL_PROVINCE_REGION',
-        rule: result.rule,
-        branchRegion: result.branchRegion,
-        destinationRegion: result.destinationRegion,
-      },
-      rule: result.rule,
+      destinationType: proof.destinationType,
     };
   }
 
@@ -691,8 +653,7 @@ export class CheckoutService {
     if (state.previewReference !== previewReference) {
       throw new ConflictException({
         code: 'CHECKOUT_PREVIEW_CHANGED',
-        message:
-          'Giá, phí vận chuyển hoặc tồn kho đã thay đổi. Vui lòng xác nhận lại.',
+        message: 'Phí vận chuyển đã thay đổi. Vui lòng kiểm tra lại đơn hàng.',
         details: {
           oldPreviewReference: previewReference,
           newPreviewReference: state.previewReference,
@@ -791,7 +752,8 @@ export class CheckoutService {
       shippingLocationPlaceId: address.locationPlaceId,
       branchNameSnapshot: state.cart.branch.name,
       branchAddressSnapshot: state.cart.branch.address,
-      shippingFeeBreakdownSnapshot: quote.breakdown,
+      shippingFeeBreakdownSnapshot:
+        quote.breakdown as unknown as Prisma.InputJsonObject,
       shippingQuoteReference: quote.requestFingerprint,
       note: state.note,
     };
@@ -929,7 +891,20 @@ export class CheckoutService {
             quotedAt: state.quote.quotedAt.toISOString(),
             expiresAt: state.quote.expiresAt.toISOString(),
             requestFingerprint: state.quote.requestFingerprint,
-            shippingFeeRule: state.quote.rule,
+            shippingFeeRule: state.quote.routeType,
+            policyCode: state.quote.policyCode,
+            policyVersion: state.quote.policyVersion,
+            routeType: state.quote.routeType,
+            destinationType: state.quote.destinationType,
+            destinationTypeResolution: state.quote.destinationTypeResolution,
+            totalItemQuantity: state.quote.totalItemQuantity,
+            productWeightGram: state.quote.productWeightGram,
+            packagingType: state.quote.packagingType,
+            packagingWeightGram: state.quote.packagingWeightGram,
+            grossWeightGram: state.quote.grossWeightGram,
+            chargeableWeightGram: state.quote.chargeableWeightGram,
+            fuelSurcharge: state.quote.fuelSurcharge,
+            ruleCode: state.quote.ruleCode,
           }
         : null,
       paymentMethod: state.paymentMethod,
@@ -937,7 +912,7 @@ export class CheckoutService {
       discountAmount: state.discountAmount,
       totalProductWeightGram: state.totalProductWeightGram,
       shippingFee: state.quote?.shippingFee ?? null,
-      shippingFeeRule: state.quote?.rule ?? null,
+      shippingFeeRule: state.quote?.routeType ?? null,
       shippingMethodCode: 'STANDARD',
       totalAmount: state.totalAmount,
       note: state.note,
@@ -963,10 +938,12 @@ export class CheckoutService {
 
   private currentLocationResponse(location: VietMapLocationResponseDto) {
     this.ensureCurrentHierarchy(location);
-    const provinceCode = this.internalShippingFee.resolveProvinceCode(
+    const provinceCode = this.shippingPricing.resolveProvinceCode(
       location.province,
     );
     const wardName = location.ward!;
+    const destinationType =
+      this.shippingPricing.resolveDestinationType(wardName);
     return {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -976,12 +953,14 @@ export class CheckoutService {
       address: location.address,
       displayAddress: location.displayAddress,
       placeId: null,
+      destinationType,
       locationProof: this.locationProof.issue({
         provinceCode,
-        provinceName: this.internalShippingFee.normalizeProvinceName(
+        provinceName: this.shippingPricing.normalizeProvinceName(
           location.province!,
         ),
         wardName: this.normalizeAdministrativeName(wardName),
+        destinationType,
         latitude: location.latitude,
         longitude: location.longitude,
       }),
@@ -1005,6 +984,6 @@ export class CheckoutService {
         message: 'Không thể xác định tỉnh và phường/xã từ vị trí hiện tại.',
       });
     }
-    this.internalShippingFee.resolveProvinceCode(location.province);
+    this.shippingPricing.resolveProvinceCode(location.province);
   }
 }
