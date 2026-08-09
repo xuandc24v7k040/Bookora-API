@@ -1,5 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -7,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Matches,
   Max,
   Min,
@@ -16,6 +19,11 @@ import { ProductOptionPresentationType } from '@/generated/prisma/client';
 
 const trimOptional = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() || undefined : value;
+
+const normalizeSearch = ({ value }: { value: unknown }) =>
+  typeof value === 'string'
+    ? value.trim().replace(/\s+/gu, ' ') || undefined
+    : value;
 
 const stringList = ({ value }: { value: unknown }): unknown => {
   if (value === undefined || value === null || value === '') return undefined;
@@ -37,6 +45,7 @@ const booleanValue = ({ value }: { value: unknown }): unknown => {
 };
 
 export enum StorefrontProductSort {
+  RELEVANCE = 'relevance',
   POPULAR = 'popular',
   NEWEST = 'newest',
   PRICE_ASC = 'price_asc',
@@ -67,11 +76,16 @@ export class PublicProductQueryDto {
   @IsOptional()
   pageSize?: number = 12;
 
-  @ApiPropertyOptional()
-  @Transform(trimOptional)
+  @ApiPropertyOptional({
+    description:
+      'Từ khóa tìm theo tên, tác giả, nhà xuất bản, ISBN hoặc barcode',
+    maxLength: 160,
+  })
+  @Transform(normalizeSearch)
   @IsString({ message: 'Từ khóa tìm kiếm không hợp lệ.' })
+  @MaxLength(160, { message: 'Từ khóa tìm kiếm quá dài.' })
   @IsOptional()
-  search?: string;
+  q?: string;
 
   @ApiPropertyOptional()
   @Transform(trimOptional)
@@ -134,11 +148,41 @@ export class PublicProductQueryDto {
 
   @ApiPropertyOptional({
     enum: StorefrontProductSort,
-    default: StorefrontProductSort.POPULAR,
+    description: 'Mặc định relevance khi có q, popular khi không có q',
   })
   @IsEnum(StorefrontProductSort, { message: 'Cách sắp xếp không hợp lệ.' })
   @IsOptional()
-  sort?: StorefrontProductSort = StorefrontProductSort.POPULAR;
+  sort?: StorefrontProductSort;
+}
+
+export class PublicSearchSuggestionsQueryDto {
+  @ApiProperty({ minLength: 2, maxLength: 160 })
+  @Transform(normalizeSearch)
+  @IsString({ message: 'Từ khóa tìm kiếm không hợp lệ.' })
+  @Matches(/.{2,}/u, { message: 'Vui lòng nhập ít nhất 2 ký tự.' })
+  @MaxLength(160, { message: 'Từ khóa tìm kiếm quá dài.' })
+  q!: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 8, default: 5 })
+  @Type(() => Number)
+  @IsInt({ message: 'Giới hạn gợi ý không hợp lệ.' })
+  @Min(1, { message: 'Giới hạn gợi ý không hợp lệ.' })
+  @Max(8, { message: 'Giới hạn gợi ý không hợp lệ.' })
+  @IsOptional()
+  limit?: number = 5;
+}
+
+export class PublicProductSummariesQueryDto {
+  @ApiProperty({ type: [String], minItems: 1, maxItems: 12 })
+  @Transform(stringList)
+  @IsArray({ message: 'Danh sách sản phẩm không hợp lệ.' })
+  @ArrayMinSize(1, { message: 'Danh sách sản phẩm không được để trống.' })
+  @ArrayMaxSize(12, { message: 'Chỉ có thể tải tối đa 12 sản phẩm.' })
+  @Matches(/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/u, {
+    each: true,
+    message: 'Mã sản phẩm không hợp lệ.',
+  })
+  ids!: string[];
 }
 
 export class ProductAvailabilityQueryDto {
@@ -240,6 +284,17 @@ export class PublicProductListResponseDto {
   @ApiProperty({ enum: StorefrontProductSort }) sort!: StorefrontProductSort;
   @ApiProperty({ type: PublicProductFacetsDto })
   facets!: PublicProductFacetsDto;
+}
+
+export class PublicSearchSuggestionItemDto extends PublicProductListItemDto {
+  @ApiProperty() isBestMatch!: boolean;
+  @ApiProperty() isBestSeller!: boolean;
+}
+
+export class PublicSearchSuggestionsResponseDto {
+  @ApiProperty({ type: [PublicSearchSuggestionItemDto] })
+  items!: PublicSearchSuggestionItemDto[];
+  @ApiProperty({ minimum: 0 }) total!: number;
 }
 
 export class PublicHomeResponseDto {

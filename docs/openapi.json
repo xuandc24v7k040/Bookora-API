@@ -20247,10 +20247,12 @@
             }
           },
           {
-            "name": "search",
+            "name": "q",
             "required": false,
             "in": "query",
+            "description": "Từ khóa tìm theo tên, tác giả, nhà xuất bản, ISBN hoặc barcode",
             "schema": {
+              "maxLength": 160,
               "type": "string"
             }
           },
@@ -20334,10 +20336,11 @@
             "name": "sort",
             "required": false,
             "in": "query",
+            "description": "Mặc định relevance khi có q, popular khi không có q",
             "schema": {
-              "default": "popular",
               "type": "string",
               "enum": [
+                "relevance",
                 "popular",
                 "newest",
                 "price_asc",
@@ -20433,6 +20436,237 @@
           "storefront-catalog"
         ],
         "description": "Tìm kiếm và lọc sản phẩm public",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/storefront/products/search-suggestions": {
+      "get": {
+        "operationId": "storefrontProductSearchSuggestions",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 8,
+              "default": 5,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy gợi ý tìm kiếm thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy gợi ý tìm kiếm thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublicSearchSuggestionsResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lấy gợi ý tìm kiếm sản phẩm public",
+        "tags": [
+          "storefront-catalog"
+        ],
+        "description": "Lấy gợi ý tìm kiếm sản phẩm public",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/storefront/products/summaries": {
+      "get": {
+        "operationId": "storefrontProductSummaries",
+        "parameters": [
+          {
+            "name": "ids",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minItems": 1,
+              "maxItems": 12,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy tóm tắt sản phẩm thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy tóm tắt sản phẩm thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PublicProductListItemDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lấy tóm tắt sản phẩm public theo danh sách ID",
+        "tags": [
+          "storefront-catalog"
+        ],
+        "description": "Lấy tóm tắt sản phẩm public theo danh sách ID",
         "security": [
           {
             "accessToken": []
@@ -32500,6 +32734,7 @@
           "sort": {
             "type": "string",
             "enum": [
+              "relevance",
               "popular",
               "newest",
               "price_asc",
@@ -32520,6 +32755,102 @@
           "totalPages",
           "sort",
           "facets"
+        ]
+      },
+      "PublicSearchSuggestionItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicNamedEntityDto"
+            }
+          },
+          "publisher": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PublicNamedEntityDto"
+              }
+            ]
+          },
+          "primaryImage": {
+            "$ref": "#/components/schemas/PublicProductMediaDto"
+          },
+          "price": {
+            "$ref": "#/components/schemas/PublicPriceDto"
+          },
+          "releaseDate": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "rank": {
+            "type": "number",
+            "minimum": 1,
+            "nullable": true
+          },
+          "averageRating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true
+          },
+          "reviewCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "isBestMatch": {
+            "type": "boolean"
+          },
+          "isBestSeller": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "authors",
+          "primaryImage",
+          "price",
+          "reviewCount",
+          "isBestMatch",
+          "isBestSeller"
+        ]
+      },
+      "PublicSearchSuggestionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSearchSuggestionItemDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "total"
         ]
       },
       "PublicBranchSummaryDto": {

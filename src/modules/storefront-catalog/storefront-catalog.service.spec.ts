@@ -94,6 +94,8 @@ describe('StorefrontCatalogService', () => {
     listCategories: jest.fn(),
     listProducts: jest.fn(),
     listProductPage: jest.fn(),
+    listSearchSuggestions: jest.fn(),
+    listProductsByIds: jest.fn(),
     completedSalesByProduct: jest.fn(),
     findProductBySlug: jest.fn(),
     listRelated: jest.fn(),
@@ -166,6 +168,89 @@ describe('StorefrontCatalogService', () => {
       onSale: true,
       discountPercent: 20,
     });
+  });
+
+  it('uses relevance by default only when a search query is present', async () => {
+    repository.listProductPage.mockResolvedValue({
+      records: [product()],
+      totalItems: 1,
+      facets: { authors: [], publishers: [], categories: [], attributes: [] },
+    });
+
+    const result = await service.list({ q: 'chu thuat' });
+
+    expect(repository.listProductPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        q: 'chu thuat',
+        sort: StorefrontProductSort.RELEVANCE,
+      }),
+      expect.any(Date),
+    );
+    expect(result.sort).toBe(StorefrontProductSort.RELEVANCE);
+  });
+
+  it('returns lightweight ranked suggestions with a total', async () => {
+    repository.listSearchSuggestions.mockResolvedValue({
+      records: [
+        {
+          product: product(),
+          isBestMatch: true,
+          isBestSeller: true,
+        },
+      ],
+      totalItems: 4,
+    });
+
+    const result = await service.searchSuggestions({
+      q: 'chu thuat',
+      limit: 5,
+    });
+
+    expect(result.total).toBe(4);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id,
+      slug: 'sach-thu-nghiem',
+      isBestMatch: true,
+      isBestSeller: false,
+    });
+  });
+
+  it('maps a real bestseller badge when best-match priority does not apply', async () => {
+    repository.listSearchSuggestions.mockResolvedValue({
+      records: [
+        {
+          product: product(),
+          isBestMatch: false,
+          isBestSeller: true,
+        },
+      ],
+      totalItems: 1,
+    });
+
+    const result = await service.searchSuggestions({ q: 'thuật', limit: 5 });
+
+    expect(result.items[0]).toMatchObject({
+      isBestMatch: false,
+      isBestSeller: true,
+    });
+  });
+
+  it('deduplicates and preserves requested order for product summaries', async () => {
+    const secondId = '01J00000000000000000000002';
+    const second = product({
+      id: secondId,
+      name: 'Sách thứ hai',
+      slug: 'sach-thu-hai',
+    });
+    repository.listProductsByIds.mockResolvedValue([second, product()]);
+
+    const result = await service.productSummaries({
+      ids: [id, secondId, id],
+    });
+
+    expect(repository.listProductsByIds).toHaveBeenCalledWith([id, secondId]);
+    expect(result.map((item) => item.id)).toEqual([id, secondId]);
   });
 
   it('returns public 404 instead of leaking why a product is hidden', async () => {

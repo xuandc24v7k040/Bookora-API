@@ -18,8 +18,12 @@ import {
   PublicHomeResponseDto,
   PublicProductAvailabilityDto,
   PublicProductDetailDto,
+  PublicProductListItemDto,
   PublicProductListResponseDto,
   PublicProductQueryDto,
+  PublicProductSummariesQueryDto,
+  PublicSearchSuggestionsQueryDto,
+  PublicSearchSuggestionsResponseDto,
 } from './dto';
 import { StorefrontCatalogService } from './storefront-catalog.service';
 
@@ -77,6 +81,33 @@ export class StorefrontCatalogController {
   @ResponseMessage('Lấy danh sách sản phẩm thành công')
   products(@Query() query: PublicProductQueryDto) {
     return this.service.list(query);
+  }
+
+  @Get('products/search-suggestions')
+  @ApiOperation({
+    operationId: 'storefrontProductSearchSuggestions',
+    summary: 'Lấy gợi ý tìm kiếm sản phẩm public',
+  })
+  @ApiBaseResponse(PublicSearchSuggestionsResponseDto, {
+    description: 'Lấy gợi ý tìm kiếm thành công',
+  })
+  @ResponseMessage('Lấy gợi ý tìm kiếm thành công')
+  searchSuggestions(@Query() query: PublicSearchSuggestionsQueryDto) {
+    return this.service.searchSuggestions(query);
+  }
+
+  @Get('products/summaries')
+  @ApiOperation({
+    operationId: 'storefrontProductSummaries',
+    summary: 'Lấy tóm tắt sản phẩm public theo danh sách ID',
+  })
+  @ApiBaseResponse(PublicProductListItemDto, {
+    description: 'Lấy tóm tắt sản phẩm thành công',
+    isArray: true,
+  })
+  @ResponseMessage('Lấy tóm tắt sản phẩm thành công')
+  productSummaries(@Query() query: PublicProductSummariesQueryDto) {
+    return this.service.productSummaries(query);
   }
 
   @Get('products/:productId/availability')

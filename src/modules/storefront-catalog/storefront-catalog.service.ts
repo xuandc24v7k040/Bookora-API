@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { isValid as isValidUlid } from 'ulid';
 import {
+  PublicProductSummariesQueryDto,
   PublicProductQueryDto,
+  PublicSearchSuggestionsQueryDto,
   StorefrontAvailabilityStatus,
   StorefrontProductSort,
 } from './dto';
@@ -116,7 +118,15 @@ export class StorefrontCatalogService {
     }
 
     const now = new Date();
-    const result = await this.repository.listProductPage(query, now);
+    const sort =
+      query.sort ??
+      (query.q
+        ? StorefrontProductSort.RELEVANCE
+        : StorefrontProductSort.POPULAR);
+    const result = await this.repository.listProductPage(
+      { ...query, sort },
+      now,
+    );
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 12;
     const totalItems = result.totalItems;
@@ -134,9 +144,51 @@ export class StorefrontCatalogService {
       pageSize,
       totalItems,
       totalPages,
-      sort: query.sort ?? StorefrontProductSort.POPULAR,
+      sort,
       facets: result.facets,
     };
+  }
+
+  async searchSuggestions(query: PublicSearchSuggestionsQueryDto) {
+    const now = new Date();
+    const result = await this.repository.listSearchSuggestions(
+      query.q,
+      query.limit ?? 5,
+    );
+    const ratings = await this.repository.ratingAggregates(
+      result.records.map(({ product }) => product.id),
+    );
+    return {
+      items: result.records.map(
+        ({ product, isBestMatch, isBestSeller }, index) => {
+          const bestMatch = index === 0 && isBestMatch;
+          return {
+            ...this.toListItem(product, now, ratings),
+            isBestMatch: bestMatch,
+            isBestSeller: !bestMatch && isBestSeller,
+          };
+        },
+      ),
+      total: result.totalItems,
+    };
+  }
+
+  async productSummaries(query: PublicProductSummariesQueryDto) {
+    const ids = [...new Set(query.ids)];
+    const now = new Date();
+    const records = await this.repository.listProductsByIds(ids);
+    const ratings = await this.repository.ratingAggregates(
+      records.map((record) => record.id),
+    );
+    const items = records.map((record) =>
+      this.toListItem(record, now, ratings),
+    );
+    const position = new Map(ids.map((id, index) => [id, index]));
+    return items.sort(
+      (left, right) =>
+        (position.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+        (position.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+    );
   }
 
   async detail(slug: string) {

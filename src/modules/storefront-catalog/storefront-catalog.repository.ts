@@ -168,6 +168,18 @@ export interface PublicProductFacetItem {
   count: number;
 }
 
+export interface PublicSearchMatch {
+  id: string;
+  isBestMatch: boolean;
+  isBestSeller: boolean;
+}
+
+export interface PublicSearchSuggestionRecord {
+  product: PublicProductRecord;
+  isBestMatch: boolean;
+  isBestSeller: boolean;
+}
+
 export interface PublicProductFacets {
   authors: PublicProductFacetItem[];
   publishers: PublicProductFacetItem[];
@@ -217,7 +229,21 @@ export class StorefrontCatalogRepository {
   }
 
   async listProductPage(query: PublicProductQueryDto, now: Date) {
-    const where = this.listWhere(query, now);
+    const searchMatches = query.q
+      ? await this.searchProductMatches(query.q)
+      : null;
+    const rankedSearchIds = searchMatches?.map((match) => match.id) ?? null;
+    if (rankedSearchIds && !rankedSearchIds.length) {
+      return {
+        records: [] as PublicProductRecord[],
+        totalItems: 0,
+        facets: this.emptyFacets(),
+      };
+    }
+    const where: Prisma.ProductWhereInput = {
+      ...this.listWhere(query, now),
+      ...(rankedSearchIds ? { id: { in: rankedSearchIds } } : {}),
+    };
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 12;
     const offset = (page - 1) * pageSize;
@@ -234,13 +260,23 @@ export class StorefrontCatalogRepository {
       };
     }
 
-    const orderedIds = await this.listOrderedProductIds(
-      matchingIds,
-      query.sort ?? StorefrontProductSort.POPULAR,
-      now,
-      pageSize,
-      offset,
-    );
+    const sort =
+      query.sort ??
+      (query.q
+        ? StorefrontProductSort.RELEVANCE
+        : StorefrontProductSort.POPULAR);
+    const orderedIds =
+      sort === StorefrontProductSort.RELEVANCE && rankedSearchIds
+        ? rankedSearchIds
+            .filter((id) => matchingIds.includes(id))
+            .slice(offset, offset + pageSize)
+        : await this.listOrderedProductIds(
+            matchingIds,
+            sort,
+            now,
+            pageSize,
+            offset,
+          );
     const [records, facets] = await Promise.all([
       this.prisma.product.findMany({
         where: { id: { in: orderedIds } },
@@ -255,6 +291,43 @@ export class StorefrontCatalogRepository {
         (position.get(right.id) ?? Number.MAX_SAFE_INTEGER),
     );
     return { records, totalItems, facets };
+  }
+
+  async listSearchSuggestions(q: string, limit: number) {
+    const matches = await this.searchProductMatches(q);
+    const rankedIds = matches.map((match) => match.id);
+    if (!rankedIds.length) {
+      return { records: [] as PublicSearchSuggestionRecord[], totalItems: 0 };
+    }
+    const records = await this.prisma.product.findMany({
+      where: {
+        ...publicProductVisibilityWhere,
+        id: { in: rankedIds },
+      },
+      select: publicProductSelect,
+    });
+    const position = new Map(rankedIds.map((id, index) => [id, index]));
+    records.sort(
+      (left, right) =>
+        (position.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+        (position.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    const matchesById = new Map(matches.map((match) => [match.id, match]));
+    return {
+      records: records.slice(0, limit).map((product) => ({
+        product,
+        isBestMatch: matchesById.get(product.id)?.isBestMatch ?? false,
+        isBestSeller: matchesById.get(product.id)?.isBestSeller ?? false,
+      })),
+      totalItems: records.length,
+    };
+  }
+
+  listProductsByIds(ids: string[]) {
+    return this.prisma.product.findMany({
+      where: { ...publicProductVisibilityWhere, id: { in: ids } },
+      select: publicProductSelect,
+    });
   }
 
   findProductBySlug(slug: string) {
@@ -355,6 +428,127 @@ export class StorefrontCatalogRepository {
     );
   }
 
+  private async searchProductMatches(
+    search: string,
+  ): Promise<PublicSearchMatch[]> {
+    const normalized = search.trim().replace(/\s+/gu, ' ');
+    if (!normalized) return [];
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        matchRank: number;
+        isBestSeller: boolean;
+      }>
+    >(Prisma.sql`
+      WITH bestseller_products AS (
+        SELECT sold_variant.product_id
+        FROM order_items oi
+        JOIN orders completed_order ON completed_order.id = oi.order_id
+        JOIN product_variants sold_variant ON sold_variant.id = oi.variant_id
+        WHERE completed_order.status = 'COMPLETED'
+        GROUP BY sold_variant.product_id
+        ORDER BY SUM(oi.quantity) DESC, sold_variant.product_id ASC
+        LIMIT 5
+      )
+      SELECT
+        p.id,
+        bp.product_id IS NOT NULL AS "isBestSeller",
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM product_variants exact_variant
+            WHERE exact_variant.product_id = p.id
+              AND exact_variant.is_active = true
+              AND (
+                public.bookora_normalize_search(COALESCE(exact_variant.isbn, '')) = query.value
+                OR public.bookora_normalize_search(COALESCE(exact_variant.barcode, '')) = query.value
+                OR public.bookora_normalize_search(exact_variant.sku) = query.value
+              )
+          ) THEN 0
+          WHEN public.bookora_normalize_search(p.name) = query.value THEN 1
+          WHEN left(public.bookora_normalize_search(p.name), length(query.value)) = query.value THEN 2
+          WHEN strpos(public.bookora_normalize_search(p.name), query.value) > 0 THEN 3
+          WHEN EXISTS (
+            SELECT 1
+            FROM product_authors ranked_pa
+            JOIN authors ranked_author ON ranked_author.id = ranked_pa.author_id
+            WHERE ranked_pa.product_id = p.id
+              AND strpos(public.bookora_normalize_search(ranked_author.name), query.value) > 0
+          ) THEN 4
+          WHEN pub.id IS NOT NULL
+            AND strpos(public.bookora_normalize_search(pub.name), query.value) > 0 THEN 5
+          ELSE 6
+        END AS "matchRank"
+      FROM products p
+      LEFT JOIN publishers pub ON pub.id = p.publisher_id
+      LEFT JOIN bestseller_products bp ON bp.product_id = p.id
+      CROSS JOIN (
+        SELECT public.bookora_normalize_search(${normalized}) AS value
+      ) query
+      WHERE
+        strpos(public.bookora_normalize_search(p.name), query.value) > 0
+        OR (
+          length(query.value) >= 4 AND (
+            similarity(public.bookora_normalize_search(p.name), query.value) >= 0.24
+            OR word_similarity(query.value, public.bookora_normalize_search(p.name)) >= 0.65
+          )
+        )
+        OR (
+          pub.id IS NOT NULL AND (
+            strpos(public.bookora_normalize_search(pub.name), query.value) > 0
+            OR (
+              length(query.value) >= 4 AND (
+                similarity(public.bookora_normalize_search(pub.name), query.value) >= 0.28
+                OR word_similarity(query.value, public.bookora_normalize_search(pub.name)) >= 0.6
+              )
+            )
+          )
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM product_authors pa
+          JOIN authors a ON a.id = pa.author_id
+          WHERE pa.product_id = p.id AND (
+            strpos(public.bookora_normalize_search(a.name), query.value) > 0
+            OR (
+              length(query.value) >= 4 AND (
+                similarity(public.bookora_normalize_search(a.name), query.value) >= 0.28
+                OR word_similarity(query.value, public.bookora_normalize_search(a.name)) >= 0.6
+              )
+            )
+          )
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM product_variants pv
+          WHERE pv.product_id = p.id AND pv.is_active = true AND (
+            public.bookora_normalize_search(COALESCE(pv.isbn, '')) = query.value
+            OR public.bookora_normalize_search(COALESCE(pv.barcode, '')) = query.value
+            OR public.bookora_normalize_search(pv.sku) = query.value
+          )
+        )
+      ORDER BY
+        "matchRank" ASC,
+        GREATEST(
+          similarity(public.bookora_normalize_search(p.name), query.value),
+          similarity(public.bookora_normalize_search(COALESCE(pub.name, '')), query.value),
+          word_similarity(query.value, public.bookora_normalize_search(p.name)),
+          word_similarity(
+            query.value,
+            public.bookora_normalize_search(COALESCE(pub.name, ''))
+          )
+        ) DESC,
+        p.name ASC,
+        p.id ASC
+    `);
+    return rows.map((row) => ({
+      id: row.id,
+      isBestMatch: row.matchRank <= 2,
+      isBestSeller: row.isBestSeller,
+    }));
+  }
+
   private listWhere(
     query: PublicProductQueryDto,
     now: Date,
@@ -383,29 +577,6 @@ export class StorefrontCatalogRepository {
 
     return {
       ...publicProductVisibilityWhere,
-      ...(query.search
-        ? {
-            OR: [
-              { name: { contains: query.search, mode: 'insensitive' } },
-              {
-                authors: {
-                  some: {
-                    author: {
-                      name: { contains: query.search, mode: 'insensitive' },
-                    },
-                  },
-                },
-              },
-              {
-                publisher: {
-                  is: {
-                    name: { contains: query.search, mode: 'insensitive' },
-                  },
-                },
-              },
-            ],
-          }
-        : {}),
       ...(query.categorySlug
         ? {
             categories: {

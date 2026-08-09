@@ -1,6 +1,11 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { PublicProductQueryDto } from './dto';
+import {
+  PublicProductQueryDto,
+  PublicProductSummariesQueryDto,
+  PublicSearchSuggestionsQueryDto,
+  StorefrontProductSort,
+} from './dto';
 
 describe('PublicProductQueryDto', () => {
   it.each([
@@ -49,5 +54,30 @@ describe('PublicProductQueryDto', () => {
       author: { slug: 'j-k-rowling' },
     });
     expect(await validate(dto)).not.toHaveLength(0);
+  });
+
+  it('normalizes whitespace while preserving Vietnamese search text', async () => {
+    const dto = plainToInstance(PublicProductQueryDto, {
+      q: '  Chú   Thuật  ',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto.q).toBe('Chú Thuật');
+    expect(dto.sort).toBeUndefined();
+    expect(StorefrontProductSort.RELEVANCE).toBe('relevance');
+  });
+
+  it('validates suggestion limits and recently viewed batch IDs', async () => {
+    const suggestions = plainToInstance(PublicSearchSuggestionsQueryDto, {
+      q: '  chu   thuat ',
+      limit: '5',
+    });
+    const summaries = plainToInstance(PublicProductSummariesQueryDto, {
+      ids: ['01J00000000000000000000000', '01J00000000000000000000001'],
+    });
+
+    await expect(validate(suggestions)).resolves.toHaveLength(0);
+    await expect(validate(summaries)).resolves.toHaveLength(0);
+    expect(suggestions).toMatchObject({ q: 'chu thuat', limit: 5 });
   });
 });
