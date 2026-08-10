@@ -337,17 +337,276 @@ export class StorefrontCatalogRepository {
     });
   }
 
-  listRelated(categoryIds: string[], excludeProductId: string) {
-    return this.prisma.product.findMany({
-      where: {
-        ...publicProductVisibilityWhere,
-        id: { not: excludeProductId },
-        categories: { some: { categoryId: { in: categoryIds } } },
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 12,
-      select: publicProductSelect,
+  findPublicProductId(productId: string) {
+    return this.prisma.product.findFirst({
+      where: { ...publicProductVisibilityWhere, id: productId },
+      select: { id: true },
     });
+  }
+
+  async listRelatedProductIds(
+    productId: string,
+    limit: number,
+    now: Date,
+  ): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ candidateId: string }>>(
+      Prisma.sql`
+        WITH current_product AS (
+          SELECT
+            p.id,
+            p.publisher_id,
+            CASE
+              WHEN default_variant.sale_price IS NOT NULL
+                AND (default_variant.sale_start_at IS NULL OR default_variant.sale_start_at <= ${now})
+                AND (default_variant.sale_end_at IS NULL OR default_variant.sale_end_at >= ${now})
+              THEN default_variant.sale_price
+              ELSE default_variant.original_price
+            END AS effective_price
+          FROM products p
+          JOIN product_variants default_variant
+            ON default_variant.product_id = p.id
+            AND default_variant.is_active = true
+            AND default_variant.is_default = true
+          WHERE p.id = ${productId}
+        ),
+        current_categories AS (
+          SELECT DISTINCT category.id, category.parent_id
+          FROM product_categories product_category
+          JOIN categories category
+            ON category.id = product_category.category_id
+            AND category.is_active = true
+          WHERE product_category.product_id = ${productId}
+            AND (
+              category.parent_id IS NULL
+              OR EXISTS (
+                SELECT 1
+                FROM categories parent_category
+                WHERE parent_category.id = category.parent_id
+                  AND parent_category.is_active = true
+              )
+            )
+        ),
+        current_authors AS (
+          SELECT author_id
+          FROM product_authors
+          WHERE product_id = ${productId}
+        ),
+        completed_sales AS (
+          SELECT sold_variant.product_id, SUM(order_item.quantity)::bigint AS sold_quantity
+          FROM order_items order_item
+          JOIN orders completed_order ON completed_order.id = order_item.order_id
+          JOIN product_variants sold_variant ON sold_variant.id = order_item.variant_id
+          WHERE completed_order.status = 'COMPLETED'
+          GROUP BY sold_variant.product_id
+        ),
+        visible_ratings AS (
+          SELECT review.product_id, AVG(review.rating)::numeric AS average_rating
+          FROM reviews review
+          WHERE review.is_visible = true
+          GROUP BY review.product_id
+        ),
+        candidate_pool AS (
+          SELECT
+            candidate.id AS candidate_id,
+            candidate.publisher_id,
+            candidate.created_at,
+            CASE
+              WHEN default_variant.sale_price IS NOT NULL
+                AND (default_variant.sale_start_at IS NULL OR default_variant.sale_start_at <= ${now})
+                AND (default_variant.sale_end_at IS NULL OR default_variant.sale_end_at >= ${now})
+              THEN default_variant.sale_price
+              ELSE default_variant.original_price
+            END AS effective_price,
+            COALESCE(completed_sales.sold_quantity, 0) AS sold_quantity,
+            COALESCE(visible_ratings.average_rating, 0) AS average_rating
+          FROM products candidate
+          JOIN current_product ON true
+          JOIN product_variants default_variant
+            ON default_variant.product_id = candidate.id
+            AND default_variant.is_active = true
+            AND default_variant.is_default = true
+          LEFT JOIN completed_sales ON completed_sales.product_id = candidate.id
+          LEFT JOIN visible_ratings ON visible_ratings.product_id = candidate.id
+          WHERE candidate.id <> current_product.id
+            AND candidate.status = 'ACTIVE'
+            AND EXISTS (
+              SELECT 1
+              FROM product_categories visible_product_category
+              JOIN categories visible_category
+                ON visible_category.id = visible_product_category.category_id
+                AND visible_category.is_active = true
+              WHERE visible_product_category.product_id = candidate.id
+                AND (
+                  visible_category.parent_id IS NULL
+                  OR EXISTS (
+                    SELECT 1
+                    FROM categories visible_parent
+                    WHERE visible_parent.id = visible_category.parent_id
+                      AND visible_parent.is_active = true
+                  )
+                )
+            )
+            AND EXISTS (
+              SELECT 1
+              FROM product_media primary_media
+              WHERE primary_media.product_id = candidate.id
+                AND primary_media.variant_id IS NULL
+                AND primary_media.type = 'IMAGE'
+                AND primary_media.is_primary = true
+            )
+        ),
+        candidate_scores AS (
+          SELECT DISTINCT candidate_pool.candidate_id, 5 AS score
+          FROM candidate_pool
+          JOIN product_categories candidate_product_category
+            ON candidate_product_category.product_id = candidate_pool.candidate_id
+          JOIN categories candidate_category
+            ON candidate_category.id = candidate_product_category.category_id
+            AND candidate_category.is_active = true
+          JOIN current_categories ON current_categories.id = candidate_category.id
+          WHERE candidate_category.parent_id IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM categories active_parent
+              WHERE active_parent.id = candidate_category.parent_id
+                AND active_parent.is_active = true
+            )
+
+          UNION ALL
+
+          SELECT DISTINCT candidate_pool.candidate_id, 4 AS score
+          FROM candidate_pool
+          JOIN product_authors candidate_author
+            ON candidate_author.product_id = candidate_pool.candidate_id
+          JOIN current_authors ON current_authors.author_id = candidate_author.author_id
+
+          UNION ALL
+
+          SELECT DISTINCT candidate_pool.candidate_id, 3 AS score
+          FROM candidate_pool
+          JOIN product_categories candidate_product_category
+            ON candidate_product_category.product_id = candidate_pool.candidate_id
+          JOIN categories candidate_category
+            ON candidate_category.id = candidate_product_category.category_id
+            AND candidate_category.is_active = true
+          JOIN current_categories
+            ON current_categories.parent_id IS NOT NULL
+            AND current_categories.parent_id = candidate_category.parent_id
+
+          UNION ALL
+
+          SELECT candidate_pool.candidate_id, 2 AS score
+          FROM candidate_pool
+          JOIN current_product ON true
+          WHERE current_product.publisher_id IS NOT NULL
+            AND candidate_pool.publisher_id = current_product.publisher_id
+
+          UNION ALL
+
+          SELECT candidate_pool.candidate_id, 1 AS score
+          FROM candidate_pool
+          JOIN current_product ON true
+          WHERE current_product.effective_price > 0
+            AND candidate_pool.effective_price BETWEEN
+              current_product.effective_price * 0.75
+              AND current_product.effective_price * 1.25
+        ),
+        scored AS (
+          SELECT candidate_id, SUM(score)::int AS relevance_score
+          FROM candidate_scores
+          GROUP BY candidate_id
+        ),
+        similarity_ranked AS (
+          SELECT
+            candidate_pool.candidate_id,
+            ROW_NUMBER() OVER (
+              ORDER BY
+                scored.relevance_score DESC,
+                candidate_pool.sold_quantity DESC,
+                candidate_pool.average_rating DESC,
+                candidate_pool.created_at DESC,
+                candidate_pool.candidate_id ASC
+            ) AS position
+          FROM scored
+          JOIN candidate_pool ON candidate_pool.candidate_id = scored.candidate_id
+        ),
+        similarity_selected AS (
+          SELECT candidate_id, position
+          FROM similarity_ranked
+          WHERE position <= ${limit}
+        ),
+        bestseller_ranked AS (
+          SELECT
+            candidate_pool.candidate_id,
+            ROW_NUMBER() OVER (
+              ORDER BY
+                candidate_pool.sold_quantity DESC,
+                candidate_pool.average_rating DESC,
+                candidate_pool.created_at DESC,
+                candidate_pool.candidate_id ASC
+            ) AS position
+          FROM candidate_pool
+          WHERE candidate_pool.sold_quantity > 0
+            AND NOT EXISTS (
+              SELECT 1
+              FROM similarity_selected
+              WHERE similarity_selected.candidate_id = candidate_pool.candidate_id
+            )
+        ),
+        bestseller_selected AS (
+          SELECT candidate_id, position
+          FROM bestseller_ranked
+          WHERE position <= GREATEST(
+            0,
+            ${limit} - (SELECT COUNT(*)::int FROM similarity_selected)
+          )
+        ),
+        newest_ranked AS (
+          SELECT
+            candidate_pool.candidate_id,
+            ROW_NUMBER() OVER (
+              ORDER BY
+                candidate_pool.created_at DESC,
+                candidate_pool.sold_quantity DESC,
+                candidate_pool.average_rating DESC,
+                candidate_pool.candidate_id ASC
+            ) AS position
+          FROM candidate_pool
+          WHERE NOT EXISTS (
+              SELECT 1
+              FROM similarity_selected
+              WHERE similarity_selected.candidate_id = candidate_pool.candidate_id
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM bestseller_selected
+              WHERE bestseller_selected.candidate_id = candidate_pool.candidate_id
+            )
+        ),
+        newest_selected AS (
+          SELECT candidate_id, position
+          FROM newest_ranked
+          WHERE position <= GREATEST(
+            0,
+            ${limit}
+              - (SELECT COUNT(*)::int FROM similarity_selected)
+              - (SELECT COUNT(*)::int FROM bestseller_selected)
+          )
+        ),
+        final_selection AS (
+          SELECT candidate_id, 1 AS tier, position FROM similarity_selected
+          UNION ALL
+          SELECT candidate_id, 2 AS tier, position FROM bestseller_selected
+          UNION ALL
+          SELECT candidate_id, 3 AS tier, position FROM newest_selected
+        )
+        SELECT candidate_id AS "candidateId"
+        FROM final_selection
+        ORDER BY tier ASC, position ASC, candidate_id ASC
+        LIMIT ${limit}
+      `,
+    );
+    return rows.map(({ candidateId }) => candidateId);
   }
 
   findAvailability(branchId: string, productId: string) {

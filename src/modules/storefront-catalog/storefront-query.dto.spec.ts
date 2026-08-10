@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   PublicProductQueryDto,
+  PublicRelatedProductsQueryDto,
   PublicProductSummariesQueryDto,
   PublicSearchSuggestionsQueryDto,
   StorefrontProductSort,
@@ -79,5 +80,19 @@ describe('PublicProductQueryDto', () => {
     await expect(validate(suggestions)).resolves.toHaveLength(0);
     await expect(validate(summaries)).resolves.toHaveLength(0);
     expect(suggestions).toMatchObject({ q: 'chu thuat', limit: 5 });
+  });
+
+  it.each([
+    [undefined, 3],
+    ['0', 1],
+    ['2', 2],
+    ['99', 3],
+  ])('clamps the related-products limit %p to %i', async (value, expected) => {
+    const dto = plainToInstance(PublicRelatedProductsQueryDto, {
+      ...(value === undefined ? {} : { limit: value }),
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto.limit).toBe(expected);
   });
 });

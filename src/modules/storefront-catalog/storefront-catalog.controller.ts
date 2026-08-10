@@ -21,6 +21,7 @@ import {
   PublicProductListItemDto,
   PublicProductListResponseDto,
   PublicProductQueryDto,
+  PublicRelatedProductsQueryDto,
   PublicProductSummariesQueryDto,
   PublicSearchSuggestionsQueryDto,
   PublicSearchSuggestionsResponseDto,
@@ -108,6 +109,23 @@ export class StorefrontCatalogController {
   @ResponseMessage('Lấy tóm tắt sản phẩm thành công')
   productSummaries(@Query() query: PublicProductSummariesQueryDto) {
     return this.service.productSummaries(query);
+  }
+
+  @Get('products/:productId/related')
+  @ApiOperation({
+    operationId: 'storefrontProductRelatedList',
+    summary: 'Lấy tối đa 3 sản phẩm liên quan public',
+  })
+  @ApiBaseResponse(PublicProductListItemDto, {
+    description: 'Lấy sản phẩm liên quan thành công',
+    isArray: true,
+  })
+  @ResponseMessage('Lấy sản phẩm liên quan thành công')
+  relatedProducts(
+    @UlidParam('productId') productId: string,
+    @Query() query: PublicRelatedProductsQueryDto,
+  ) {
+    return this.service.relatedProducts(productId, query.limit);
   }
 
   @Get('products/:productId/availability')

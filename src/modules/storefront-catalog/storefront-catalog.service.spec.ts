@@ -98,7 +98,8 @@ describe('StorefrontCatalogService', () => {
     listProductsByIds: jest.fn(),
     completedSalesByProduct: jest.fn(),
     findProductBySlug: jest.fn(),
-    listRelated: jest.fn(),
+    findPublicProductId: jest.fn(),
+    listRelatedProductIds: jest.fn(),
     findPublicVariants: jest.fn(),
     findAvailability: jest.fn(),
     ratingAggregates: jest.fn(),
@@ -112,6 +113,7 @@ describe('StorefrontCatalogService', () => {
     jest.resetAllMocks();
     repository.completedSalesByProduct.mockResolvedValue(new Map());
     repository.ratingAggregates.mockResolvedValue(new Map());
+    repository.findPublicProductId.mockResolvedValue({ id });
   });
 
   it('rejects an inverted price range with the public machine code', async () => {
@@ -260,18 +262,14 @@ describe('StorefrontCatalogService', () => {
     );
   });
 
-  it('maps detail variants, general media and related products without internal SKU fields', async () => {
+  it('maps detail variants and general media without internal SKU fields', async () => {
     repository.findProductBySlug.mockResolvedValue(product());
-    repository.listRelated.mockResolvedValue([
-      product({ id: '01J00000000000000000000002', slug: 'lien-quan' }),
-    ]);
 
     const detail = await service.detail('sach-thu-nghiem');
 
     expect(detail.generalMedia).toHaveLength(1);
     expect(detail.variants[0]?.media).toEqual([]);
     expect(detail.variants[0]?.barcode).toBe('8930000000012');
-    expect(detail.relatedProducts[0]?.slug).toBe('lien-quan');
     expect(detail.primaryCategory).toEqual({
       id,
       name: 'Tiểu thuyết',
@@ -284,6 +282,7 @@ describe('StorefrontCatalogService', () => {
     });
     expect(detail.variants[0]).not.toHaveProperty('sku');
     expect(detail.variants[0]).not.toHaveProperty('combinationKey');
+    expect(detail.seo.canonicalPath).toBe('/san-pham/sach-thu-nghiem');
   });
 
   it('keeps public categories and returns no primary category for legacy data', async () => {
@@ -294,7 +293,6 @@ describe('StorefrontCatalogService', () => {
       })),
     });
     repository.findProductBySlug.mockResolvedValue(legacyProduct);
-    repository.listRelated.mockResolvedValue([]);
 
     const detail = await service.detail(legacyProduct.slug);
 
@@ -304,6 +302,61 @@ describe('StorefrontCatalogService', () => {
       ]),
     );
     expect(detail.primaryCategory).toBeNull();
+  });
+
+  it('returns public 404 when related products are requested for a hidden product', async () => {
+    repository.findPublicProductId.mockResolvedValue(null);
+
+    await expect(service.relatedProducts(id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(repository.listRelatedProductIds).not.toHaveBeenCalled();
+  });
+
+  it('clamps related products to three, excludes current and duplicate IDs, and preserves ranking', async () => {
+    const secondId = '01J00000000000000000000002';
+    const thirdId = '01J00000000000000000000003';
+    const fourthId = '01J00000000000000000000004';
+    repository.listRelatedProductIds.mockResolvedValue([
+      secondId,
+      id,
+      secondId,
+      thirdId,
+      fourthId,
+    ]);
+    repository.listProductsByIds.mockResolvedValue([
+      product({ id: thirdId, slug: 'thu-ba' }),
+      product({ id: secondId, slug: 'thu-hai' }),
+      product({ id: fourthId, slug: 'thu-tu' }),
+    ]);
+
+    const result = await service.relatedProducts(id, 99);
+
+    expect(repository.listRelatedProductIds).toHaveBeenCalledWith(
+      id,
+      3,
+      expect.any(Date),
+    );
+    expect(repository.listProductsByIds).toHaveBeenCalledWith([
+      secondId,
+      thirdId,
+      fourthId,
+    ]);
+    expect(result.map((item) => item.id)).toEqual([
+      secondId,
+      thirdId,
+      fourthId,
+    ]);
+  });
+
+  it('returns the real candidate count when fewer than three public products exist', async () => {
+    const secondId = '01J00000000000000000000002';
+    repository.listRelatedProductIds.mockResolvedValue([secondId]);
+    repository.listProductsByIds.mockResolvedValue([
+      product({ id: secondId, slug: 'thu-hai' }),
+    ]);
+
+    await expect(service.relatedProducts(id)).resolves.toHaveLength(1);
   });
 
   it('returns stock status for the exact branch and selected variant', async () => {

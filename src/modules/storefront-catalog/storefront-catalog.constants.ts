@@ -11,4 +11,4 @@ export const STOREFRONT_DEMO_POPULAR_SLUGS = [
   'shoe-dog-ga-nghien-giay',
 ] as const;
 
-export const STOREFRONT_RELATED_LIMIT = 4;
+export const STOREFRONT_RELATED_LIMIT = 3;

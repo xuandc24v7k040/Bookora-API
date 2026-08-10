@@ -44,6 +44,12 @@ const booleanValue = ({ value }: { value: unknown }): unknown => {
   return value;
 };
 
+const relatedProductsLimit = ({ value }: { value: unknown }): unknown => {
+  if (value === undefined || value === null || value === '') return 3;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? Math.min(3, Math.max(1, parsed)) : value;
+};
+
 export enum StorefrontProductSort {
   RELEVANCE = 'relevance',
   POPULAR = 'popular',
@@ -183,6 +189,16 @@ export class PublicProductSummariesQueryDto {
     message: 'Mã sản phẩm không hợp lệ.',
   })
   ids!: string[];
+}
+
+export class PublicRelatedProductsQueryDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: 3, default: 3 })
+  @Transform(relatedProductsLimit)
+  @IsInt({ message: 'Giới hạn sản phẩm liên quan không hợp lệ.' })
+  @Min(1, { message: 'Giới hạn sản phẩm liên quan không hợp lệ.' })
+  @Max(3, { message: 'Chỉ có thể tải tối đa 3 sản phẩm liên quan.' })
+  @IsOptional()
+  limit?: number = 3;
 }
 
 export class ProductAvailabilityQueryDto {
@@ -405,8 +421,6 @@ export class PublicProductDetailDto {
   @ApiProperty({ type: [PublicVariantDto] }) variants!: PublicVariantDto[];
   @ApiProperty({ type: [PublicAttributeDto] })
   attributes!: PublicAttributeDto[];
-  @ApiProperty({ type: [PublicProductListItemDto] })
-  relatedProducts!: PublicProductListItemDto[];
   @ApiProperty({ type: PublicSeoDto }) seo!: PublicSeoDto;
 }
 

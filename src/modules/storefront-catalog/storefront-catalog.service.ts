@@ -191,6 +191,46 @@ export class StorefrontCatalogService {
     );
   }
 
+  async relatedProducts(productId: string, requestedLimit = 3) {
+    const limit = Math.min(
+      STOREFRONT_RELATED_LIMIT,
+      Math.max(1, Math.trunc(requestedLimit)),
+    );
+    const currentProduct = await this.repository.findPublicProductId(productId);
+    if (!currentProduct) {
+      throw new NotFoundException({
+        code: 'PUBLIC_PRODUCT_NOT_FOUND',
+        message: 'Không tìm thấy sản phẩm hoặc sản phẩm đã ngừng kinh doanh.',
+      });
+    }
+
+    const now = new Date();
+    const rankedIds = await this.repository.listRelatedProductIds(
+      productId,
+      limit,
+      now,
+    );
+    const ids = [...new Set(rankedIds)]
+      .filter((candidateId) => candidateId !== productId)
+      .slice(0, limit);
+    if (!ids.length) return [];
+
+    const records = await this.repository.listProductsByIds(ids);
+    const position = new Map(ids.map((id, index) => [id, index]));
+    records.sort(
+      (left, right) =>
+        (position.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+        (position.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    const visibleRecords = records.slice(0, limit);
+    const ratings = await this.repository.ratingAggregates(
+      visibleRecords.map((record) => record.id),
+    );
+    return visibleRecords.map((record) =>
+      this.toListItem(record, now, ratings),
+    );
+  }
+
   async detail(slug: string) {
     const record = await this.repository.findProductBySlug(slug);
     if (!record) {
@@ -200,30 +240,8 @@ export class StorefrontCatalogService {
       });
     }
 
-    const categoryIds = record.categories.map(({ category }) => category.id);
-    const related = await this.repository.listRelated(categoryIds, record.id);
-    const primaryCategory = record.categories[0]?.category;
-    const relatedSorted = related.sort((left, right) => {
-      const leftExact = primaryCategory
-        ? left.categories.some(
-            ({ category }) => category.id === primaryCategory.id,
-          )
-        : false;
-      const rightExact = primaryCategory
-        ? right.categories.some(
-            ({ category }) => category.id === primaryCategory.id,
-          )
-        : false;
-      return (
-        Number(rightExact) - Number(leftExact) ||
-        right.createdAt.getTime() - left.createdAt.getTime()
-      );
-    });
     const now = new Date();
-    const ratings = await this.repository.ratingAggregates([
-      record.id,
-      ...relatedSorted.map((item) => item.id),
-    ]);
+    const ratings = await this.repository.ratingAggregates([record.id]);
     const detailRating = ratings.get(record.id) ?? {
       averageRating: null,
       reviewCount: 0,
@@ -264,15 +282,12 @@ export class StorefrontCatalogService {
         name: attribute.attribute.name,
         value: this.attributeValue(attribute),
       })),
-      relatedProducts: relatedSorted
-        .slice(0, STOREFRONT_RELATED_LIMIT)
-        .map((item) => this.toListItem(item, now, ratings)),
       seo: {
         title: `${record.name} | Bookora`,
         description:
           record.shortDescription?.trim() ||
           `Khám phá ${record.name} tại Bookora.`,
-        canonicalPath: `/books/${record.slug}`,
+        canonicalPath: `/san-pham/${record.slug}`,
         imageUrl: record.media[0]?.url ?? null,
       },
     };

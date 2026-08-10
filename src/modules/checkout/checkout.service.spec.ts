@@ -502,7 +502,8 @@ describe('CheckoutService internal shipping hotfix', () => {
     const { service, locationProof } = createService('Hà Nội');
     const address = currentLocationAddress(locationProof);
     const token = address.locationProof;
-    address.locationProof = `${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`;
+    const signatureStart = token.lastIndexOf('.') + 1;
+    address.locationProof = `${token.slice(0, signatureStart)}${token[signatureStart] === 'A' ? 'B' : 'A'}${token.slice(signatureStart + 1)}`;
 
     await expect(
       service.preview(actor, BRANCH_ID, {
