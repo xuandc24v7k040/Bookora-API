@@ -1,5 +1,48 @@
 import { StorefrontCatalogRepository } from './storefront-catalog.repository';
 
+describe('StorefrontCatalogRepository search ranking', () => {
+  it('separates complete title words and phrases from arbitrary substrings', async () => {
+    const queryRaw = jest.fn().mockResolvedValue([
+      { id: 'word-match', matchRank: 3, isBestSeller: false },
+      { id: 'substring-match', matchRank: 4, isBestSeller: false },
+      { id: 'author-match', matchRank: 5, isBestSeller: false },
+      { id: 'publisher-match', matchRank: 6, isBestSeller: false },
+      { id: 'fuzzy-match', matchRank: 7, isBestSeller: false },
+    ]);
+    const repository = new StorefrontCatalogRepository({
+      $queryRaw: queryRaw,
+    } as never);
+
+    const matches = await repository['searchProductMatches']('hai huoc');
+
+    expect(matches).toEqual([
+      { id: 'word-match', isBestMatch: true, isBestSeller: false },
+      { id: 'substring-match', isBestMatch: false, isBestSeller: false },
+      { id: 'author-match', isBestMatch: false, isBestSeller: false },
+      { id: 'publisher-match', isBestMatch: false, isBestSeller: false },
+      { id: 'fuzzy-match', isBestMatch: false, isBestSeller: false },
+    ]);
+
+    const sql = queryRaw.mock.calls[0][0] as {
+      strings: string[];
+      values: unknown[];
+    };
+    const source = sql.strings.join('?');
+
+    expect(source).toContain(
+      'regexp_replace(\n                public.bookora_normalize_search(p.name)',
+    );
+    expect(source).toContain("'[^[:alnum:]]+'");
+    expect(source).toContain("' ' || query.word_value || ' '");
+    expect(source).toContain(') > 0 THEN 3');
+    expect(source).toContain(') > 0 THEN 4');
+    expect(source).toContain(') THEN 5');
+    expect(source).toContain(') > 0 THEN 6');
+    expect(source).toContain('ELSE 7');
+    expect(sql.values).toEqual(['hai huoc']);
+  });
+});
+
 describe('StorefrontCatalogRepository related products', () => {
   it('uses parameterized structured scoring, deterministic tie-breaks and tiered fallback', async () => {
     const productId = '01J00000000000000000000000';

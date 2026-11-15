@@ -24,6 +24,7 @@ import {
   InventoryDomainError,
   type GroupedStockRecord,
   type InventoryMovementRecord,
+  type VariantPresentationRecord,
   type StockRecord,
   type VariantOptionRecord,
 } from './inventory.repository';
@@ -35,10 +36,15 @@ export class InventoryService {
     private readonly branchContext: BranchContextService,
   ) {}
 
-  async listVariantOptions(query: InventoryVariantOptionsQueryDto) {
+  async listVariantOptions(
+    context: BranchContext,
+    query: InventoryVariantOptionsQueryDto,
+  ) {
+    const branchId = this.branchContext.requireSelectedBranch(context);
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const [records, total] = await this.repository.listVariantOptions(
+      branchId,
       query.search,
       (page - 1) * limit,
       limit,
@@ -158,6 +164,7 @@ export class InventoryService {
       optionSummary: this.optionSummary(record),
       thumbnailUrl:
         record.media[0]?.url ?? record.product.media[0]?.url ?? null,
+      currentStock: record.stocks[0]?.quantity ?? 0,
     };
   }
 
@@ -273,7 +280,7 @@ export class InventoryService {
     };
   }
 
-  private optionSummary(record: VariantOptionRecord): string | null {
+  private optionSummary(record: VariantPresentationRecord): string | null {
     const summary = record.optionValues
       .map((item) => `${item.option.name}: ${item.optionValue.label}`)
       .join(' · ');

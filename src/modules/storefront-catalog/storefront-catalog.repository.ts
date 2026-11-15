@@ -727,23 +727,43 @@ export class StorefrontCatalogRepository {
           ) THEN 0
           WHEN public.bookora_normalize_search(p.name) = query.value THEN 1
           WHEN left(public.bookora_normalize_search(p.name), length(query.value)) = query.value THEN 2
-          WHEN strpos(public.bookora_normalize_search(p.name), query.value) > 0 THEN 3
+          WHEN query.word_value <> ''
+            AND strpos(
+              ' ' || regexp_replace(
+                public.bookora_normalize_search(p.name),
+                '[^[:alnum:]]+',
+                ' ',
+                'g'
+              ) || ' ',
+              ' ' || query.word_value || ' '
+            ) > 0 THEN 3
+          WHEN strpos(public.bookora_normalize_search(p.name), query.value) > 0 THEN 4
           WHEN EXISTS (
             SELECT 1
             FROM product_authors ranked_pa
             JOIN authors ranked_author ON ranked_author.id = ranked_pa.author_id
             WHERE ranked_pa.product_id = p.id
               AND strpos(public.bookora_normalize_search(ranked_author.name), query.value) > 0
-          ) THEN 4
+          ) THEN 5
           WHEN pub.id IS NOT NULL
-            AND strpos(public.bookora_normalize_search(pub.name), query.value) > 0 THEN 5
-          ELSE 6
+            AND strpos(public.bookora_normalize_search(pub.name), query.value) > 0 THEN 6
+          ELSE 7
         END AS "matchRank"
       FROM products p
       LEFT JOIN publishers pub ON pub.id = p.publisher_id
       LEFT JOIN bestseller_products bp ON bp.product_id = p.id
       CROSS JOIN (
-        SELECT public.bookora_normalize_search(${normalized}) AS value
+        SELECT
+          normalized_query.value,
+          btrim(regexp_replace(
+            normalized_query.value,
+            '[^[:alnum:]]+',
+            ' ',
+            'g'
+          )) AS word_value
+        FROM (
+          SELECT public.bookora_normalize_search(${normalized}) AS value
+        ) normalized_query
       ) query
       WHERE
         strpos(public.bookora_normalize_search(p.name), query.value) > 0
@@ -803,7 +823,7 @@ export class StorefrontCatalogRepository {
     `);
     return rows.map((row) => ({
       id: row.id,
-      isBestMatch: row.matchRank <= 2,
+      isBestMatch: row.matchRank <= 3,
       isBestSeller: row.isBestSeller,
     }));
   }

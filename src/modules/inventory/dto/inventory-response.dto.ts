@@ -24,6 +24,7 @@ export class InventoryVariantOptionResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true }) thumbnailUrl!:
     | string
     | null;
+  @ApiProperty({ minimum: 0 }) currentStock!: number;
 }
 
 export class BranchProductStockResponseDto {

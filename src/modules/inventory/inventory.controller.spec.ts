@@ -39,7 +39,7 @@ describe('InventoryController contract', () => {
     ).toEqual([permission]);
   });
 
-  it('uses any-of authorization and branch context for the global selector', () => {
+  it('uses any-of authorization and requires receipt branch for the selector', () => {
     const options = Object.getOwnPropertyDescriptor(
       InventoryController.prototype,
       'variantOptions',
@@ -53,7 +53,7 @@ describe('InventoryController contract', () => {
     ]);
     expect(
       Reflect.getMetadata(AUTHORIZATION_METADATA_KEYS.branchScope, options),
-    ).toBe(BranchScopeMode.OPTIONAL_SELECTION);
+    ).toBe(BranchScopeMode.REQUIRED_SELECTION);
   });
 
   it('keeps stocks branch scoped', () => {

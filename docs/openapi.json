@@ -16019,8 +16019,8 @@
           {
             "name": "X-Branch-Id",
             "in": "header",
-            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
-            "required": false,
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch.",
+            "required": true,
             "schema": {
               "type": "string",
               "format": "ulid",
@@ -16157,11 +16157,11 @@
             "accessToken": []
           }
         ],
-        "summary": "Tìm biến thể sản phẩm toàn cục cho phiếu nhập kho",
+        "summary": "Tìm biến thể và tồn hiện tại tại chi nhánh nhận hàng",
         "tags": [
           "inventory"
         ],
-        "description": "Tìm biến thể sản phẩm toàn cục cho phiếu nhập kho"
+        "description": "Tìm biến thể và tồn hiện tại tại chi nhánh nhận hàng"
       }
     },
     "/inventory/stocks": {
@@ -30866,6 +30866,10 @@
           "thumbnailUrl": {
             "type": "string",
             "nullable": true
+          },
+          "currentStock": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
@@ -30876,7 +30880,8 @@
           "sku",
           "isDefault",
           "isActive",
-          "productStatus"
+          "productStatus",
+          "currentStock"
         ]
       },
       "BranchProductStockResponseDto": {

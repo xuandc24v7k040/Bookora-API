@@ -71,8 +71,22 @@ export type StockRecord = Prisma.BranchProductStockGetPayload<{
   select: typeof stockSelect;
 }>;
 
-export type VariantOptionRecord = Prisma.ProductVariantGetPayload<{
+const variantOptionSelect = (branchId: string) =>
+  ({
+    ...variantPresentationSelect,
+    stocks: {
+      where: { branchId },
+      select: { quantity: true },
+      take: 1,
+    },
+  }) satisfies Prisma.ProductVariantSelect;
+
+export type VariantPresentationRecord = Prisma.ProductVariantGetPayload<{
   select: typeof variantPresentationSelect;
+}>;
+
+export type VariantOptionRecord = Prisma.ProductVariantGetPayload<{
+  select: ReturnType<typeof variantOptionSelect>;
 }>;
 
 const groupedStockProductSelect = {
@@ -137,6 +151,7 @@ export class InventoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listVariantOptions(
+    branchId: string,
     search: string | undefined,
     skip: number,
     take: number,
@@ -195,7 +210,7 @@ export class InventoryRepository {
               { sku: 'asc' },
               { id: 'asc' },
             ],
-            select: variantPresentationSelect,
+            select: variantOptionSelect(branchId),
           });
     return [variants, total] as const;
   }

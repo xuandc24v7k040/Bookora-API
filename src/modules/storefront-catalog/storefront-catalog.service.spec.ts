@@ -191,11 +191,20 @@ describe('StorefrontCatalogService', () => {
     expect(result.sort).toBe(StorefrontProductSort.RELEVANCE);
   });
 
-  it('returns lightweight ranked suggestions with a total', async () => {
+  it('returns lightweight ranked suggestions with a total and at most one best match', async () => {
+    const secondProduct = product({
+      id: '01J00000000000000000000002',
+      slug: 'sach-thu-hai',
+    });
     repository.listSearchSuggestions.mockResolvedValue({
       records: [
         {
           product: product(),
+          isBestMatch: true,
+          isBestSeller: true,
+        },
+        {
+          product: secondProduct,
           isBestMatch: true,
           isBestSeller: true,
         },
@@ -209,13 +218,19 @@ describe('StorefrontCatalogService', () => {
     });
 
     expect(result.total).toBe(4);
-    expect(result.items).toHaveLength(1);
+    expect(result.items).toHaveLength(2);
     expect(result.items[0]).toMatchObject({
       id,
       slug: 'sach-thu-nghiem',
       isBestMatch: true,
       isBestSeller: false,
     });
+    expect(result.items[1]).toMatchObject({
+      id: secondProduct.id,
+      isBestMatch: false,
+      isBestSeller: true,
+    });
+    expect(result.items.filter((item) => item.isBestMatch)).toHaveLength(1);
   });
 
   it('maps a real bestseller badge when best-match priority does not apply', async () => {

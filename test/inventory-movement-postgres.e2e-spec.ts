@@ -144,6 +144,34 @@ describe('inventory movement PostgreSQL invariants (e2e)', () => {
     expect(rows[0]).toMatchObject({ receipts: 1, items: 1, movements: 1 });
   });
 
+  it('returns stock for only the requested branch in variant options', async () => {
+    const [mainBranch] = await repository.listVariantOptions(
+      'branch-main',
+      'Main product',
+      0,
+      20,
+    );
+    const [secondaryBranch] = await repository.listVariantOptions(
+      'branch-secondary',
+      'Main product',
+      0,
+      20,
+    );
+
+    expect(mainBranch).toEqual([
+      expect.objectContaining({
+        id: 'variant-main',
+        stocks: [{ quantity: 40 }],
+      }),
+    ]);
+    expect(secondaryBranch).toEqual([
+      expect.objectContaining({
+        id: 'variant-main',
+        stocks: [{ quantity: 9 }],
+      }),
+    ]);
+  });
+
   it('rolls back receipt, item, stock, and movement when movement insertion fails', async () => {
     await database.runSql(`
       CREATE FUNCTION reject_rollback_variant_movement() RETURNS trigger
@@ -208,6 +236,24 @@ describe('inventory movement PostgreSQL invariants (e2e)', () => {
     });
     try {
       queries.length = 0;
+      await measuredRepository.listVariantOptions(
+        'branch-main',
+        undefined,
+        0,
+        1,
+      );
+      const oneVariantProduct = queries.length;
+      queries.length = 0;
+      await measuredRepository.listVariantOptions(
+        'branch-main',
+        undefined,
+        0,
+        10,
+      );
+      const tenVariantProducts = queries.length;
+      expect(tenVariantProducts).toBe(oneVariantProduct);
+
+      queries.length = 0;
       await measuredRepository.listGroupedStocks('branch-main', {
         page: 1,
         limit: 1,
@@ -269,7 +315,9 @@ async function seedInventory(
     INSERT INTO users (id, email, created_at, updated_at)
     VALUES ('user-main', 'inventory-integration@bookora.local', NOW(), NOW());
     INSERT INTO branches (id, name, code, address, is_active, created_at, updated_at)
-    VALUES ('branch-main', 'Inventory Branch', 'INV', 'Test address', TRUE, NOW(), NOW());
+    VALUES
+      ('branch-main', 'Inventory Branch', 'INV', 'Test address', TRUE, NOW(), NOW()),
+      ('branch-secondary', 'Secondary Branch', 'INV2', 'Test address 2', TRUE, NOW(), NOW());
     INSERT INTO products (id, name, slug, status, created_at, updated_at)
     VALUES
       ('product-main', 'Main product', 'main-product', 'ACTIVE', NOW(), NOW()),
@@ -286,6 +334,7 @@ async function seedInventory(
       id, branch_id, variant_id, quantity, low_stock_threshold, created_at, updated_at
     ) VALUES
       ('stock-main', 'branch-main', 'variant-main', 40, 5, NOW(), NOW()),
+      ('stock-secondary', 'branch-secondary', 'variant-main', 9, 5, NOW(), NOW()),
       ('stock-concurrent', 'branch-main', 'variant-concurrent', 40, 5, NOW(), NOW()),
       ('stock-rollback', 'branch-main', 'variant-rollback', 10, 5, NOW(), NOW());
 

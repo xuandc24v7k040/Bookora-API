@@ -74,24 +74,26 @@ export class InventoryController {
     'stock_receipts.create',
     'stock_receipts.update',
   )
-  @BranchScope(BranchScopeMode.OPTIONAL_SELECTION)
+  @BranchScope(BranchScopeMode.REQUIRED_SELECTION)
   @ApiHeader({
     name: 'X-Branch-Id',
-    required: false,
-    description:
-      'Chi nhánh dùng để tính quyền effective cho branch actor; không lọc catalog Variant.',
+    required: true,
+    description: 'Chi nhánh nhận hàng, dùng để lấy tồn hiện tại của Variant.',
   })
   @ApiOperation({
     operationId: 'inventoryVariantOptions',
-    summary: 'Tìm biến thể sản phẩm toàn cục cho phiếu nhập kho',
+    summary: 'Tìm biến thể và tồn hiện tại tại chi nhánh nhận hàng',
   })
   @ApiPaginatedResponse(
     InventoryVariantOptionResponseDto,
     'Lấy biến thể sản phẩm thành công',
   )
   @ResponseMessage('Lấy biến thể sản phẩm thành công')
-  variantOptions(@Query() query: InventoryVariantOptionsQueryDto) {
-    return this.service.listVariantOptions(query);
+  variantOptions(
+    @CurrentBranchContext() context: BranchContext,
+    @Query() query: InventoryVariantOptionsQueryDto,
+  ) {
+    return this.service.listVariantOptions(context, query);
   }
 
   @Get('stocks')

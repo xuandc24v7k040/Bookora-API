@@ -18,6 +18,7 @@ describe('InventoryRepository variant selector', () => {
     const repository = new InventoryRepository(prisma as never);
 
     const [variants, total] = await repository.listVariantOptions(
+      'branch-1',
       'blue',
       10,
       5,
@@ -29,6 +30,13 @@ describe('InventoryRepository variant selector', () => {
     expect(prisma.productVariant.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { productId: { in: ['product-1'] }, isActive: true },
+        select: expect.objectContaining({
+          stocks: {
+            where: { branchId: 'branch-1' },
+            select: { quantity: true },
+            take: 1,
+          },
+        }),
       }),
     );
     expect(variants).toHaveLength(2);
@@ -46,7 +54,7 @@ describe('InventoryRepository variant selector', () => {
     const repository = new InventoryRepository(prisma as never);
 
     await expect(
-      repository.listVariantOptions(undefined, 0, 20),
+      repository.listVariantOptions('branch-1', undefined, 0, 20),
     ).resolves.toEqual([[], 0]);
     expect(prisma.productVariant.findMany).not.toHaveBeenCalled();
   });
