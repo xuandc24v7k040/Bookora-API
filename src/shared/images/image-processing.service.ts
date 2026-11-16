@@ -25,19 +25,26 @@ export class ImageProcessingService {
             invalidDimensions: 'CATEGORY_IMAGE_INVALID_DIMENSIONS',
             processingFailed: 'CATEGORY_IMAGE_PROCESSING_FAILED',
           }
-        : presetName === 'avatar'
+        : presetName === 'review'
           ? {
-              invalidType: 'CUSTOMER_AVATAR_INVALID_FILE',
-              tooLarge: 'CUSTOMER_AVATAR_INVALID_FILE',
-              invalidDimensions: 'CUSTOMER_AVATAR_INVALID_FILE',
-              processingFailed: 'CUSTOMER_AVATAR_INVALID_FILE',
+              invalidType: 'REVIEW_IMAGE_INVALID_FILE',
+              tooLarge: 'REVIEW_IMAGE_TOO_LARGE',
+              invalidDimensions: 'REVIEW_IMAGE_INVALID_FILE',
+              processingFailed: 'REVIEW_IMAGE_INVALID_FILE',
             }
-          : {
-              invalidType: 'PRODUCT_MEDIA_INVALID_FILE',
-              tooLarge: 'PRODUCT_MEDIA_INVALID_FILE',
-              invalidDimensions: 'PRODUCT_MEDIA_INVALID_FILE',
-              processingFailed: 'PRODUCT_MEDIA_INVALID_FILE',
-            };
+          : presetName === 'avatar'
+            ? {
+                invalidType: 'CUSTOMER_AVATAR_INVALID_FILE',
+                tooLarge: 'CUSTOMER_AVATAR_INVALID_FILE',
+                invalidDimensions: 'CUSTOMER_AVATAR_INVALID_FILE',
+                processingFailed: 'CUSTOMER_AVATAR_INVALID_FILE',
+              }
+            : {
+                invalidType: 'PRODUCT_MEDIA_INVALID_FILE',
+                tooLarge: 'PRODUCT_MEDIA_INVALID_FILE',
+                invalidDimensions: 'PRODUCT_MEDIA_INVALID_FILE',
+                processingFailed: 'PRODUCT_MEDIA_INVALID_FILE',
+              };
 
     if (!SUPPORTED_MIME_TYPES.has(file.mimetype)) {
       throw this.invalid(
@@ -58,7 +65,14 @@ export class ImageProcessingService {
         limitInputPixels: preset.maxInputPixels,
       });
       const metadata = await input.metadata();
-      if (!metadata.format || !SUPPORTED_FORMATS.has(metadata.format)) {
+      if (
+        !metadata.format ||
+        !SUPPORTED_FORMATS.has(metadata.format) ||
+        (presetName === 'review' &&
+          ((metadata.pages ?? 1) > 1 ||
+            file.mimetype !==
+              `image/${metadata.format === 'jpeg' ? 'jpeg' : metadata.format}`))
+      ) {
         throw this.invalid(
           codes.invalidType,
           'Nội dung tệp không phải ảnh JPEG, PNG hoặc WebP hợp lệ',

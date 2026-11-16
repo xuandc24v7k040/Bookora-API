@@ -6,11 +6,16 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
+  UseInterceptors,
+  UseFilters,
   UseGuards,
   applyDecorators,
 } from '@nestjs/common';
 import {
   ApiOperation,
+  ApiBody,
+  ApiConsumes,
   ApiResponse,
   ApiSecurity,
   ApiTags,
@@ -43,10 +48,14 @@ import {
   UpdateReviewDto,
 } from './dto';
 import { ReviewsService } from './reviews.service';
+import { ReviewMediaService } from './review-media.service';
+import { ReviewMediaDto } from './dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { ReviewImageExceptionsFilter } from './review-image-exceptions.filter';
 
 const ApiReviewErrors = () =>
   applyDecorators(
-    ...[400, 401, 403, 404, 409, 429].map((status) =>
+    ...[400, 401, 403, 404, 409, 413, 415, 429, 503].map((status) =>
       ApiResponse({
         status,
         schema: { $ref: '#/components/schemas/ErrorResponseDto' },
@@ -82,7 +91,67 @@ export class PublicReviewsController {
 @UseGuards(JwtAccessGuard, CsrfGuard)
 @Controller('account/reviews')
 export class CustomerReviewsController {
-  constructor(private readonly service: ReviewsService) {}
+  constructor(
+    private readonly service: ReviewsService,
+    private readonly media: ReviewMediaService,
+  ) {}
+
+  @Post(':reviewId/images')
+  @UseFilters(ReviewImageExceptionsFilter)
+  @ApiSecurity('csrf')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('files', 4, {
+      limits: { fileSize: 5 * 1024 * 1024, files: 4 },
+    }),
+  )
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files'],
+      properties: {
+        files: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 4,
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @ApiOperation({
+    operationId: 'customerReviewImagesUpload',
+    summary: 'Thêm ảnh cho đánh giá của tôi',
+  })
+  @ApiBaseResponse(ReviewMediaDto, {
+    isArray: true,
+    status: 201,
+    description: 'Tải ảnh đánh giá thành công',
+  })
+  uploadImages(
+    @CurrentUser() actor: AuthenticatedUser,
+    @UlidParam('reviewId') reviewId: string,
+    @UploadedFiles() files: Express.Multer.File[] | undefined,
+  ) {
+    return this.media.upload(actor, reviewId, files ?? []);
+  }
+
+  @Delete(':reviewId/images/:mediaId')
+  @ApiSecurity('csrf')
+  @ApiOperation({
+    operationId: 'customerReviewImagesDelete',
+    summary: 'Xóa ảnh khỏi đánh giá của tôi',
+  })
+  @ApiBaseResponse(ReviewDeletedDto, {
+    description: 'Xóa ảnh đánh giá thành công',
+  })
+  removeImage(
+    @CurrentUser() actor: AuthenticatedUser,
+    @UlidParam('reviewId') reviewId: string,
+    @UlidParam('mediaId') mediaId: string,
+  ) {
+    return this.media.remove(actor, reviewId, mediaId);
+  }
 
   @Get()
   @ApiOperation({
@@ -102,7 +171,7 @@ export class CustomerReviewsController {
   @Get('pending')
   @ApiOperation({
     operationId: 'customerReviewsPending',
-    summary: 'Các lượt Order + Product đang chờ đánh giá',
+    summary: 'Các dòng hàng đã mua đang chờ đánh giá',
   })
   @ApiBaseResponse(PendingReviewListDto, {
     description: 'Lấy lượt chờ đánh giá thành công',
@@ -121,6 +190,7 @@ export class CustomerReviewsController {
     summary: 'Viết đánh giá cho lượt mua đã hoàn thành',
   })
   @ApiBaseResponse(CustomerReviewDto, {
+    status: 201,
     description: 'Tạo đánh giá thành công',
   })
   @ResponseMessage('Đã gửi đánh giá')

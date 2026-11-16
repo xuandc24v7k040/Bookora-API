@@ -7,6 +7,7 @@ import { OrderStatus, UserType } from '@/generated/prisma/client';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import type { ReviewsRepository } from './reviews.repository';
 import { ReviewsService } from './reviews.service';
+import type { ReviewMediaService } from './review-media.service';
 
 const actor: AuthenticatedUser = {
   id: 'customer-1',
@@ -44,6 +45,7 @@ describe('ReviewsService eligibility', () => {
   };
   const service = new ReviewsService(
     repository as unknown as ReviewsRepository,
+    {} as ReviewMediaService,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -58,6 +60,7 @@ describe('ReviewsService eligibility', () => {
     });
     await expect(
       service.create(actor, {
+        orderItemId: 'item-1',
         orderId: 'order-1',
         productId: 'product-1',
         rating: 5,
@@ -75,6 +78,7 @@ describe('ReviewsService eligibility', () => {
     });
     await expect(
       service.create(actor, {
+        orderItemId: 'item-1',
         orderId: 'order-1',
         productId: 'product-1',
         rating: 5,
@@ -93,6 +97,7 @@ describe('ReviewsService eligibility', () => {
     });
     await expect(
       service.create(actor, {
+        orderItemId: 'item-1',
         orderId: 'order-1',
         productId: 'product-1',
         rating: 5,
@@ -109,6 +114,7 @@ describe('ReviewsService public review contract', () => {
   };
   const service = new ReviewsService(
     repository as unknown as ReviewsRepository,
+    {} as ReviewMediaService,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -121,6 +127,8 @@ describe('ReviewsService public review contract', () => {
           id: 'review-1',
           rating: 5,
           content: null,
+          orderItem: null,
+          media: [],
           user: { fullName: 'Nguyễn An', avatarUrl: null },
           createdAt: new Date('2026-07-27T09:00:00.000Z'),
           updatedAt: new Date('2026-07-27T09:00:00.000Z'),
@@ -169,6 +177,7 @@ describe('ReviewsService order filter ownership', () => {
   };
   const service = new ReviewsService(
     repository as unknown as ReviewsRepository,
+    {} as ReviewMediaService,
   );
 
   beforeEach(() => {

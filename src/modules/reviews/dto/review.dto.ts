@@ -27,6 +27,10 @@ const optionalBoolean = ({ value }: { value: unknown }): unknown => {
 
 export class CreateReviewDto {
   @ApiProperty({ format: 'ulid' })
+  @IsString({ message: 'Vui lòng chọn dòng hàng đã mua để đánh giá.' })
+  orderItemId!: string;
+
+  @ApiProperty({ format: 'ulid' })
   @IsString()
   orderId!: string;
 
@@ -107,6 +111,15 @@ export class PublicReviewQueryDto {
   @IsBoolean()
   @IsOptional()
   verifiedPurchase?: boolean;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Lọc đánh giá có hình ảnh',
+  })
+  @Transform(optionalBoolean)
+  @IsBoolean()
+  @IsOptional()
+  hasImages?: boolean;
 }
 
 class ReviewPaginationQueryDto {
@@ -224,6 +237,11 @@ export class ReviewProductDto {
 }
 
 export class CustomerReviewDto {
+  @ApiProperty({ type: String, nullable: true, format: 'ulid' }) orderItemId!:
+    | string
+    | null;
+  @ApiProperty({ type: String, nullable: true }) variantLabel!: string | null;
+  @ApiProperty({ type: () => [ReviewMediaDto] }) media!: ReviewMediaDto[];
   @ApiProperty({ format: 'ulid' }) id!: string;
   @ApiProperty({ format: 'ulid' }) orderId!: string;
   @ApiProperty() orderCode!: string;
@@ -246,6 +264,8 @@ export class CustomerReviewListDto {
 }
 
 export class PendingReviewOpportunityDto {
+  @ApiProperty({ format: 'ulid' }) orderItemId!: string;
+  @ApiProperty({ type: String, nullable: true }) variantLabel!: string | null;
   @ApiProperty({ format: 'ulid' }) orderId!: string;
   @ApiProperty() orderCode!: string;
   @ApiProperty({ type: ReviewProductDto }) product!: ReviewProductDto;
@@ -269,6 +289,8 @@ export class PublicReviewerDto {
 }
 
 export class PublicReviewDto {
+  @ApiProperty({ type: String, nullable: true }) variantLabel!: string | null;
+  @ApiProperty({ type: () => [ReviewMediaDto] }) media!: ReviewMediaDto[];
   @ApiProperty({ format: 'ulid' }) id!: string;
   @ApiProperty({ type: PublicReviewerDto }) reviewer!: PublicReviewerDto;
   @ApiProperty({ minimum: 1, maximum: 5 }) rating!: number;
@@ -315,4 +337,10 @@ export class AdminReviewListDto {
   @ApiProperty() limit!: number;
   @ApiProperty() totalItems!: number;
   @ApiProperty() totalPages!: number;
+}
+
+export class ReviewMediaDto {
+  @ApiProperty({ format: 'ulid' }) id!: string;
+  @ApiProperty() url!: string;
+  @ApiProperty({ minimum: 0, maximum: 3 }) sortOrder!: number;
 }

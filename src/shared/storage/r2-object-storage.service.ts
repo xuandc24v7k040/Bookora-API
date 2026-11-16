@@ -115,6 +115,29 @@ export class R2ObjectStorageService {
     }
   }
 
+  /** Best-effort after DB commit (or upload compensation); failures remain observable. */
+  async cleanupKeys(
+    keys: readonly string[],
+    trustedPrefix: string,
+    operation: string,
+  ): Promise<void> {
+    for (const key of new Set(keys)) {
+      if (!key.startsWith(trustedPrefix)) {
+        this.logger.warn(
+          `Skip image cleanup operation=${operation} reason=untrusted-key`,
+        );
+        continue;
+      }
+      try {
+        await this.delete({ visibility: 'public', key });
+      } catch (error) {
+        this.logger.error(
+          `Image cleanup failed operation=${operation} key=${key} error=${this.errorName(error)}`,
+        );
+      }
+    }
+  }
+
   private bucketFor(visibility: StorageVisibility): string {
     return visibility === 'public'
       ? this.config.publicBucket

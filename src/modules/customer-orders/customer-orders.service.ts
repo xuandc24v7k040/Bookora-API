@@ -266,27 +266,31 @@ export class CustomerOrdersService {
         userId,
         orderId: { in: completedOrders.map((order) => order.id) },
       },
-      select: { orderId: true, productId: true },
+      select: { orderId: true, productId: true, orderItemId: true },
     });
-    const reviewedByOrder = new Map<string, Set<string>>();
-    for (const review of reviews) {
-      const productIds = reviewedByOrder.get(review.orderId) ?? new Set();
-      productIds.add(review.productId);
-      reviewedByOrder.set(review.orderId, productIds);
-    }
 
     return new Map(
       completedOrders.map((order) => {
-        const eligibleProductIds = new Set(
-          order.items
-            .map((item) => item.productId)
-            .filter((productId): productId is string => productId !== null),
+        const orderReviews = reviews.filter(
+          (review) => review.orderId === order.id,
         );
-        const reviewedProductIds = reviewedByOrder.get(order.id) ?? new Set();
-        const reviewedCount = [...eligibleProductIds].filter((productId) =>
-          reviewedProductIds.has(productId),
+        const reviewedItems = new Set(
+          orderReviews.flatMap((review) =>
+            review.orderItemId ? [review.orderItemId] : [],
+          ),
+        );
+        const legacyProducts = new Set(
+          orderReviews
+            .filter((review) => !review.orderItemId)
+            .map((review) => review.productId),
+        );
+        const pendingCount = order.items.filter(
+          (item) =>
+            item.productId !== null &&
+            !reviewedItems.has(item.id) &&
+            !legacyProducts.has(item.productId),
         ).length;
-        const pendingCount = eligibleProductIds.size - reviewedCount;
+        const reviewedCount = orderReviews.length;
         const action =
           pendingCount > 0
             ? {

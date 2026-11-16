@@ -30,6 +30,7 @@ describe('ReviewsRepository public reviews pagination', () => {
           isVisible: true,
           rating: 5,
           id: undefined,
+          media: undefined,
         },
         skip: 4,
         take: 4,
@@ -42,6 +43,7 @@ describe('ReviewsRepository public reviews pagination', () => {
         isVisible: true,
         rating: 5,
         id: undefined,
+        media: undefined,
       },
     });
     expect(aggregate).toHaveBeenCalledWith({
@@ -56,4 +58,42 @@ describe('ReviewsRepository public reviews pagination', () => {
     );
     expect(result.pageSize).toBe(4);
   });
+
+  it.each([true, false])(
+    'applies hasImages=%s to list/count while keeping the global rating summary',
+    async (hasImages) => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      const count = jest.fn().mockResolvedValue(0);
+      const aggregate = jest
+        .fn()
+        .mockResolvedValue({ _count: { _all: 3 }, _avg: { rating: 4 } });
+      const groupBy = jest.fn().mockResolvedValue([]);
+      const repository = new ReviewsRepository({
+        review: { findMany, count, aggregate, groupBy },
+        $transaction: (operations: Promise<unknown>[]) =>
+          Promise.all(operations),
+      } as never);
+      await repository.listPublic('product-1', {
+        hasImages,
+        page: 2,
+        limit: 4,
+      });
+      const where = {
+        productId: 'product-1',
+        isVisible: true,
+        rating: undefined,
+        id: undefined,
+        media: hasImages ? { some: {} } : { none: {} },
+      };
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where, skip: 4, take: 4 }),
+      );
+      expect(count).toHaveBeenCalledWith({ where });
+      expect(aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { productId: 'product-1', isVisible: true },
+        }),
+      );
+    },
+  );
 });

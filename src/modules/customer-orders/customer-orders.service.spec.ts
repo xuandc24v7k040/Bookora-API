@@ -215,7 +215,7 @@ describe('CustomerOrdersService list', () => {
     expect(orderCount).toHaveBeenCalledWith({ where });
   });
 
-  it('derives WRITE, VIEW, and NONE from one batch review query with distinct products', async () => {
+  it('preserves legacy product-scoped review actions in one batch query', async () => {
     const { orderCount, orderFindMany, reviewFindMany, service } =
       createHarness();
     orderFindMany.mockResolvedValue([
@@ -254,9 +254,9 @@ describe('CustomerOrdersService list', () => {
     ]);
     orderCount.mockResolvedValue(3);
     reviewFindMany.mockResolvedValue([
-      { orderId: 'order-write', productId: 'product-1' },
-      { orderId: 'order-view', productId: 'product-1' },
-      { orderId: 'order-view', productId: 'product-2' },
+      { orderId: 'order-write', productId: 'product-1', orderItemId: null },
+      { orderId: 'order-view', productId: 'product-1', orderItemId: null },
+      { orderId: 'order-view', productId: 'product-2', orderItemId: null },
     ]);
 
     const result = await service.list(actor, { page: 1, limit: 5 });
@@ -267,7 +267,7 @@ describe('CustomerOrdersService list', () => {
         userId: 'customer-1',
         orderId: { in: ['order-write', 'order-view'] },
       },
-      select: { orderId: true, productId: true },
+      select: { orderId: true, productId: true, orderItemId: true },
     });
     expect(result.items.map((item) => item.reviewAction)).toEqual([
       { type: 'WRITE', count: 1 },
@@ -275,6 +275,40 @@ describe('CustomerOrdersService list', () => {
       { type: 'NONE', count: 0 },
     ]);
   });
+
+  it.each([0, 1, 2])(
+    'counts two purchased variants independently after %s line reviews',
+    async (reviewedCount) => {
+      const { orderCount, orderFindMany, reviewFindMany, service } =
+        createHarness();
+      const completed = order({ id: 'order-1', status: OrderStatus.COMPLETED });
+      orderFindMany.mockResolvedValue([
+        {
+          ...completed,
+          items: ['line-a', 'line-b'].map((id) => ({
+            ...completed.items[0],
+            id,
+            productId: 'product-1',
+            quantity: 3,
+          })),
+        },
+      ]);
+      orderCount.mockResolvedValue(1);
+      reviewFindMany.mockResolvedValue(
+        ['line-a', 'line-b'].slice(0, reviewedCount).map((orderItemId) => ({
+          orderId: 'order-1',
+          productId: 'product-1',
+          orderItemId,
+        })),
+      );
+      const result = await service.list(actor, { page: 1, limit: 5 });
+      expect(result.items[0]?.reviewAction).toEqual(
+        reviewedCount < 2
+          ? { type: 'WRITE', count: 2 - reviewedCount }
+          : { type: 'VIEW', count: 2 },
+      );
+    },
+  );
 });
 
 describe('CustomerOrdersService cancellation lifecycle', () => {

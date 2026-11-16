@@ -65,4 +65,66 @@ describe('ImageProcessingService', () => {
       height: 512,
     });
   });
+
+  it.each(['jpeg', 'png', 'webp'] as const)(
+    'accepts a real %s review image and strips metadata',
+    async (format) => {
+      const buffer = await sharp({
+        create: { width: 64, height: 80, channels: 3, background: '#336699' },
+      })
+        .toFormat(format)
+        .withMetadata()
+        .toBuffer();
+      const output = await service.process(
+        multerFile(buffer, `image/${format}`),
+        'review',
+      );
+      const metadata = await sharp(output.body).metadata();
+      expect(metadata.format).toBe('webp');
+      expect(metadata.exif).toBeUndefined();
+      expect(output.width).toBe(64);
+    },
+  );
+
+  it('rejects a review MIME spoof even when the bytes decode to another supported format', async () => {
+    const buffer = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#336699' },
+    })
+      .png()
+      .toBuffer();
+    await expect(
+      service.process(multerFile(buffer, 'image/jpeg'), 'review'),
+    ).rejects.toMatchObject({
+      response: { code: 'REVIEW_IMAGE_INVALID_FILE' },
+    });
+  });
+
+  it.each([
+    'image/gif',
+    'image/svg+xml',
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ])('rejects invalid review bytes declared as %s', async (mimetype) => {
+    await expect(
+      service.process(multerFile(Buffer.from('invalid'), mimetype), 'review'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects oversized and truncated review inputs', async () => {
+    await expect(
+      service.process(multerFile(Buffer.alloc(5 * 1024 * 1024 + 1)), 'review'),
+    ).rejects.toMatchObject({ response: { code: 'REVIEW_IMAGE_TOO_LARGE' } });
+    const buffer = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#336699' },
+    })
+      .png()
+      .toBuffer();
+    await expect(
+      service.process(multerFile(buffer.subarray(0, 32)), 'review'),
+    ).rejects.toMatchObject({
+      response: { code: 'REVIEW_IMAGE_INVALID_FILE' },
+    });
+  });
 });

@@ -3,6 +3,7 @@ model Review {
   userId       String    @map("user_id")
   productId    String    @map("product_id")
   orderId      String    @map("order_id")
+  orderItemId  String?   @unique @map("order_item_id")
   branchId     String?   @map("branch_id")
   rating       Int
   content      String?
@@ -11,22 +12,36 @@ model Review {
   repliedById  String?   @map("replied_by_id")
   repliedAt    DateTime? @map("replied_at")
 
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  branch    Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  repliedBy User?   @relation("ReviewRepliedBy", fields: [repliedById], references: [id], onDelete: SetNull)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  branch    Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  repliedBy User?         @relation("ReviewRepliedBy", fields: [repliedById], references: [id], onDelete: SetNull)
+  orderItem OrderItem?    @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  media     ReviewMedia[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([userId, orderId, productId])
   @@index([userId, createdAt])
   @@index([productId, isVisible, createdAt])
   @@index([orderId])
   @@index([branchId])
   @@index([repliedById])
   @@map("reviews")
+}
+
+model ReviewMedia {
+  id        String   @id @default(ulid())
+  reviewId  String   @map("review_id")
+  objectKey String   @unique @map("object_key")
+  url       String
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, sortOrder])
+  @@map("review_media")
 }
 
 model Wishlist {

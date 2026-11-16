@@ -19,10 +19,15 @@ import {
   type CustomerReviewRecord,
   ReviewsRepository,
 } from './reviews.repository';
+import { purchasedVariantLabel, reviewDisplayInclude } from './review-display';
+import { ReviewMediaService } from './review-media.service';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly repository: ReviewsRepository) {}
+  constructor(
+    private readonly repository: ReviewsRepository,
+    private readonly reviewMedia: ReviewMediaService,
+  ) {}
 
   async publicList(productId: string, query: PublicReviewQueryDto) {
     if (!(await this.repository.findPublicProduct(productId))) {
@@ -41,6 +46,8 @@ export class ReviewsService {
     return {
       items: items.map((item) => ({
         id: item.id,
+        variantLabel: purchasedVariantLabel(item.orderItem?.variantOptions),
+        media: item.media,
         reviewer: {
           displayName: item.user.fullName?.trim() || 'Khách hàng Bookora',
           avatarUrl: item.user.avatarUrl,
@@ -86,6 +93,8 @@ export class ReviewsService {
     const result = await this.repository.listPending(actor.id, query);
     return {
       items: result.items.map((item) => ({
+        orderItemId: item.orderItemId,
+        variantLabel: purchasedVariantLabel(item.variantOptions),
         orderId: item.orderId,
         orderCode: item.orderCode,
         product: {
@@ -114,7 +123,7 @@ export class ReviewsService {
             userId: true,
             branchId: true,
             status: true,
-            items: { select: { productId: true } },
+            items: { select: { id: true, productId: true } },
           },
         });
         if (!order) {
@@ -135,7 +144,10 @@ export class ReviewsService {
             message: 'Bạn chỉ có thể đánh giá đơn hàng đã hoàn thành.',
           });
         }
-        if (!order.items.some((item) => item.productId === dto.productId)) {
+        const orderItem = order.items.find(
+          (item) => item.id === dto.orderItemId,
+        );
+        if (!orderItem || orderItem.productId !== dto.productId) {
           throw new ConflictException({
             code: 'REVIEW_PRODUCT_NOT_IN_ORDER',
             message: 'Sản phẩm này không thuộc đơn hàng đã chọn.',
@@ -151,11 +163,28 @@ export class ReviewsService {
             message: 'Sản phẩm không còn đủ điều kiện đánh giá.',
           });
         }
+        const legacy = await tx.review.findFirst({
+          where: {
+            userId: actor.id,
+            orderId: order.id,
+            productId: product.id,
+            orderItemId: null,
+          },
+          select: { id: true },
+        });
+        if (legacy) {
+          throw new ConflictException({
+            code: 'REVIEW_LEGACY_ALREADY_EXISTS',
+            message:
+              'Lượt mua này đã có đánh giá cũ chưa xác định được dòng hàng.',
+          });
+        }
         const review = await tx.review.create({
           data: {
             userId: actor.id,
             orderId: order.id,
-            productId: dto.productId,
+            orderItemId: orderItem.id,
+            productId: product.id,
             branchId: order.branchId,
             rating: dto.rating,
             content: dto.content ?? null,
@@ -170,11 +199,12 @@ export class ReviewsService {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        (error.code === 'P2002' || error.code === 'P2034')
       ) {
         throw new ConflictException({
           code: 'REVIEW_ALREADY_EXISTS',
-          message: 'Bạn đã đánh giá sản phẩm này trong đơn hàng này.',
+          message:
+            'Dòng hàng đã được đánh giá hoặc vừa thay đổi. Vui lòng tải lại.',
         });
       }
       throw error;
@@ -196,6 +226,7 @@ export class ReviewsService {
       return tx.review.findUnique({
         where: { id: reviewId },
         include: {
+          ...reviewDisplayInclude,
           order: { select: { orderCode: true } },
           product: {
             select: {
@@ -223,10 +254,8 @@ export class ReviewsService {
 
   async remove(actor: AuthenticatedUser, reviewId: string) {
     this.assertCustomer(actor);
-    const removed = await this.repository.transaction((tx) =>
-      tx.review.deleteMany({ where: { id: reviewId, userId: actor.id } }),
-    );
-    if (removed.count !== 1) this.notFound();
+    const keys = await this.reviewMedia.deleteReview(actor.id, reviewId);
+    await this.reviewMedia.cleanup(reviewId, keys, 'review-delete');
     return { id: reviewId };
   }
 
@@ -253,6 +282,9 @@ export class ReviewsService {
   private toCustomer(item: CustomerReviewRecord) {
     return {
       id: item.id,
+      orderItemId: item.orderItemId,
+      variantLabel: purchasedVariantLabel(item.orderItem?.variantOptions),
+      media: item.media,
       orderId: item.orderId,
       orderCode: item.order.orderCode,
       product: {

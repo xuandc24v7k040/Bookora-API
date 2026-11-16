@@ -8,8 +8,10 @@ import type {
   PublicReviewQueryDto,
 } from './dto';
 import { AdminReviewSortBy } from './dto';
+import { reviewDisplayInclude } from './review-display';
 
 const customerReviewInclude = {
+  ...reviewDisplayInclude,
   order: { select: { orderCode: true } },
   product: {
     select: {
@@ -46,6 +48,8 @@ export type AdminReviewRecord = Prisma.ReviewGetPayload<{
 }>;
 
 export interface PendingReviewRecord {
+  orderItemId: string;
+  variantOptions: Prisma.JsonValue;
   orderId: string;
   orderCode: string;
   productId: string;
@@ -103,12 +107,19 @@ export class ReviewsRepository {
       rating: query.rating,
       // Review luôn gắn với Order hợp lệ. Giá trị false vì vậy không có kết quả.
       id: query.verifiedPurchase === false ? '' : undefined,
+      media:
+        query.hasImages === undefined
+          ? undefined
+          : query.hasImages
+            ? { some: {} }
+            : { none: {} },
     };
     const [items, totalItems, aggregate, distribution] =
       await this.prisma.$transaction([
         this.prisma.review.findMany({
           where,
           select: {
+            ...reviewDisplayInclude,
             id: true,
             rating: true,
             content: true,
@@ -175,18 +186,19 @@ export class ReviewsRepository {
       AND NOT EXISTS (
         SELECT 1 FROM reviews r
         WHERE r.user_id = ${userId}
-          AND r.order_id = o.id
-          AND r.product_id = oi.product_id
+          AND (r.order_item_id = oi.id OR
+            (r.order_item_id IS NULL AND r.order_id = o.id AND r.product_id = oi.product_id))
       )
     `;
     const [items, countRows] = await Promise.all([
       this.prisma.$queryRaw<PendingReviewRecord[]>(Prisma.sql`
-        SELECT opportunities."orderId", opportunities."orderCode",
+        SELECT opportunities."orderItemId", opportunities."variantOptions",
+          opportunities."orderId", opportunities."orderCode",
           opportunities."productId", opportunities."productName",
           opportunities."productSlug", opportunities."imageUrl",
           opportunities."completedAt"
         FROM (
-          SELECT DISTINCT ON (o.id, oi.product_id)
+          SELECT oi.id AS "orderItemId", oi.variant_options AS "variantOptions",
             o.id AS "orderId", o.order_code AS "orderCode",
             oi.product_id AS "productId", oi.product_name AS "productName",
             oi.product_slug AS "productSlug", oi.image_url AS "imageUrl",
@@ -201,20 +213,18 @@ export class ReviewsRepository {
             ORDER BY osh.created_at DESC, osh.id DESC LIMIT 1
           ) completed ON true
           WHERE ${filters}
-          ORDER BY o.id, oi.product_id, oi.id
         ) opportunities
         ORDER BY opportunities."completedAt" DESC,
           opportunities."orderCreatedAt" DESC,
           opportunities."orderId" DESC,
-          opportunities."productId" DESC
+          opportunities."orderItemId" DESC
         LIMIT ${limit} OFFSET ${(page - 1) * limit}
       `),
       this.prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
         SELECT COUNT(*)::int AS count FROM (
-          SELECT o.id, oi.product_id
+          SELECT oi.id
           FROM orders o JOIN order_items oi ON oi.order_id = o.id
           WHERE ${filters}
-          GROUP BY o.id, oi.product_id
         ) opportunities
       `),
     ]);
