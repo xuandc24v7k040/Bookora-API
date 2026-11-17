@@ -1,18 +1,22 @@
 model Coupon {
-  id             String       @id @default(ulid())
-  code           String       @unique
-  name           String
-  description    String?
-  discountType   DiscountType @map("discount_type")
-  discountValue  Decimal      @map("discount_value") @db.Decimal(12, 2)
-  minOrderAmount Decimal?     @map("min_order_amount") @db.Decimal(12, 2)
-  maxDiscount    Decimal?     @map("max_discount") @db.Decimal(12, 2)
-  usageLimit     Int?         @map("usage_limit")
-  startAt        DateTime     @map("start_at")
-  endAt          DateTime     @map("end_at")
-  isActive       Boolean      @default(true) @map("is_active")
+  id                String           @id @default(ulid())
+  code              String           @unique
+  name              String
+  description       String?
+  discountType      DiscountType     @map("discount_type")
+  discountValue     Decimal          @map("discount_value") @db.Decimal(12, 2)
+  minOrderAmount    Decimal?         @map("min_order_amount") @db.Decimal(12, 2)
+  maxDiscount       Decimal?         @map("max_discount") @db.Decimal(12, 2)
+  usageLimit        Int?             @map("usage_limit")
+  startAt           DateTime         @map("start_at")
+  endAt             DateTime         @map("end_at")
+  isActive          Boolean          @default(true) @map("is_active")
+  type              CouponType       @default(ORDER)
+  visibility        CouponVisibility @default(PUBLIC)
+  usageLimitPerUser Int?             @map("usage_limit_per_user")
 
-  orders Order[]
+  orders      Order[]
+  redemptions CouponRedemption[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -20,4 +24,31 @@ model Coupon {
   @@index([code])
   @@index([isActive, startAt, endAt])
   @@map("coupons")
+}
+
+model CouponRedemption {
+  id                    String                 @id @default(ulid())
+  couponId              String                 @map("coupon_id")
+  orderId               String                 @map("order_id")
+  userId                String                 @map("user_id")
+  couponType            CouponType             @map("coupon_type")
+  couponCodeSnapshot    String                 @map("coupon_code_snapshot")
+  appliedDiscountAmount Decimal                @map("applied_discount_amount") @db.Decimal(12, 2)
+  status                CouponRedemptionStatus
+  reservedAt            DateTime?              @map("reserved_at")
+  consumedAt            DateTime?              @map("consumed_at")
+  releasedAt            DateTime?              @map("released_at")
+  expiresAt             DateTime?              @map("expires_at")
+  coupon                Coupon                 @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  order                 Order                  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  @@unique([orderId, couponType])
+  @@index([couponId, status])
+  @@index([couponId, userId, status])
+  @@index([status, expiresAt])
+  @@index([userId])
+  @@map("coupon_redemptions")
 }

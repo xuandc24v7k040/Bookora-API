@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CouponsModule } from '@/modules/coupons/coupons.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { VietMapModule } from '@/modules/integrations/vietmap/vietmap.module';
 import { VnpayModule } from '@/modules/integrations/vnpay/vnpay.module';
@@ -12,6 +13,7 @@ import { CheckoutLocationProofService } from './checkout-location-proof.service'
 
 @Module({
   imports: [
+    CouponsModule,
     AuthModule,
     CartModule,
     StorefrontCatalogModule,

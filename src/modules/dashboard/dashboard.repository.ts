@@ -239,11 +239,11 @@ export class DashboardRepository {
         oi."product_name" AS "productName",
         MIN(oi."image_url") AS "imageUrl",
         SUM(oi."quantity")::bigint AS "soldQuantity",
-        SUM(oi."line_total") AS "revenue"
+        SUM(oi."line_total" - oi."coupon_discount_amount") AS "revenue"
       FROM completed c
       JOIN "order_items" oi ON oi."order_id" = c."id"
       GROUP BY COALESCE(oi."product_id", oi."product_slug"), oi."product_name"
-      ORDER BY SUM(oi."quantity") DESC, SUM(oi."line_total") DESC,
+      ORDER BY SUM(oi."quantity") DESC, SUM(oi."line_total" - oi."coupon_discount_amount") DESC,
         COALESCE(oi."product_id", oi."product_slug") ASC
       LIMIT 3
     `);

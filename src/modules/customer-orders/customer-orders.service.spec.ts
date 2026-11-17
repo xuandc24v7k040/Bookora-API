@@ -24,6 +24,9 @@ function order(overrides: Record<string, unknown> = {}) {
     status: OrderStatus.PENDING,
     subtotalAmount: 100_000,
     discountAmount: 0,
+    orderCouponDiscountAmount: 0,
+    shippingCouponDiscountAmount: 0,
+    couponRedemptions: [],
     shippingFee: 15_000,
     totalAmount: 115_000,
     receiverName: 'Nguyễn An',
@@ -67,6 +70,7 @@ function createHarness() {
   const orderCount = jest.fn();
   const reviewFindMany = jest.fn();
   const tx = {
+    couponRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     order: {
       findFirst: jest.fn(),
       findUniqueOrThrow: jest.fn(),

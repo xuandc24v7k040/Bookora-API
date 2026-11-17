@@ -67,6 +67,9 @@ function orderFixture(status: OrderStatus = OrderStatus.PACKING) {
     status,
     subtotalAmount: 100_000,
     discountAmount: 0,
+    orderCouponDiscountAmount: 0,
+    shippingCouponDiscountAmount: 0,
+    couponRedemptions: [],
     shippingFee: 15_000,
     totalAmount: 115_000,
     receiverName: 'Nguyễn An',
@@ -125,6 +128,7 @@ function orderFixture(status: OrderStatus = OrderStatus.PACKING) {
 function createHarness(initialOrder = orderFixture()) {
   let currentOrder = initialOrder;
   const tx = {
+    couponRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     payment: { update: jest.fn().mockResolvedValue({}) },
     paymentTransaction: {
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),

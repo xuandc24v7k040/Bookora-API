@@ -27,6 +27,22 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+enum CouponType {
+  ORDER
+  SHIPPING
+}
+
+enum CouponVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum CouponRedemptionStatus {
+  RESERVED
+  CONSUMED
+  RELEASED
+}
+
 enum OrderStatus {
   PENDING_PAYMENT
   PAYMENT_FAILED

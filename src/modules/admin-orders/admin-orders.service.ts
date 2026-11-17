@@ -251,6 +251,13 @@ export class AdminOrdersService {
       estimatedDeliveryAt: order.estimatedDeliveryAt?.toISOString() ?? null,
       subtotalAmount: Number(order.subtotalAmount),
       discountAmount: Number(order.discountAmount),
+      orderCouponDiscountAmount: Number(order.orderCouponDiscountAmount),
+      shippingCouponDiscountAmount: Number(order.shippingCouponDiscountAmount),
+      appliedCoupons: order.couponRedemptions.map((redemption) => ({
+        code: redemption.couponCodeSnapshot,
+        type: redemption.couponType,
+        discountAmount: Number(redemption.appliedDiscountAmount),
+      })),
       shippingFee: Number(order.shippingFee),
       totalAmount: Number(order.totalAmount),
       customerNote: order.note,
@@ -278,6 +285,7 @@ export class AdminOrdersService {
         unitPrice: Number(item.unitPrice),
         originalPrice: Number(item.originalPrice),
         discountAmount: Number(item.discountAmount),
+        couponDiscountAmount: Number(item.couponDiscountAmount),
         lineTotal: Number(item.lineTotal),
       })),
       payment: order.payment

@@ -7,6 +7,15 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  CouponsService,
+  type ResolvedCoupon,
+} from '@/modules/coupons/coupons.service';
+import {
+  allocateCouponDiscount,
+  couponRuleVersion,
+} from '@/modules/coupons/coupon-pricing';
+import type { CheckoutCouponDto } from '@/modules/coupons/coupons.dto';
 import { createHash } from 'crypto';
 import { ulid } from 'ulid';
 import {
@@ -75,6 +84,7 @@ interface ResolvedCheckoutItem {
   originalPrice: number;
   discountAmount: number;
   lineTotal: number;
+  couponDiscountAmount: number;
   isCheckoutEligible: boolean;
   issues: CartItemStatus[];
 }
@@ -111,6 +121,10 @@ interface CheckoutState {
   totalAmount: number;
   previewReference: string;
   blockingIssues: string[];
+  coupons: ResolvedCoupon[];
+  availableCoupons: CheckoutCouponDto[];
+  orderCouponDiscountAmount: number;
+  shippingCouponDiscountAmount: number;
 }
 
 const ISSUE_CODE: Record<CartItemStatus, string> = {
@@ -147,6 +161,7 @@ export class CheckoutService {
     private readonly vietmap: VietMapService,
     private readonly vnpay: VnpayService,
     private readonly config: ConfigService,
+    private readonly coupons: CouponsService,
   ) {}
 
   async preview(
@@ -211,6 +226,7 @@ export class CheckoutService {
       const now = new Date();
       const orderId = ulid();
       const orderCode = `BK-${ulid()}`;
+      await this.revalidateCouponCheckout(tx, state);
       await this.deductStock(tx, state, {
         sourceId: orderId,
         sourceCode: orderCode,
@@ -255,6 +271,17 @@ export class CheckoutService {
         include: { payment: true },
       });
       await this.clearSelectedCartItems(tx, state.cart.id, state.eligibleItems);
+      await this.coupons.redeem(
+        tx,
+        created.id,
+        {
+          userId: actor.id,
+          subtotal: state.subtotalAmount,
+          shippingFee: state.quote!.shippingFee,
+        },
+        state.coupons,
+        null,
+      );
       return created;
     });
     return this.orderResult(order);
@@ -276,7 +303,7 @@ export class CheckoutService {
         existing,
         existing.payment.transactions[0],
         ipAddress,
-      );
+      ).response;
     }
 
     const state = await this.resolveCheckout(actor.id, branchId, {
@@ -303,13 +330,14 @@ export class CheckoutService {
       const orderId = ulid();
       const orderCode = `BK-${ulid()}`;
       const transactionId = ulid();
+      await this.revalidateCouponCheckout(tx, state);
       await this.deductStock(tx, state, {
         sourceId: transactionId,
         sourceCode: orderCode,
         actorId: actor.id,
         reason: 'Đặt đơn hàng thanh toán VNPAY',
       });
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           id: orderId,
           ...this.orderData(
@@ -361,6 +389,25 @@ export class CheckoutService {
           },
         },
       });
+      // Four payment windows form the fixed order retry deadline. Retry never extends it.
+      const couponExpiresAt = new Date(
+        createdAt.getTime() +
+          this.config.getOrThrow<number>('payment.vnpay.expireMinutes') *
+            4 *
+            60_000,
+      );
+      await this.coupons.redeem(
+        tx,
+        created.id,
+        {
+          userId: actor.id,
+          subtotal: state.subtotalAmount,
+          shippingFee: state.quote!.shippingFee,
+        },
+        state.coupons,
+        couponExpiresAt,
+      );
+      return created;
     });
     const transaction = order.payment!.transactions[0];
     const result = this.vnpayOrderResult(order, transaction, ipAddress);
@@ -459,6 +506,7 @@ export class CheckoutService {
         originalPrice: price.original,
         discountAmount: (price.original - price.current) * item.quantity,
         lineTotal: price.current * item.quantity,
+        couponDiscountAmount: 0,
         isCheckoutEligible: result.isCheckoutEligible,
         issues: result.issues,
       };
@@ -521,7 +569,32 @@ export class CheckoutService {
             productWeightGram: totalProductWeightGram,
           })
         : null;
-    const totalAmount = subtotalAmount + (quote?.shippingFee ?? 0);
+    const couponContext = {
+      userId,
+      subtotal: subtotalAmount,
+      shippingFee: quote?.shippingFee ?? null,
+    };
+    const coupons = await this.coupons.resolve(couponContext, dto);
+    const availableCoupons = dto.includeCoupons
+      ? await this.coupons.publicList(couponContext, coupons)
+      : [];
+    const orderCouponDiscountAmount =
+      coupons.find(({ coupon }) => coupon.type === 'ORDER')?.discountAmount ??
+      0;
+    const shippingCouponDiscountAmount =
+      coupons.find(({ coupon }) => coupon.type === 'SHIPPING')
+        ?.discountAmount ?? 0;
+    const allocations = allocateCouponDiscount(
+      eligibleItems,
+      orderCouponDiscountAmount,
+    );
+    for (const item of eligibleItems)
+      item.couponDiscountAmount = allocations.get(item.id) ?? 0;
+    const totalAmount =
+      subtotalAmount -
+      orderCouponDiscountAmount +
+      (quote?.shippingFee ?? 0) -
+      shippingCouponDiscountAmount;
     const note = dto.note?.trim() || null;
     const blockingIssues: string[] = [];
     const previewReference = this.createPreviewReference({
@@ -532,6 +605,7 @@ export class CheckoutService {
         quantity: item.quantity,
         weightGram: item.weightGram,
         unitPrice: item.unitPrice,
+        originalPrice: item.originalPrice,
         availableQuantity: item.availableQuantity,
       })),
       address,
@@ -540,6 +614,13 @@ export class CheckoutService {
       shippingQuoteReference: quote?.requestFingerprint ?? null,
       shippingQuote: quote?.breakdown ?? null,
       totalProductWeightGram,
+      coupons: coupons.map(({ coupon, discountAmount }) => ({
+        id: coupon.id,
+        code: coupon.code,
+        type: coupon.type,
+        version: couponRuleVersion(coupon),
+        discountAmount,
+      })),
     });
     return {
       cart,
@@ -555,7 +636,80 @@ export class CheckoutService {
       totalAmount,
       previewReference,
       blockingIssues,
+      coupons,
+      availableCoupons,
+      orderCouponDiscountAmount,
+      shippingCouponDiscountAmount,
     };
+  }
+
+  private async revalidateCouponCheckout(
+    tx: Prisma.TransactionClient,
+    state: CheckoutState,
+  ): Promise<void> {
+    if (!state.coupons.length) return;
+    const changed = (): never => {
+      throw new ConflictException({
+        code: 'CHECKOUT_PREVIEW_CHANGED',
+        message:
+          'Thông tin đơn hàng đã thay đổi. Vui lòng cập nhật và xác nhận lại voucher.',
+      });
+    };
+    const branch = await tx.branch.findUnique({
+      where: { id: state.cart.branchId },
+    });
+    const cart = await tx.cart.findUnique({ where: { id: state.cart.id } });
+    if (
+      !branch?.isActive ||
+      branch.province !== state.cart.branch.province ||
+      branch.address !== state.cart.branch.address ||
+      cart?.branchId !== state.cart.branchId
+    )
+      changed();
+    const address = state.address!;
+    if (address.sourceCustomerAddressId) {
+      const saved = await tx.userAddress.findFirst({
+        where: {
+          id: address.sourceCustomerAddressId,
+          userId: state.cart.userId,
+        },
+      });
+      if (
+        !saved ||
+        saved.receiverName !== address.receiverName ||
+        saved.receiverPhone !== address.receiverPhone ||
+        saved.detail !== address.addressLine ||
+        saved.provinceCode !== address.provinceCode ||
+        saved.province !== address.provinceName ||
+        saved.ward !== address.wardName
+      )
+        changed();
+    }
+    for (const item of state.eligibleItems) {
+      const variant = await tx.productVariant.findUnique({
+        where: { id: item.variantId },
+        include: { product: { select: { status: true } } },
+      });
+      const cartItem = await tx.cartItem.findUnique({
+        where: { id: item.cartItemId },
+      });
+      if (
+        !variant ||
+        !variant.isActive ||
+        variant.product.status !== 'ACTIVE' ||
+        variant.weightGram !== item.weightGram ||
+        !cartItem ||
+        cartItem.quantity !== item.quantity ||
+        cartItem.variantId !== item.variantId
+      )
+        changed();
+      const price = this.prices.resolve(variant!);
+      if (
+        price.current !== item.unitPrice ||
+        price.original !== item.originalPrice
+      )
+        changed();
+    }
   }
 
   private async resolveAddress(
@@ -653,7 +807,8 @@ export class CheckoutService {
     if (state.previewReference !== previewReference) {
       throw new ConflictException({
         code: 'CHECKOUT_PREVIEW_CHANGED',
-        message: 'Phí vận chuyển đã thay đổi. Vui lòng kiểm tra lại đơn hàng.',
+        message:
+          'Thông tin giá, vận chuyển hoặc voucher đã thay đổi. Vui lòng kiểm tra và xác nhận lại đơn hàng.',
         details: {
           oldPreviewReference: previewReference,
           newPreviewReference: state.previewReference,
@@ -686,6 +841,13 @@ export class CheckoutService {
         select: { quantity: true },
       });
       const beforeQuantity = current?.quantity ?? 0;
+      if (state.coupons.length && beforeQuantity !== item.availableQuantity) {
+        throw new ConflictException({
+          code: 'CHECKOUT_PREVIEW_CHANGED',
+          message:
+            'Tồn kho đã thay đổi. Vui lòng cập nhật và xác nhận lại đơn hàng.',
+        });
+      }
       const result = await tx.branchProductStock.updateMany({
         where: {
           branchId: state.cart.branchId,
@@ -730,12 +892,16 @@ export class CheckoutService {
       orderCode,
       userId,
       branchId: state.cart.branchId,
-      couponId: null,
+      couponId:
+        state.coupons.find(({ coupon }) => coupon.type === 'ORDER')?.coupon
+          .id ?? null,
       sourceCustomerAddressId: address.sourceCustomerAddressId,
       idempotencyKey,
       status,
       subtotalAmount: state.subtotalAmount,
       discountAmount: state.discountAmount,
+      orderCouponDiscountAmount: state.orderCouponDiscountAmount,
+      shippingCouponDiscountAmount: state.shippingCouponDiscountAmount,
       shippingFee: quote.shippingFee,
       totalAmount: state.totalAmount,
       deliveryAddressSource: address.source,
@@ -776,6 +942,7 @@ export class CheckoutService {
       unitPrice: item.unitPrice,
       originalPrice: item.originalPrice,
       discountAmount: item.discountAmount,
+      couponDiscountAmount: item.couponDiscountAmount,
       lineTotal: item.lineTotal,
     };
   }
@@ -910,6 +1077,14 @@ export class CheckoutService {
       paymentMethod: state.paymentMethod,
       subtotalAmount: state.subtotalAmount,
       discountAmount: state.discountAmount,
+      orderCouponDiscountAmount: state.orderCouponDiscountAmount,
+      shippingCouponDiscountAmount: state.shippingCouponDiscountAmount,
+      appliedCoupons: state.coupons.map(({ coupon, discountAmount }) => ({
+        code: coupon.code,
+        type: coupon.type,
+        discountAmount,
+      })),
+      availableCoupons: state.availableCoupons,
       totalProductWeightGram: state.totalProductWeightGram,
       shippingFee: state.quote?.shippingFee ?? null,
       shippingFeeRule: state.quote?.routeType ?? null,

@@ -10,6 +10,7 @@ const listInclude = {
 } as const satisfies Prisma.OrderInclude;
 
 export const adminOrderDetailInclude = {
+  couponRedemptions: true,
   user: { select: { id: true, fullName: true, email: true, phone: true } },
   branch: { select: { id: true, name: true, address: true } },
   items: true,

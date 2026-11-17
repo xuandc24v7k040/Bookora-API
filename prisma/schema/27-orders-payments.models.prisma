@@ -9,6 +9,8 @@ model Order {
   status                         OrderStatus           @default(PENDING)
   subtotalAmount                 Decimal               @map("subtotal_amount") @db.Decimal(12, 2)
   discountAmount                 Decimal               @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  orderCouponDiscountAmount      Decimal               @default(0) @map("order_coupon_discount_amount") @db.Decimal(12, 2)
+  shippingCouponDiscountAmount   Decimal               @default(0) @map("shipping_coupon_discount_amount") @db.Decimal(12, 2)
   shippingFee                    Decimal               @map("shipping_fee") @db.Decimal(12, 2)
   totalAmount                    Decimal               @map("total_amount") @db.Decimal(12, 2)
   deliveryAddressSource          DeliveryAddressSource @map("delivery_address_source")
@@ -45,10 +47,11 @@ model Order {
   sourceCustomerAddress UserAddress? @relation("OrderSourceCustomerAddress", fields: [sourceCustomerAddressId], references: [id], onDelete: SetNull)
   internalNoteUpdatedBy User?        @relation("OrderInternalNoteUpdatedBy", fields: [internalNoteUpdatedById], references: [id], onDelete: SetNull)
 
-  items           OrderItem[]
-  payment         Payment?
-  reviews         Review[]
-  statusHistories OrderStatusHistory[]
+  items             OrderItem[]
+  payment           Payment?
+  reviews           Review[]
+  statusHistories   OrderStatusHistory[]
+  couponRedemptions CouponRedemption[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -93,23 +96,24 @@ model OrderStatusHistory {
 }
 
 model OrderItem {
-  id               String   @id @default(ulid())
-  orderId          String   @map("order_id")
-  sourceCartItemId String?  @map("source_cart_item_id")
-  productId        String?  @map("product_id")
-  variantId        String?  @map("variant_id")
-  productName      String   @map("product_name")
-  productSlug      String   @map("product_slug")
-  variantLabel     String   @map("variant_label")
-  variantOptions   Json     @map("variant_options")
-  imageUrl         String?  @map("image_url")
-  sku              String?
-  quantity         Int
-  unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
-  originalPrice    Decimal  @map("original_price") @db.Decimal(12, 2)
-  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
-  lineTotal        Decimal  @map("line_total") @db.Decimal(12, 2)
-  createdAt        DateTime @default(now()) @map("created_at")
+  id                   String   @id @default(ulid())
+  orderId              String   @map("order_id")
+  sourceCartItemId     String?  @map("source_cart_item_id")
+  productId            String?  @map("product_id")
+  variantId            String?  @map("variant_id")
+  productName          String   @map("product_name")
+  productSlug          String   @map("product_slug")
+  variantLabel         String   @map("variant_label")
+  variantOptions       Json     @map("variant_options")
+  imageUrl             String?  @map("image_url")
+  sku                  String?
+  quantity             Int
+  unitPrice            Decimal  @map("unit_price") @db.Decimal(12, 2)
+  originalPrice        Decimal  @map("original_price") @db.Decimal(12, 2)
+  discountAmount       Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  lineTotal            Decimal  @map("line_total") @db.Decimal(12, 2)
+  couponDiscountAmount Decimal  @default(0) @map("coupon_discount_amount") @db.Decimal(12, 2)
+  createdAt            DateTime @default(now()) @map("created_at")
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)

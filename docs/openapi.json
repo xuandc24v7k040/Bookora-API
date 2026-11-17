@@ -21723,6 +21723,704 @@
         "description": "Đổi chi nhánh và revalidate toàn bộ giỏ hàng"
       }
     },
+    "/admin/coupons": {
+      "get": {
+        "operationId": "adminCouponsList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ORDER",
+                "SHIPPING"
+              ]
+            }
+          },
+          {
+            "name": "visibility",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PUBLIC",
+                "PRIVATE"
+              ]
+            }
+          },
+          {
+            "name": "discountType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PERCENTAGE",
+                "FIXED_AMOUNT"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "INACTIVE",
+                "UPCOMING",
+                "EXPIRED",
+                "EXHAUSTED"
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "code",
+                "name",
+                "startAt",
+                "endAt",
+                "createdAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách mã giảm giá",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Danh sách mã giảm giá"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CouponListResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Danh sách khuyến mãi toàn hệ thống (SUPER_ADMIN)",
+        "tags": [
+          "admin-coupons"
+        ],
+        "description": "Danh sách khuyến mãi toàn hệ thống (SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "adminCouponsCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã tạo mã giảm giá",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã tạo mã giảm giá"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CouponResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tạo mã giảm giá",
+        "tags": [
+          "admin-coupons"
+        ],
+        "description": "Tạo mã giảm giá"
+      }
+    },
+    "/admin/coupons/{couponId}": {
+      "get": {
+        "operationId": "adminCouponsDetail",
+        "parameters": [
+          {
+            "name": "couponId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chi tiết mã giảm giá",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Chi tiết mã giảm giá"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CouponResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Chi tiết mã giảm giá",
+        "tags": [
+          "admin-coupons"
+        ],
+        "description": "Chi tiết mã giảm giá"
+      },
+      "patch": {
+        "operationId": "adminCouponsUpdate",
+        "parameters": [
+          {
+            "name": "couponId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật mã giảm giá",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật mã giảm giá"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CouponResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Cập nhật quy tắc cho đơn hàng mới, giữ snapshot lịch sử",
+        "tags": [
+          "admin-coupons"
+        ],
+        "description": "Cập nhật quy tắc cho đơn hàng mới, giữ snapshot lịch sử"
+      }
+    },
+    "/admin/coupons/{couponId}/active": {
+      "patch": {
+        "operationId": "adminCouponsSetActive",
+        "parameters": [
+          {
+            "name": "couponId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CouponActiveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã cập nhật trạng thái mã",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật trạng thái mã"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CouponResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Bật hoặc tạm dừng mã giảm giá",
+        "tags": [
+          "admin-coupons"
+        ],
+        "description": "Bật hoặc tạm dừng mã giảm giá"
+      }
+    },
     "/checkout/preview": {
       "post": {
         "operationId": "checkoutPreview",
@@ -34333,6 +35031,353 @@
           "branchId"
         ]
       },
+      "CouponResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "SHIPPING"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED_AMOUNT"
+            ]
+          },
+          "discountValue": {
+            "type": "number"
+          },
+          "minOrderAmount": {
+            "type": "number",
+            "nullable": true
+          },
+          "maxDiscount": {
+            "type": "number",
+            "nullable": true
+          },
+          "usageLimit": {
+            "type": "number",
+            "nullable": true
+          },
+          "usageLimitPerUser": {
+            "type": "number",
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "INACTIVE",
+              "UPCOMING",
+              "EXPIRED",
+              "EXHAUSTED"
+            ]
+          },
+          "reserved": {
+            "type": "number"
+          },
+          "consumed": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "type",
+          "visibility",
+          "discountType",
+          "discountValue",
+          "minOrderAmount",
+          "maxDiscount",
+          "usageLimit",
+          "usageLimitPerUser",
+          "startAt",
+          "endAt",
+          "updatedAt",
+          "createdAt",
+          "isActive",
+          "status",
+          "reserved",
+          "consumed",
+          "remaining"
+        ]
+      },
+      "CouponListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CouponResponseDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalItems": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "totalItems",
+          "totalPages"
+        ]
+      },
+      "SaveCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "pattern": "^[A-Z0-9_-]+$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "SHIPPING"
+            ]
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED_AMOUNT"
+            ]
+          },
+          "discountValue": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 9999999999
+          },
+          "minOrderAmount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999,
+            "nullable": true
+          },
+          "maxDiscount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9999999999,
+            "nullable": true
+          },
+          "usageLimit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "usageLimitPerUser": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "type",
+          "visibility",
+          "discountType",
+          "discountValue",
+          "startAt",
+          "endAt",
+          "isActive"
+        ]
+      },
+      "CouponActiveDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isActive"
+        ]
+      },
+      "OrderCouponSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "SHIPPING"
+            ]
+          },
+          "discountAmount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "type",
+          "discountAmount"
+        ]
+      },
+      "CheckoutCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "SHIPPING"
+            ]
+          },
+          "discountType": {
+            "type": "string",
+            "enum": [
+              "PERCENTAGE",
+              "FIXED_AMOUNT"
+            ]
+          },
+          "discountValue": {
+            "type": "number"
+          },
+          "minOrderAmount": {
+            "type": "number"
+          },
+          "maxDiscount": {
+            "type": "number",
+            "nullable": true
+          },
+          "discountAmount": {
+            "type": "number"
+          },
+          "selectable": {
+            "type": "boolean"
+          },
+          "reasonCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "reasonMessage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "type",
+          "discountType",
+          "discountValue",
+          "minOrderAmount",
+          "maxDiscount",
+          "discountAmount",
+          "selectable",
+          "reasonCode",
+          "reasonMessage"
+        ]
+      },
       "CheckoutBranchResponseDto": {
         "type": "object",
         "properties": {
@@ -34673,6 +35718,24 @@
       "CheckoutPreviewResponseDto": {
         "type": "object",
         "properties": {
+          "orderCouponDiscountAmount": {
+            "type": "number"
+          },
+          "shippingCouponDiscountAmount": {
+            "type": "number"
+          },
+          "appliedCoupons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderCouponSnapshotDto"
+            }
+          },
+          "availableCoupons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutCouponDto"
+            }
+          },
           "previewReference": {
             "type": "string",
             "minLength": 64,
@@ -34756,6 +35819,10 @@
           }
         },
         "required": [
+          "orderCouponDiscountAmount",
+          "shippingCouponDiscountAmount",
+          "appliedCoupons",
+          "availableCoupons",
           "previewReference",
           "branch",
           "items",
@@ -34871,6 +35938,26 @@
       "PreviewCheckoutDto": {
         "type": "object",
         "properties": {
+          "couponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "Tra mã nhập tay, backend xác định loại và thay voucher cùng loại"
+          },
+          "orderCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "shippingCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "includeCoupons": {
+            "type": "boolean",
+            "description": "Liệt kê tối đa 100 voucher PUBLIC theo ngữ cảnh thanh toán"
+          },
           "selectedCartItemIds": {
             "minItems": 1,
             "maxItems": 50,
@@ -35062,6 +36149,26 @@
       "PlaceOrderDto": {
         "type": "object",
         "properties": {
+          "couponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "Tra mã nhập tay, backend xác định loại và thay voucher cùng loại"
+          },
+          "orderCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "shippingCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "includeCoupons": {
+            "type": "boolean",
+            "description": "Liệt kê tối đa 100 voucher PUBLIC theo ngữ cảnh thanh toán"
+          },
           "selectedCartItemIds": {
             "minItems": 1,
             "maxItems": 50,
@@ -35331,6 +36438,9 @@
       "CustomerOrderItemResponseDto": {
         "type": "object",
         "properties": {
+          "couponDiscountAmount": {
+            "type": "number"
+          },
           "id": {
             "type": "string",
             "format": "ulid",
@@ -35399,6 +36509,7 @@
           }
         },
         "required": [
+          "couponDiscountAmount",
           "id",
           "productName",
           "productSlug",
@@ -35412,6 +36523,18 @@
       "CustomerOrderResponseDto": {
         "type": "object",
         "properties": {
+          "orderCouponDiscountAmount": {
+            "type": "number"
+          },
+          "shippingCouponDiscountAmount": {
+            "type": "number"
+          },
+          "appliedCoupons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderCouponSnapshotDto"
+            }
+          },
           "id": {
             "type": "string",
             "format": "ulid",
@@ -35525,6 +36648,9 @@
           }
         },
         "required": [
+          "orderCouponDiscountAmount",
+          "shippingCouponDiscountAmount",
+          "appliedCoupons",
           "id",
           "orderCode",
           "status",
@@ -35685,6 +36811,9 @@
       "AdminOrderItemDto": {
         "type": "object",
         "properties": {
+          "couponDiscountAmount": {
+            "type": "number"
+          },
           "id": {
             "type": "string",
             "format": "ulid",
@@ -35749,6 +36878,7 @@
           }
         },
         "required": [
+          "couponDiscountAmount",
           "id",
           "productName",
           "productSlug",
@@ -36070,6 +37200,18 @@
       "AdminOrderDetailDto": {
         "type": "object",
         "properties": {
+          "orderCouponDiscountAmount": {
+            "type": "number"
+          },
+          "shippingCouponDiscountAmount": {
+            "type": "number"
+          },
+          "appliedCoupons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderCouponSnapshotDto"
+            }
+          },
           "id": {
             "type": "string",
             "format": "ulid",
@@ -36208,6 +37350,9 @@
           }
         },
         "required": [
+          "orderCouponDiscountAmount",
+          "shippingCouponDiscountAmount",
+          "appliedCoupons",
           "id",
           "orderCode",
           "status",

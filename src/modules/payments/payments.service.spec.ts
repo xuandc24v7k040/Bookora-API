@@ -102,6 +102,10 @@ describe('PaymentsService VNPAY verified callbacks', () => {
   const statusHistoryCreate = jest.fn();
   const transactionMock = jest.fn();
   const transactionClient = {
+    couponRedemption: {
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     paymentTransaction: {
       findUnique: transactionFindUnique,
       updateMany: transactionUpdateMany,
