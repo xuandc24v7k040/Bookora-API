@@ -156,23 +156,26 @@ export class AdminOrdersService {
     this.assertMutation(actor, 'orders.cancel');
     const branchId = this.selectedBranchId(context);
     const reason = dto.reason.trim();
-    await this.repository.transaction(async (tx) => {
-      const order = await this.repository.findCancellable(
-        tx,
-        branchId,
-        orderId,
-      );
-      if (!order) this.notFound();
-      await cancelOrderInTransaction(tx, order, {
-        allowedStatuses: ADMIN_CANCELLABLE_STATUSES,
-        actorType: OrderStatusActorType.ADMIN,
-        actorUserId: actor.id,
-        actorDisplayName: actor.fullName,
-        actorRoleSnapshot: this.actorRoleSnapshot(actor),
-        reason,
-        invalidStatusCode: 'ORDER_CANCEL_NOT_ALLOWED',
-      });
-    });
+    await this.repository.transaction(
+      async (tx) => {
+        const order = await this.repository.findCancellable(
+          tx,
+          branchId,
+          orderId,
+        );
+        if (!order) this.notFound();
+        await cancelOrderInTransaction(tx, order, {
+          allowedStatuses: ADMIN_CANCELLABLE_STATUSES,
+          actorType: OrderStatusActorType.ADMIN,
+          actorUserId: actor.id,
+          actorDisplayName: actor.fullName,
+          actorRoleSnapshot: this.actorRoleSnapshot(actor),
+          reason,
+          invalidStatusCode: 'ORDER_CANCEL_NOT_ALLOWED',
+        });
+      },
+      { retryOnConflict: true },
+    );
     return this.detail(actor, context, orderId);
   }
 
@@ -251,6 +254,13 @@ export class AdminOrdersService {
       estimatedDeliveryAt: order.estimatedDeliveryAt?.toISOString() ?? null,
       subtotalAmount: Number(order.subtotalAmount),
       discountAmount: Number(order.discountAmount),
+      orderCouponDiscountAmount: Number(order.orderCouponDiscountAmount),
+      shippingCouponDiscountAmount: Number(order.shippingCouponDiscountAmount),
+      appliedCoupons: order.couponRedemptions.map((redemption) => ({
+        code: redemption.couponCodeSnapshot,
+        type: redemption.couponType,
+        discountAmount: Number(redemption.appliedDiscountAmount),
+      })),
       shippingFee: Number(order.shippingFee),
       totalAmount: Number(order.totalAmount),
       customerNote: order.note,
@@ -278,6 +288,7 @@ export class AdminOrdersService {
         unitPrice: Number(item.unitPrice),
         originalPrice: Number(item.originalPrice),
         discountAmount: Number(item.discountAmount),
+        couponDiscountAmount: Number(item.couponDiscountAmount),
         lineTotal: Number(item.lineTotal),
       })),
       payment: order.payment

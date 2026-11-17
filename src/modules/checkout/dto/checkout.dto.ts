@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   Equals,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsLatitude,
@@ -26,6 +27,11 @@ import {
   DeliveryAddressSource,
   PaymentMethod,
 } from '@/generated/prisma/client';
+import {
+  CheckoutCouponDto,
+  OrderCouponSnapshotDto,
+  normalizeCouponCode,
+} from '@/modules/coupons/coupons.dto';
 
 const PHONE_PATTERN = /^(?:0\d{9}|\+84\d{9})$/;
 
@@ -143,6 +149,41 @@ export class CurrentLocationResolveDto {
 
 @ApiExtraModels(SavedAddressInputDto, CurrentLocationAddressDto)
 export class PreviewCheckoutDto {
+  @ApiPropertyOptional({
+    minLength: 3,
+    maxLength: 40,
+    description:
+      'Tra mã nhập tay, backend xác định loại và thay voucher cùng loại',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => normalizeCouponCode(value))
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{3,40}$/, { message: 'Mã voucher không hợp lệ.' })
+  couponCode?: string;
+  @ApiPropertyOptional({ minLength: 3, maxLength: 40 })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => normalizeCouponCode(value))
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{3,40}$/, {
+    message: 'Mã giảm giá đơn hàng không hợp lệ.',
+  })
+  orderCouponCode?: string;
+
+  @ApiPropertyOptional({ minLength: 3, maxLength: 40 })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => normalizeCouponCode(value))
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{3,40}$/, {
+    message: 'Mã giảm giá vận chuyển không hợp lệ.',
+  })
+  shippingCouponCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Liệt kê tối đa 100 voucher PUBLIC theo ngữ cảnh thanh toán',
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeCoupons?: boolean;
   @ApiProperty({ type: [String], minItems: 1, maxItems: 50, format: 'ulid' })
   @IsArray()
   @ArrayMinSize(1, {
@@ -328,6 +369,12 @@ export class ShippingQuoteResponseDto {
 }
 
 export class CheckoutPreviewResponseDto {
+  @ApiProperty() orderCouponDiscountAmount!: number;
+  @ApiProperty() shippingCouponDiscountAmount!: number;
+  @ApiProperty({ type: [OrderCouponSnapshotDto] })
+  appliedCoupons!: OrderCouponSnapshotDto[];
+  @ApiProperty({ type: [CheckoutCouponDto] })
+  availableCoupons!: CheckoutCouponDto[];
   @ApiProperty({ minLength: 64, maxLength: 64 })
   previewReference!: string;
   @ApiProperty({ type: CheckoutBranchResponseDto })

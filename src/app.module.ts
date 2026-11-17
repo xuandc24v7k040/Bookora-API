@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CouponsModule } from '@/modules/coupons/coupons.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { configurations, validateEnv } from '@/config';
@@ -65,6 +66,7 @@ import { RevenueReportsModule } from '@/modules/revenue-reports/revenue-reports.
     StorefrontBranchesModule,
     StorefrontCatalogModule,
     CartModule,
+    CouponsModule,
     CheckoutModule,
     PaymentsModule,
     CustomerOrdersModule,

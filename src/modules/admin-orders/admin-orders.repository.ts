@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type OrderStatus } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
+import { runSerializableTransaction } from '@/database/serializable-transaction.util';
 import type { AdminOrderListQueryDto } from './dto';
 
 const listInclude = {
@@ -10,6 +11,7 @@ const listInclude = {
 } as const satisfies Prisma.OrderInclude;
 
 export const adminOrderDetailInclude = {
+  couponRedemptions: true,
   user: { select: { id: true, fullName: true, email: true, phone: true } },
   branch: { select: { id: true, name: true, address: true } },
   items: true,
@@ -114,7 +116,13 @@ export class AdminOrdersRepository {
     });
   }
 
-  transaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  transaction<T>(
+    operation: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { retryOnConflict: boolean },
+  ) {
+    if (options?.retryOnConflict) {
+      return runSerializableTransaction(this.prisma, operation);
+    }
     return this.prisma.$transaction(operation, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });

@@ -6,7 +6,7 @@ import {
   PaymentProvider,
   PaymentStatus,
   PaymentTransactionStatus,
-  type Prisma,
+  Prisma,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import { VnpayService } from '@/modules/integrations/vnpay/vnpay.service';
@@ -102,6 +102,11 @@ describe('PaymentsService VNPAY verified callbacks', () => {
   const statusHistoryCreate = jest.fn();
   const transactionMock = jest.fn();
   const transactionClient = {
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    couponRedemption: {
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     paymentTransaction: {
       findUnique: transactionFindUnique,
       updateMany: transactionUpdateMany,
@@ -204,6 +209,33 @@ describe('PaymentsService VNPAY verified callbacks', () => {
       );
       return result;
     });
+  });
+
+  it('retries a serialization conflict and rejects failure after cancellation wins', async () => {
+    const cancelled = transactionFixture();
+    cancelled.payment.order.status = OrderStatus.CANCELLED;
+    cancelled.payment.status = PaymentStatus.CANCELLED;
+    cancelled.stockReleasedAt = new Date();
+    // Simulate the original cancellation flow leaving an attempt PENDING.
+    transactionFindUnique.mockResolvedValueOnce(cancelled);
+    transactionMock.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('Serialization conflict', {
+        code: 'P2034',
+        clientVersion: 'test',
+      }),
+    );
+
+    await expect(
+      service.handleVnpayIpn(
+        signedQuery({ vnp_ResponseCode: '24', vnp_TransactionStatus: '02' }),
+      ),
+    ).resolves.toMatchObject({ RspCode: '02' });
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(transactionUpdateMany).not.toHaveBeenCalled();
+    expect(orderUpdate).not.toHaveBeenCalled();
+    expect(paymentUpdate).not.toHaveBeenCalled();
+    expect(stockUpdate).not.toHaveBeenCalled();
+    expect(statusHistoryCreate).not.toHaveBeenCalled();
   });
 
   it('persists a fully verified Return before redirecting success', async () => {

@@ -12,6 +12,7 @@ import {
   Prisma,
 } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
+import { runSerializableTransaction } from '@/database/serializable-transaction.util';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import {
   cancelOrderInTransaction,
@@ -24,6 +25,7 @@ import {
 } from './dto/customer-order.dto';
 
 const orderInclude = {
+  couponRedemptions: true,
   items: true,
   payment: { include: { transactions: { orderBy: { createdAt: 'desc' } } } },
 } satisfies Prisma.OrderInclude;
@@ -111,29 +113,26 @@ export class CustomerOrdersService {
   }
 
   async cancel(actor: AuthenticatedUser, orderId: string, reason?: string) {
-    const result = await this.prisma.$transaction(
-      async (tx) => {
-        const order = await tx.order.findFirst({
-          where: { id: orderId, userId: actor.id },
-          include: cancellableOrderInclude,
-        });
-        if (!order) this.notFound();
-        await cancelOrderInTransaction(tx, order, {
-          allowedStatuses: CUSTOMER_CANCELLABLE_STATUSES,
-          actorType: OrderStatusActorType.CUSTOMER,
-          actorUserId: actor.id,
-          actorDisplayName: actor.fullName,
-          actorRoleSnapshot: 'CUSTOMER',
-          reason: reason?.trim() || 'Khách hàng yêu cầu hủy',
-          invalidStatusCode: 'ORDER_CANNOT_BE_CANCELLED',
-        });
-        return tx.order.findUniqueOrThrow({
-          where: { id: order.id },
-          include: orderInclude,
-        });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    const result = await runSerializableTransaction(this.prisma, async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: orderId, userId: actor.id },
+        include: cancellableOrderInclude,
+      });
+      if (!order) this.notFound();
+      await cancelOrderInTransaction(tx, order, {
+        allowedStatuses: CUSTOMER_CANCELLABLE_STATUSES,
+        actorType: OrderStatusActorType.CUSTOMER,
+        actorUserId: actor.id,
+        actorDisplayName: actor.fullName,
+        actorRoleSnapshot: 'CUSTOMER',
+        reason: reason?.trim() || 'Khách hàng yêu cầu hủy',
+        invalidStatusCode: 'ORDER_CANNOT_BE_CANCELLED',
+      });
+      return tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+        include: orderInclude,
+      });
+    });
     return this.toResponse(result);
   }
 
@@ -208,6 +207,13 @@ export class CustomerOrdersService {
       status: order.status,
       subtotalAmount: Number(order.subtotalAmount),
       discountAmount: Number(order.discountAmount),
+      orderCouponDiscountAmount: Number(order.orderCouponDiscountAmount),
+      shippingCouponDiscountAmount: Number(order.shippingCouponDiscountAmount),
+      appliedCoupons: order.couponRedemptions.map((redemption) => ({
+        code: redemption.couponCodeSnapshot,
+        type: redemption.couponType,
+        discountAmount: Number(redemption.appliedDiscountAmount),
+      })),
       shippingFee: Number(order.shippingFee),
       totalAmount: Number(order.totalAmount),
       receiverName: order.receiverName,
@@ -248,6 +254,7 @@ export class CustomerOrdersService {
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
         lineTotal: Number(item.lineTotal),
+        couponDiscountAmount: Number(item.couponDiscountAmount),
       })),
     };
   }

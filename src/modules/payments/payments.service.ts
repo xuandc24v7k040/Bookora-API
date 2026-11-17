@@ -5,6 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  assertCouponReservation,
+  consumeCouponRedemptions,
+} from '@/modules/coupons/coupon-redemption';
 import { ulid } from 'ulid';
 import {
   InventoryMovementSourceType,
@@ -52,6 +56,28 @@ type SuccessfulVnpayTransitionResult =
   | 'already-applied'
   | 'rejected';
 
+function canFailVnpayAttempt(transaction: TransactionWithOrder): boolean {
+  return (
+    transaction.status === PaymentTransactionStatus.PENDING &&
+    transaction.payment.status === PaymentStatus.PENDING &&
+    transaction.payment.order.status === OrderStatus.PENDING_PAYMENT &&
+    !transaction.payment.transactions.some(
+      (attempt) =>
+        attempt.id !== transaction.id &&
+        (attempt.status === PaymentTransactionStatus.PAID ||
+          attempt.createdAt > transaction.createdAt),
+    )
+  );
+}
+
+// Cancellation claims the order before touching coupon, attempt or inventory rows.
+async function lockVnpayOrder(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
+}
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -89,12 +115,6 @@ export class PaymentsService {
     const providerStatus = this.text(query.vnp_TransactionStatus);
     const succeeded = responseCode === '00' && providerStatus === '00';
     if (succeeded) {
-      if (
-        current.status !== PaymentTransactionStatus.PENDING &&
-        current.status !== PaymentTransactionStatus.PAID
-      ) {
-        return { RspCode: '02', Message: 'Order already confirmed' };
-      }
       try {
         const result = await this.applySuccessfulVnpayTransaction(
           merchantTxnRef,
@@ -107,12 +127,13 @@ export class PaymentsService {
         return { RspCode: '99', Message: 'Unknown error' };
       }
     }
-    if (current.status !== PaymentTransactionStatus.PENDING) {
+    if (!canFailVnpayAttempt(current)) {
       return { RspCode: '02', Message: 'Order already confirmed' };
     }
 
     try {
-      await this.prisma.$transaction(
+      const applied = await runSerializableTransaction(
+        this.prisma,
         async (tx) => {
           const transaction = await tx.paymentTransaction.findUnique({
             where: { merchantTxnRef },
@@ -120,13 +141,17 @@ export class PaymentsService {
           });
           if (
             !transaction ||
-            transaction.status !== PaymentTransactionStatus.PENDING
+            !canFailVnpayAttempt(transaction) ||
+            !this.hasValidVnpayAmount(amount, transaction) ||
+            !this.isVerifiedVnpayCallback(query, transaction)
           ) {
-            return;
+            return false;
           }
           const now = new Date();
           const callback = this.vnpay.sanitizeCallback(query);
-          await this.releaseReservedStock(tx, transaction, now);
+          await lockVnpayOrder(tx, transaction.payment.orderId);
+          if (!(await this.releaseReservedStock(tx, transaction, now)))
+            return false;
           const cancelled = responseCode === '24';
           await tx.paymentTransaction.update({
             where: { id: transaction.id },
@@ -167,13 +192,15 @@ export class PaymentsService {
               : 'Giao dịch VNPAY không thành công',
             createdAt: now,
           });
+          return true;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
+      return applied
+        ? { RspCode: '00', Message: 'Confirm success' }
+        : { RspCode: '02', Message: 'Order already confirmed' };
     } catch {
       return { RspCode: '99', Message: 'Unknown error' };
     }
-    return { RspCode: '00', Message: 'Confirm success' };
   }
 
   async getStatus(actor: AuthenticatedUser, paymentId: string) {
@@ -325,12 +352,20 @@ export class PaymentsService {
       now.getTime() +
         this.config.getOrThrow<number>('payment.vnpay.expireMinutes') * 60_000,
     );
-    const transaction = await this.prisma.$transaction(
+    const transaction = await runSerializableTransaction(
+      this.prisma,
       async (tx) => {
         const existing = await tx.paymentTransaction.findUnique({
           where: { idempotencyKey },
         });
-        if (existing) return existing;
+        if (existing) {
+          if (existing.paymentId !== payment.id)
+            throw new ConflictException({
+              code: 'VNPAY_RETRY_NOT_ALLOWED',
+              message: 'Mã yêu cầu thanh toán đã được dùng cho đơn hàng khác.',
+            });
+          return existing;
+        }
         const pending = await tx.paymentTransaction.findFirst({
           where: {
             paymentId: payment.id,
@@ -343,6 +378,15 @@ export class PaymentsService {
             message: 'Đã có một giao dịch thanh toán đang chờ.',
           });
         }
+        const latestOrder = await tx.order.findUniqueOrThrow({
+          where: { id: payment.order.id },
+        });
+        if (latestOrder.status !== OrderStatus.PAYMENT_FAILED)
+          throw new ConflictException({
+            code: 'VNPAY_RETRY_NOT_ALLOWED',
+            message: 'Đơn hàng hiện không thể thử thanh toán lại.',
+          });
+        await assertCouponReservation(tx, payment.order.id, expiresAt);
         const transactionId = ulid();
         for (const item of [...payment.order.items].sort((left, right) =>
           (left.variantId ?? '').localeCompare(right.variantId ?? ''),
@@ -424,7 +468,6 @@ export class PaymentsService {
         });
         return created;
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     const request = this.vnpay.buildPaymentUrl({
       merchantTxnRef: transaction.merchantTxnRef,
@@ -488,10 +531,19 @@ export class PaymentsService {
         transaction.stockReleasedAt !== null ||
         transaction.stockConsumedAt !== null
       ) {
+        await this.recordLateCallback(tx, transaction, query);
         return 'rejected';
       }
 
       const now = new Date();
+      try {
+        await assertCouponReservation(tx, transaction.payment.orderId, now);
+      } catch (error: unknown) {
+        if (!(error instanceof ConflictException)) throw error;
+        await this.recordLateCallback(tx, transaction, query);
+        return 'rejected';
+      }
+      await lockVnpayOrder(tx, transaction.payment.orderId);
       const consumed = await tx.paymentTransaction.updateMany({
         where: {
           id: transaction.id,
@@ -515,6 +567,7 @@ export class PaymentsService {
         },
       });
       if (consumed.count !== 1) return 'rejected';
+      await consumeCouponRedemptions(tx, transaction.payment.orderId, now);
 
       await tx.payment.update({
         where: { id: transaction.paymentId },
@@ -539,6 +592,26 @@ export class PaymentsService {
       await this.consumeCart(tx, transaction);
       return 'applied';
     });
+  }
+
+  private async recordLateCallback(
+    tx: Prisma.TransactionClient,
+    transaction: TransactionWithOrder,
+    query: Readonly<Record<string, unknown>>,
+  ): Promise<void> {
+    await tx.paymentTransaction.update({
+      where: { id: transaction.id },
+      data: {
+        secureHashVerified: true,
+        callbackPayloadSanitized: this.vnpay.sanitizeCallback(query),
+        responseCode: this.text(query.vnp_ResponseCode),
+        transactionStatus: this.text(query.vnp_TransactionStatus),
+        callbackReceivedAt: new Date(),
+      },
+    });
+    this.logger.warn(
+      `VNPAY success requires reconciliation for transaction ${transaction.id}; order/payment/coupon state preserved.`,
+    );
   }
 
   private hasValidVnpayAmount(
@@ -659,47 +732,47 @@ export class PaymentsService {
       include: transactionInclude,
     });
     if (!current) return;
-    await this.prisma.$transaction(
-      async (tx) => {
-        const transaction = await tx.paymentTransaction.findUnique({
-          where: { id: current.id },
-          include: transactionInclude,
-        });
-        if (
-          !transaction ||
-          transaction.status !== PaymentTransactionStatus.PENDING
-        ) {
-          return;
-        }
-        const now = new Date();
-        if (!(await this.releaseReservedStock(tx, transaction, now))) return;
-        await tx.paymentTransaction.update({
-          where: { id: transaction.id },
-          data: { status: PaymentTransactionStatus.EXPIRED },
-        });
-        await tx.payment.update({
-          where: { id: transaction.paymentId },
-          data: { status: PaymentStatus.EXPIRED },
-        });
-        await tx.order.update({
-          where: { id: transaction.payment.orderId },
-          data: {
-            status: OrderStatus.PAYMENT_FAILED,
-            stockRestoredAt: now,
-          },
-        });
-        await recordOrderStatusHistory(tx, {
-          orderId: transaction.payment.orderId,
-          fromStatus: transaction.payment.order.status,
-          toStatus: OrderStatus.PAYMENT_FAILED,
-          actorType: OrderStatusActorType.SYSTEM,
-          branchId: transaction.payment.order.branchId,
-          note: 'Giao dịch VNPAY hết thời hạn thanh toán',
-          createdAt: now,
-        });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    await runSerializableTransaction(this.prisma, async (tx) => {
+      const transaction = await tx.paymentTransaction.findUnique({
+        where: { id: current.id },
+        include: transactionInclude,
+      });
+      if (
+        !transaction ||
+        !canFailVnpayAttempt(transaction) ||
+        !transaction.expiresAt ||
+        transaction.expiresAt > new Date()
+      ) {
+        return;
+      }
+      const now = new Date();
+      await lockVnpayOrder(tx, transaction.payment.orderId);
+      if (!(await this.releaseReservedStock(tx, transaction, now))) return;
+      await tx.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: { status: PaymentTransactionStatus.EXPIRED },
+      });
+      await tx.payment.update({
+        where: { id: transaction.paymentId },
+        data: { status: PaymentStatus.EXPIRED },
+      });
+      await tx.order.update({
+        where: { id: transaction.payment.orderId },
+        data: {
+          status: OrderStatus.PAYMENT_FAILED,
+          stockRestoredAt: now,
+        },
+      });
+      await recordOrderStatusHistory(tx, {
+        orderId: transaction.payment.orderId,
+        fromStatus: transaction.payment.order.status,
+        toStatus: OrderStatus.PAYMENT_FAILED,
+        actorType: OrderStatusActorType.SYSTEM,
+        branchId: transaction.payment.order.branchId,
+        note: 'Giao dịch VNPAY hết thời hạn thanh toán',
+        createdAt: now,
+      });
+    });
   }
 
   private text(value: unknown): string {

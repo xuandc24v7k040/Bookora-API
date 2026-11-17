@@ -5,6 +5,8 @@ import {
   UserType,
 } from '@/generated/prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { CouponsService } from '@/modules/coupons/coupons.service';
+import { CouponsRepository } from '@/modules/coupons/coupons.repository';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { CartValidationService } from '@/modules/cart/cart-validation.service';
 import { ChargeableWeightCalculator } from '@/modules/shipping/calculators/chargeable-weight.calculator';
@@ -188,6 +190,7 @@ function createService(branchProvince: string | null = 'Hậu Giang') {
     vietmap as never,
     { buildPaymentUrl: jest.fn() } as never,
     config,
+    new CouponsService({ client: repository.client } as CouponsRepository),
   );
   return {
     service,

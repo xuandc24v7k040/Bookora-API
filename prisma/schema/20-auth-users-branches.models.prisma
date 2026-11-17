@@ -26,6 +26,7 @@ model User {
   addresses                     UserAddress[]
   carts                         Cart[]
   orders                        Order[]
+  couponRedemptions             CouponRedemption[]
   reviews                       Review[]
   reviewsReplied                Review[]               @relation("ReviewRepliedBy")
   wishlists                     Wishlist[]

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
+import { OrderCouponSnapshotDto } from '@/modules/coupons/coupons.dto';
 import {
   IsArray,
   IsEnum,
@@ -75,6 +76,7 @@ export class CancelCustomerOrderDto {
 }
 
 export class CustomerOrderItemResponseDto {
+  @ApiProperty() couponDiscountAmount!: number;
   @ApiProperty()
   id!: string;
 
@@ -153,6 +155,10 @@ export class CustomerOrderReviewActionDto {
 }
 
 export class CustomerOrderResponseDto {
+  @ApiProperty() orderCouponDiscountAmount!: number;
+  @ApiProperty() shippingCouponDiscountAmount!: number;
+  @ApiProperty({ type: [OrderCouponSnapshotDto] })
+  appliedCoupons!: OrderCouponSnapshotDto[];
   @ApiProperty()
   id!: string;
 

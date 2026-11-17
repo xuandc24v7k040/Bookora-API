@@ -63,6 +63,8 @@ export class CheckoutController {
   constructor(private readonly service: CheckoutService) {}
 
   @Post('preview')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiSecurity('csrf')
   @ApiBranchHeader()
   @ApiOperation({

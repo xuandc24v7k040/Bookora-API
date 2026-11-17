@@ -74,8 +74,10 @@ function completedCte(
   payment: RevenuePaymentMethod,
 ): Prisma.Sql {
   return Prisma.sql`
-    SELECT DISTINCT o."id", o."branch_id", o."subtotal_amount",
-      o."shipping_fee", o."total_amount", h."created_at" AS "completed_at"
+    SELECT DISTINCT o."id", o."branch_id",
+      (o."subtotal_amount" - o."order_coupon_discount_amount") AS "subtotal_amount",
+      (o."shipping_fee" - o."shipping_coupon_discount_amount") AS "shipping_fee",
+      o."total_amount", h."created_at" AS "completed_at"
     FROM "orders" o
     JOIN "order_status_histories" h ON h."order_id" = o."id"
     JOIN "payments" p ON p."order_id" = o."id"

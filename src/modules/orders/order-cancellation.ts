@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import { releaseCouponRedemptions } from '@/modules/coupons/coupon-redemption';
 import {
   InventoryMovementSourceType,
   InventoryMovementType,
@@ -6,6 +7,7 @@ import {
   OrderStatusActorType,
   PaymentMethod,
   PaymentStatus,
+  PaymentTransactionStatus,
   type Prisma,
 } from '@/generated/prisma/client';
 import { recordInventoryMovement } from '@/modules/inventory/inventory-movement';
@@ -25,7 +27,7 @@ export type CancellableOrder = Prisma.OrderGetPayload<{
 export interface CancelOrderInput {
   allowedStatuses: ReadonlySet<OrderStatus>;
   actorType: OrderStatusActorType;
-  actorUserId: string;
+  actorUserId: string | null;
   actorDisplayName: string;
   actorRoleSnapshot?: string | null;
   reason: string;
@@ -36,7 +38,7 @@ async function restoreStock(
   tx: Prisma.TransactionClient,
   order: CancellableOrder,
   sourceId: string,
-  actorId: string,
+  actorId: string | null,
   reason: string,
 ): Promise<void> {
   for (const item of order.items) {
@@ -105,6 +107,7 @@ export async function cancelOrderInTransaction(
     });
   }
 
+  await releaseCouponRedemptions(tx, order.id, now);
   let restoredStock = false;
   const activeHold = order.payment?.transactions.find(
     (transaction) =>
@@ -145,6 +148,20 @@ export async function cancelOrderInTransaction(
     await tx.order.update({
       where: { id: order.id },
       data: { stockRestoredAt: now },
+    });
+  }
+  if (
+    order.payment?.method === PaymentMethod.VNPAY &&
+    order.payment.transactions.some(
+      (attempt) => attempt.status === PaymentTransactionStatus.PENDING,
+    )
+  ) {
+    await tx.paymentTransaction.updateMany({
+      where: {
+        paymentId: order.payment.id,
+        status: PaymentTransactionStatus.PENDING,
+      },
+      data: { status: PaymentTransactionStatus.CANCELLED },
     });
   }
   if (

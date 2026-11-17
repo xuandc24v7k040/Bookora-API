@@ -1,4 +1,5 @@
 import { Transform, Type } from 'class-transformer';
+import { OrderCouponSnapshotDto } from '@/modules/coupons/coupons.dto';
 import {
   ArrayMaxSize,
   IsArray,
@@ -165,6 +166,7 @@ export class AdminOrderListItemDto {
 }
 
 export class AdminOrderItemDto {
+  @ApiProperty() couponDiscountAmount!: number;
   @ApiProperty() id!: string;
   @ApiPropertyOptional({ type: String, nullable: true }) productId!:
     | string
@@ -255,6 +257,10 @@ export class AdminOrderStatusHistoryDto {
 }
 
 export class AdminOrderDetailDto {
+  @ApiProperty() orderCouponDiscountAmount!: number;
+  @ApiProperty() shippingCouponDiscountAmount!: number;
+  @ApiProperty({ type: [OrderCouponSnapshotDto] })
+  appliedCoupons!: OrderCouponSnapshotDto[];
   @ApiProperty() id!: string;
   @ApiProperty() orderCode!: string;
   @ApiProperty({ enum: OrderStatus }) status!: OrderStatus;
