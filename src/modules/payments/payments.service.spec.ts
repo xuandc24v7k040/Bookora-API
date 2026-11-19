@@ -103,6 +103,10 @@ describe('PaymentsService VNPAY verified callbacks', () => {
   const transactionMock = jest.fn();
   const transactionClient = {
     $queryRaw: jest.fn().mockResolvedValue([]),
+    flashSaleAllocation: {
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     couponRedemption: {
       count: jest.fn().mockResolvedValue(0),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),

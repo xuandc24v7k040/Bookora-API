@@ -27,6 +27,7 @@ model User {
   carts                         Cart[]
   orders                        Order[]
   couponRedemptions             CouponRedemption[]
+  flashSaleAllocations          FlashSaleAllocation[]
   reviews                       Review[]
   reviewsReplied                Review[]               @relation("ReviewRepliedBy")
   wishlists                     Wishlist[]

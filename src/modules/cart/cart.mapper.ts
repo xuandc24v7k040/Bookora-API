@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CartFlashPriceService } from './cart-flash-price.service';
 import type { CartRecord } from './cart.repository';
 import { CartItemStatus } from './dto';
 import { StorefrontPriceService } from '@/modules/storefront-catalog/storefront-price.service';
@@ -21,14 +22,27 @@ export class CartMapper {
   constructor(
     private readonly prices: StorefrontPriceService,
     private readonly validation: CartValidationService,
+    private readonly flashPrices: CartFlashPriceService,
   ) {}
 
-  toResponse(cart: CartRecord) {
+  async toResponse(cart: CartRecord) {
+    const offers = await this.flashPrices.quote(
+      cart.items.map((i) => i.variantId),
+      cart.userId,
+    );
     const items = cart.items.map((item) => {
       const price = this.prices.resolve(item.variant);
       const availableQuantity =
         item.variant.stocks.find((stock) => stock.branchId === cart.branchId)
           ?.quantity ?? 0;
+      const offer = offers.get(item.variantId);
+      const flashApplied =
+        cart.branch.isActive &&
+        offer &&
+        offer.price < price.current &&
+        item.quantity <= offer.allowed &&
+        item.quantity <= availableQuantity;
+      const unitPrice = flashApplied ? offer.price : price.current;
       const lastKnownUnitPrice = Number(item.lastKnownUnitPrice);
       const state = this.validation.evaluate({
         branchActive: cart.branch.isActive,
@@ -60,14 +74,20 @@ export class CartMapper {
         primaryImageUrl: image?.url ?? null,
         quantity: item.quantity,
         availableQuantity,
-        currentUnitPrice: price.current,
+        currentUnitPrice: unitPrice,
         previousUnitPrice: lastKnownUnitPrice,
         originalPrice: price.original,
-        discount: Math.max(0, price.original - price.current),
-        lineSubtotal: price.current * item.quantity,
+        discount: Math.max(0, price.original - unitPrice),
+        lineSubtotal: unitPrice * item.quantity,
         ...state,
         isSelectable: state.isCheckoutEligible,
-        message,
+        message: flashApplied
+          ? 'Giá Flash Sale dự kiến; chưa giữ suất. Giá được xác nhận lại khi thanh toán.'
+          : offer &&
+              offer.price < price.current &&
+              item.quantity > offer.allowed
+            ? 'Số lượng vượt suất Flash Sale. Khi thanh toán, chọn giảm số lượng hoặc mua toàn bộ giá thường.'
+            : message,
       };
     });
     const blockingIssues = [

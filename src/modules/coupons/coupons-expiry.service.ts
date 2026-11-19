@@ -31,13 +31,25 @@ export class CouponsExpiryService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      const rows = await this.prisma.couponRedemption.findMany({
+      const couponRows = await this.prisma.couponRedemption.findMany({
         where: { status: 'RESERVED', expiresAt: { lte: new Date() } },
         select: { orderId: true },
         distinct: ['orderId'],
         take: 100,
         orderBy: { expiresAt: 'asc' },
       });
+      const flashRows = await this.prisma.flashSaleAllocation.findMany({
+        where: { status: 'RESERVED', expiresAt: { lte: new Date() } },
+        select: { orderId: true },
+        distinct: ['orderId'],
+        take: 100,
+        orderBy: { expiresAt: 'asc' },
+      });
+      const rows = [
+        ...new Map(
+          [...couponRows, ...flashRows].map((row) => [row.orderId, row]),
+        ).values(),
+      ];
       for (const { orderId } of rows) {
         await runSerializableTransaction(this.prisma, async (tx) => {
           const order = await tx.order.findUnique({

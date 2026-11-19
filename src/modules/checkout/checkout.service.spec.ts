@@ -191,6 +191,11 @@ function createService(branchProvince: string | null = 'Hậu Giang') {
     { buildPaymentUrl: jest.fn() } as never,
     config,
     new CouponsService({ client: repository.client } as CouponsRepository),
+    {
+      resolve: jest.fn().mockResolvedValue(null),
+      revalidate: jest.fn(),
+      allocate: jest.fn(),
+    } as never,
   );
   return {
     service,

@@ -150,6 +150,17 @@ export class CurrentLocationResolveDto {
 @ApiExtraModels(SavedAddressInputDto, CurrentLocationAddressDto)
 export class PreviewCheckoutDto {
   @ApiPropertyOptional({
+    type: [String],
+    maxItems: 50,
+    description:
+      'Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  regularPriceCartItemIds?: string[];
+  @ApiPropertyOptional({
     minLength: 3,
     maxLength: 40,
     description:
@@ -262,6 +273,10 @@ export class CheckoutVariantOptionDto {
 }
 
 export class CheckoutItemResponseDto {
+  @ApiPropertyOptional({ type: String, nullable: true }) flashSaleItemId?:
+    | string
+    | null;
+  @ApiPropertyOptional() catalogEffectivePrice?: number;
   @ApiProperty({ format: 'ulid' }) id!: string;
   @ApiProperty({ format: 'ulid' }) cartItemId!: string;
   @ApiProperty({ format: 'ulid' }) variantId!: string;

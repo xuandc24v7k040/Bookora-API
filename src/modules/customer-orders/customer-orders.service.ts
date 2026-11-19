@@ -253,6 +253,12 @@ export class CustomerOrdersService {
         imageUrl: item.imageUrl,
         quantity: item.quantity,
         unitPrice: Number(item.unitPrice),
+        catalogEffectivePrice:
+          item.catalogEffectivePrice == null
+            ? null
+            : Number(item.catalogEffectivePrice),
+        flashPrice: item.flashPrice == null ? null : Number(item.flashPrice),
+        flashSaleItemId: item.flashSaleItemId ?? null,
         lineTotal: Number(item.lineTotal),
         couponDiscountAmount: Number(item.couponDiscountAmount),
       })),

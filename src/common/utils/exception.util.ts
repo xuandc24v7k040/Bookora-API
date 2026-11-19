@@ -62,12 +62,53 @@ function normalizeHttpException(exception: HttpException): ExceptionResponse {
     ? body.message.join(', ')
     : (body.message ?? exception.message);
 
+  // Only explicitly public purchase-choice fields may cross the error boundary.
+  const details = flashSaleChoiceDetails(body);
+
   return {
     statusCode,
     message,
     error: body.error ?? exception.name,
     code: body.code,
     errors: body.errors,
+    ...(details ? { details } : {}),
+  };
+}
+
+function flashSaleChoiceDetails(
+  body: HttpExceptionResponseBody,
+): ExceptionResponse['details'] {
+  if (
+    !['FLASH_SALE_QUOTA_EXHAUSTED', 'FLASH_SALE_USER_LIMIT'].includes(
+      body.code ?? '',
+    )
+  )
+    return;
+  const data = body.details;
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    !('cartItemId' in data) ||
+    typeof data.cartItemId !== 'string' ||
+    !('allowedQuantity' in data) ||
+    typeof data.allowedQuantity !== 'number' ||
+    !Number.isSafeInteger(data.allowedQuantity) ||
+    data.allowedQuantity < 0 ||
+    !('requestedQuantity' in data) ||
+    typeof data.requestedQuantity !== 'number' ||
+    !Number.isSafeInteger(data.requestedQuantity) ||
+    data.requestedQuantity < 1 ||
+    !('catalogPrice' in data) ||
+    typeof data.catalogPrice !== 'number' ||
+    !Number.isSafeInteger(data.catalogPrice) ||
+    data.catalogPrice < 0
+  )
+    return;
+  return {
+    cartItemId: data.cartItemId,
+    allowedQuantity: data.allowedQuantity,
+    requestedQuantity: data.requestedQuantity,
+    catalogPrice: data.catalogPrice,
   };
 }
 

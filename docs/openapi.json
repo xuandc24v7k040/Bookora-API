@@ -22421,6 +22421,870 @@
         "description": "Bật hoặc tạm dừng mã giảm giá"
       }
     },
+    "/admin/flash-sales": {
+      "get": {
+        "operationId": "adminFlashSalesList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SCHEDULED",
+                "ACTIVE",
+                "ENDED",
+                "CANCELLED",
+                "STOPPED_EARLY"
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startAt",
+                "endAt",
+                "createdAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách Flash Sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Danh sách Flash Sale"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleListResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Danh sách Flash Sale toàn hệ thống",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Danh sách Flash Sale toàn hệ thống"
+      },
+      "post": {
+        "operationId": "adminFlashSalesCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFlashSaleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã tạo Flash Sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã tạo Flash Sale"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tạo bản nháp Flash Sale",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Tạo bản nháp Flash Sale"
+      }
+    },
+    "/admin/flash-sales/variants": {
+      "get": {
+        "operationId": "adminFlashSalesVariants",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SCHEDULED",
+                "ACTIVE",
+                "ENDED",
+                "CANCELLED",
+                "STOPPED_EARLY"
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startAt",
+                "endAt",
+                "createdAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Biến thể tham gia",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Biến thể tham gia"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleVariantListDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Biến thể và tổng tồn kho khả dụng",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Biến thể và tổng tồn kho khả dụng"
+      }
+    },
+    "/admin/flash-sales/{flashSaleId}": {
+      "get": {
+        "operationId": "adminFlashSalesDetail",
+        "parameters": [
+          {
+            "name": "flashSaleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chi tiết Flash Sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Chi tiết Flash Sale"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Chi tiết Flash Sale",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Chi tiết Flash Sale"
+      },
+      "patch": {
+        "operationId": "adminFlashSalesUpdate",
+        "parameters": [
+          {
+            "name": "flashSaleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFlashSaleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đã lưu Flash Sale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lưu Flash Sale"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Sửa bản nháp Flash Sale",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Sửa bản nháp Flash Sale"
+      }
+    },
+    "/admin/flash-sales/{flashSaleId}/control": {
+      "post": {
+        "operationId": "adminFlashSalesControl",
+        "parameters": [
+          {
+            "name": "flashSaleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlashSaleControlDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã cập nhật trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã cập nhật trạng thái"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Công bố, hủy hoặc dừng sớm Flash Sale",
+        "tags": [
+          "admin-flash-sales"
+        ],
+        "description": "Công bố, hủy hoặc dừng sớm Flash Sale"
+      }
+    },
+    "/storefront/flash-sales": {
+      "get": {
+        "operationId": "storefrontFlashSalesList",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "SCHEDULED",
+                "ACTIVE",
+                "ENDED",
+                "CANCELLED",
+                "STOPPED_EARLY"
+              ]
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "startAt",
+                "endAt",
+                "createdAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flash Sale công khai",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Flash Sale công khai"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleListResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Flash Sale đang và sắp diễn ra",
+        "tags": [
+          "storefront-flash-sales"
+        ],
+        "description": "Flash Sale đang và sắp diễn ra",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/storefront/flash-sales/variants/{variantId}": {
+      "get": {
+        "operationId": "storefrontFlashSaleEligibility",
+        "parameters": [
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ưu đãi hiện tại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Ưu đãi hiện tại"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleEligibilityDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ưu đãi Flash Sale của biến thể",
+        "tags": [
+          "storefront-flash-sales"
+        ],
+        "description": "Ưu đãi Flash Sale của biến thể",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ]
+      }
+    },
+    "/storefront/flash-sales/variants/{variantId}/mine": {
+      "get": {
+        "operationId": "customerFlashSaleEligibility",
+        "parameters": [
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ưu đãi cá nhân",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Ưu đãi cá nhân"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FlashSaleEligibilityDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Suất Flash Sale còn được mua của tài khoản",
+        "tags": [
+          "storefront-flash-sales"
+        ],
+        "description": "Suất Flash Sale còn được mua của tài khoản"
+      }
+    },
     "/checkout/preview": {
       "post": {
         "operationId": "checkoutPreview",
@@ -35288,6 +36152,450 @@
           "isActive"
         ]
       },
+      "FlashSaleItemDto": {
+        "type": "object",
+        "properties": {
+          "isSimple": {
+            "type": "boolean"
+          },
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productSlug": {
+            "type": "string"
+          },
+          "variantLabel": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "catalogPrice": {
+            "type": "number"
+          },
+          "globalAvailableStock": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "flashPrice": {
+            "type": "number"
+          },
+          "referencePrice": {
+            "type": "number"
+          },
+          "discountPercent": {
+            "type": "number"
+          },
+          "totalQuota": {
+            "type": "number"
+          },
+          "maxQuantityPerUser": {
+            "type": "number"
+          },
+          "consumed": {
+            "type": "number"
+          },
+          "reserved": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "variantId",
+          "productId",
+          "productName",
+          "productSlug",
+          "variantLabel",
+          "sku",
+          "imageUrl",
+          "catalogPrice",
+          "globalAvailableStock",
+          "id",
+          "flashPrice",
+          "referencePrice",
+          "discountPercent",
+          "totalQuota",
+          "maxQuantityPerUser",
+          "consumed",
+          "reserved",
+          "remaining"
+        ]
+      },
+      "FlashSaleResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SCHEDULED",
+              "ACTIVE",
+              "ENDED",
+              "CANCELLED",
+              "STOPPED_EARLY"
+            ]
+          },
+          "itemCount": {
+            "type": "number"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlashSaleItemDto"
+            }
+          },
+          "controlReason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "startAt",
+          "endAt",
+          "serverNow",
+          "status",
+          "itemCount",
+          "items",
+          "controlReason"
+        ]
+      },
+      "FlashSaleListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlashSaleResponseDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalItems": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "totalItems",
+          "totalPages"
+        ]
+      },
+      "FlashSaleVariantDto": {
+        "type": "object",
+        "properties": {
+          "isSimple": {
+            "type": "boolean"
+          },
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "productSlug": {
+            "type": "string"
+          },
+          "variantLabel": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "catalogPrice": {
+            "type": "number"
+          },
+          "globalAvailableStock": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "variantId",
+          "productId",
+          "productName",
+          "productSlug",
+          "variantLabel",
+          "sku",
+          "imageUrl",
+          "catalogPrice",
+          "globalAvailableStock"
+        ]
+      },
+      "FlashSaleVariantListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlashSaleVariantDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalItems": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "totalItems",
+          "totalPages"
+        ]
+      },
+      "SaveFlashSaleItemDto": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "flashPrice": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 9999999999
+          },
+          "totalQuota": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "maxQuantityPerUser": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "required": [
+          "variantId",
+          "flashPrice",
+          "totalQuota",
+          "maxQuantityPerUser"
+        ]
+      },
+      "SaveFlashSaleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaveFlashSaleItemDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "startAt",
+          "endAt",
+          "items"
+        ]
+      },
+      "FlashSaleControlDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "publish",
+              "cancel",
+              "stop"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "FlashSaleOfferDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "flashSaleId": {
+            "type": "string"
+          },
+          "flashPrice": {
+            "type": "number"
+          },
+          "catalogPrice": {
+            "type": "number"
+          },
+          "discountPercent": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "totalQuota": {
+            "type": "number"
+          },
+          "maxQuantityPerUser": {
+            "type": "number"
+          },
+          "userRemaining": {
+            "type": "number"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "itemId",
+          "flashSaleId",
+          "flashPrice",
+          "catalogPrice",
+          "discountPercent",
+          "remaining",
+          "totalQuota",
+          "maxQuantityPerUser",
+          "userRemaining",
+          "endAt",
+          "serverNow"
+        ]
+      },
+      "FlashSaleEligibilityDto": {
+        "type": "object",
+        "properties": {
+          "offer": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FlashSaleOfferDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "offer"
+        ]
+      },
       "OrderCouponSnapshotDto": {
         "type": "object",
         "properties": {
@@ -35430,6 +36738,13 @@
       "CheckoutItemResponseDto": {
         "type": "object",
         "properties": {
+          "flashSaleItemId": {
+            "type": "string",
+            "nullable": true
+          },
+          "catalogEffectivePrice": {
+            "type": "number"
+          },
           "id": {
             "type": "string",
             "format": "ulid",
@@ -35938,6 +37253,14 @@
       "PreviewCheckoutDto": {
         "type": "object",
         "properties": {
+          "regularPriceCartItemIds": {
+            "maxItems": 50,
+            "description": "Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "couponCode": {
             "type": "string",
             "minLength": 3,
@@ -36149,6 +37472,14 @@
       "PlaceOrderDto": {
         "type": "object",
         "properties": {
+          "regularPriceCartItemIds": {
+            "maxItems": 50,
+            "description": "Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "couponCode": {
             "type": "string",
             "minLength": 3,
@@ -36438,6 +37769,18 @@
       "CustomerOrderItemResponseDto": {
         "type": "object",
         "properties": {
+          "catalogEffectivePrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "flashPrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "flashSaleItemId": {
+            "type": "string",
+            "nullable": true
+          },
           "couponDiscountAmount": {
             "type": "number"
           },
@@ -36811,6 +38154,18 @@
       "AdminOrderItemDto": {
         "type": "object",
         "properties": {
+          "catalogEffectivePrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "flashPrice": {
+            "type": "number",
+            "nullable": true
+          },
+          "flashSaleItemId": {
+            "type": "string",
+            "nullable": true
+          },
           "couponDiscountAmount": {
             "type": "number"
           },
@@ -38978,6 +40333,34 @@
           "code": {
             "type": "string",
             "example": "CSRF_INVALID"
+          },
+          "details": {
+            "type": "object",
+            "description": "Chỉ có ở FLASH_SALE_QUOTA_EXHAUSTED / FLASH_SALE_USER_LIMIT",
+            "required": [
+              "cartItemId",
+              "allowedQuantity",
+              "requestedQuantity",
+              "catalogPrice"
+            ],
+            "properties": {
+              "cartItemId": {
+                "type": "string"
+              },
+              "allowedQuantity": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requestedQuantity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "catalogPrice": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
           },
           "errors": {
             "type": "object",

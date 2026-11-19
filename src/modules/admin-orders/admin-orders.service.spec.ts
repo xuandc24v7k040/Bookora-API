@@ -128,6 +128,10 @@ function orderFixture(status: OrderStatus = OrderStatus.PACKING) {
 function createHarness(initialOrder = orderFixture()) {
   let currentOrder = initialOrder;
   const tx = {
+    flashSaleAllocation: {
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     couponRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     payment: { update: jest.fn().mockResolvedValue({}) },
     paymentTransaction: {

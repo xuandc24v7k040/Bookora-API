@@ -1,4 +1,5 @@
 import { ConflictException } from '@nestjs/common';
+import { releaseFlashAllocations } from '@/modules/flash-sales/flash-sale-allocations';
 import { releaseCouponRedemptions } from '@/modules/coupons/coupon-redemption';
 import {
   InventoryMovementSourceType,
@@ -108,6 +109,7 @@ export async function cancelOrderInTransaction(
   }
 
   await releaseCouponRedemptions(tx, order.id, now);
+  await releaseFlashAllocations(tx, order.id, now);
   let restoredStock = false;
   const activeHold = order.payment?.transactions.find(
     (transaction) =>

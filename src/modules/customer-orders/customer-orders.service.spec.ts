@@ -70,6 +70,10 @@ function createHarness() {
   const orderCount = jest.fn();
   const reviewFindMany = jest.fn();
   const tx = {
+    flashSaleAllocation: {
+      count: jest.fn().mockResolvedValue(0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     couponRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     order: {
       findFirst: jest.fn(),

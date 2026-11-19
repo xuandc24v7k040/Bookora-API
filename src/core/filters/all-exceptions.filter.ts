@@ -26,6 +26,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         error: normalized.error,
         code: normalized.code,
         errors: normalized.errors,
+        details: normalized.details,
         path: request.url,
         method: request.method,
         timestamp: new Date().toISOString(),

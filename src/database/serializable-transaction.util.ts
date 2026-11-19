@@ -39,8 +39,19 @@ export async function runSerializableTransaction<T>(
 }
 
 export function isTransactionConflict(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2034'
-  );
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (error.code === 'P2034') return true;
+  // PostgreSQL row locks issued via $queryRaw retain SQLSTATE under P2010.
+  if (error.code !== 'P2010') return false;
+  const adapterError: unknown = error.meta?.driverAdapterError;
+  const cause: unknown =
+    adapterError && typeof adapterError === 'object' && 'cause' in adapterError
+      ? adapterError.cause
+      : undefined;
+  const sqlstate: unknown =
+    error.meta?.code ??
+    (cause && typeof cause === 'object' && 'originalCode' in cause
+      ? cause.originalCode
+      : undefined);
+  return sqlstate === '40001' || sqlstate === '40P01';
 }

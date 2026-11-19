@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  assertFlashReservation,
+  consumeFlashAllocations,
+} from '@/modules/flash-sales/flash-sale-allocations';
+import {
   assertCouponReservation,
   consumeCouponRedemptions,
 } from '@/modules/coupons/coupon-redemption';
@@ -387,6 +391,7 @@ export class PaymentsService {
             message: 'Đơn hàng hiện không thể thử thanh toán lại.',
           });
         await assertCouponReservation(tx, payment.order.id, expiresAt);
+        await assertFlashReservation(tx, payment.order.id, expiresAt);
         const transactionId = ulid();
         for (const item of [...payment.order.items].sort((left, right) =>
           (left.variantId ?? '').localeCompare(right.variantId ?? ''),
@@ -538,6 +543,7 @@ export class PaymentsService {
       const now = new Date();
       try {
         await assertCouponReservation(tx, transaction.payment.orderId, now);
+        await assertFlashReservation(tx, transaction.payment.orderId, now);
       } catch (error: unknown) {
         if (!(error instanceof ConflictException)) throw error;
         await this.recordLateCallback(tx, transaction, query);
@@ -568,6 +574,7 @@ export class PaymentsService {
       });
       if (consumed.count !== 1) return 'rejected';
       await consumeCouponRedemptions(tx, transaction.payment.orderId, now);
+      await consumeFlashAllocations(tx, transaction.payment.orderId, now);
 
       await tx.payment.update({
         where: { id: transaction.paymentId },

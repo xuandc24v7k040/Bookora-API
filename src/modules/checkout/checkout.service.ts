@@ -7,6 +7,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { FlashSaleOffersService } from '@/modules/flash-sales/flash-sale-offers.service';
 import {
   CouponsService,
   type ResolvedCoupon,
@@ -67,6 +68,9 @@ import type {
 } from './dto';
 
 interface ResolvedCheckoutItem {
+  catalogEffectivePrice: number;
+  flashSaleItemId: string | null;
+  regularPrice: boolean;
   id: string;
   cartItemId: string;
   variantId: string;
@@ -172,6 +176,7 @@ export class CheckoutService {
     private readonly vnpay: VnpayService,
     private readonly config: ConfigService,
     private readonly coupons: CouponsService,
+    private readonly flashSales: FlashSaleOffersService,
   ) {}
 
   async preview(
@@ -236,6 +241,7 @@ export class CheckoutService {
       const now = new Date();
       const orderId = ulid();
       const orderCode = `BK-${ulid()}`;
+      await this.flashSales.revalidate(tx, actor.id, state.eligibleItems);
       await this.revalidateCouponCheckout(tx, state);
       await this.deductStock(tx, state, {
         sourceId: orderId,
@@ -281,6 +287,7 @@ export class CheckoutService {
         include: { payment: true },
       });
       await this.clearSelectedCartItems(tx, state.cart.id, state.eligibleItems);
+      await this.flashSales.allocate(tx, created.id, actor.id, null);
       await this.coupons.redeem(
         tx,
         created.id,
@@ -340,6 +347,7 @@ export class CheckoutService {
       const orderId = ulid();
       const orderCode = `BK-${ulid()}`;
       const transactionId = ulid();
+      await this.flashSales.revalidate(tx, actor.id, state.eligibleItems);
       await this.revalidateCouponCheckout(tx, state);
       if (!Number.isSafeInteger(state.totalAmount) || state.totalAmount <= 0) {
         const latestCoupons = await this.coupons.resolve(
@@ -432,6 +440,7 @@ export class CheckoutService {
             4 *
             60_000,
       );
+      await this.flashSales.allocate(tx, created.id, actor.id, couponExpiresAt);
       await this.coupons.redeem(
         tx,
         created.id,
@@ -504,49 +513,62 @@ export class CheckoutService {
       });
     }
 
-    const items = found.map((item): ResolvedCheckoutItem => {
-      const availableQuantity =
-        item.variant.stocks.find((stock) => stock.branchId === cart.branchId)
-          ?.quantity ?? 0;
-      const price = this.prices.resolve(item.variant);
-      const result = this.validation.evaluate({
-        branchActive: cart.branch.isActive,
-        productStatus: item.variant.product.status,
-        variantActive: item.variant.isActive,
-        quantity: item.quantity,
-        availableQuantity,
-        currentUnitPrice: price.current,
-        lastKnownUnitPrice: Number(item.lastKnownUnitPrice),
-      });
-      return {
-        id: item.id,
-        cartItemId: item.id,
-        variantId: item.variantId,
-        productId: item.variant.productId,
-        productName: item.variant.product.name,
-        productSlug: item.variant.product.slug,
-        variantLabel: item.variant.name,
-        variantOptions: item.variant.optionValues.map((link) => ({
-          name: link.option.name,
-          value: link.optionValue.label,
-        })),
-        imageUrl:
-          item.variant.media[0]?.url ??
-          item.variant.product.media[0]?.url ??
-          null,
-        sku: item.variant.sku,
-        weightGram: item.variant.weightGram,
-        quantity: item.quantity,
-        availableQuantity,
-        unitPrice: price.current,
-        originalPrice: price.original,
-        discountAmount: (price.original - price.current) * item.quantity,
-        lineTotal: price.current * item.quantity,
-        couponDiscountAmount: 0,
-        isCheckoutEligible: result.isCheckoutEligible,
-        issues: result.issues,
-      };
-    });
+    const items = await Promise.all(
+      found.map(async (item): Promise<ResolvedCheckoutItem> => {
+        const availableQuantity =
+          item.variant.stocks.find((stock) => stock.branchId === cart.branchId)
+            ?.quantity ?? 0;
+        const price = this.prices.resolve(item.variant);
+        const regularPrice =
+          dto.regularPriceCartItemIds?.includes(item.id) ?? false;
+        const offer = regularPrice
+          ? null
+          : await this.flashSales.resolve(item.variant, userId);
+        if (offer)
+          this.flashSales.assertQuantity(offer, item.quantity, item.id);
+        const unitPrice = offer?.flashPrice ?? price.current;
+        const result = this.validation.evaluate({
+          branchActive: cart.branch.isActive,
+          productStatus: item.variant.product.status,
+          variantActive: item.variant.isActive,
+          quantity: item.quantity,
+          availableQuantity,
+          currentUnitPrice: unitPrice,
+          lastKnownUnitPrice: Number(item.lastKnownUnitPrice),
+        });
+        return {
+          id: item.id,
+          cartItemId: item.id,
+          variantId: item.variantId,
+          productId: item.variant.productId,
+          productName: item.variant.product.name,
+          productSlug: item.variant.product.slug,
+          variantLabel: item.variant.name,
+          variantOptions: item.variant.optionValues.map((link) => ({
+            name: link.option.name,
+            value: link.optionValue.label,
+          })),
+          imageUrl:
+            item.variant.media[0]?.url ??
+            item.variant.product.media[0]?.url ??
+            null,
+          sku: item.variant.sku,
+          weightGram: item.variant.weightGram,
+          quantity: item.quantity,
+          availableQuantity,
+          unitPrice,
+          catalogEffectivePrice: price.current,
+          flashSaleItemId: offer?.itemId ?? null,
+          regularPrice,
+          originalPrice: price.original,
+          discountAmount: (price.original - unitPrice) * item.quantity,
+          lineTotal: unitPrice * item.quantity,
+          couponDiscountAmount: 0,
+          isCheckoutEligible: result.isCheckoutEligible,
+          issues: result.issues,
+        };
+      }),
+    );
     const eligibleItems = items.filter((item) => item.isCheckoutEligible);
     if (eligibleItems.length === 0) {
       const issue =
@@ -641,6 +663,8 @@ export class CheckoutService {
         quantity: item.quantity,
         weightGram: item.weightGram,
         unitPrice: item.unitPrice,
+        flashSaleItemId: item.flashSaleItemId,
+        regularPrice: item.regularPrice,
         originalPrice: item.originalPrice,
         availableQuantity: item.availableQuantity,
       })),
@@ -683,7 +707,11 @@ export class CheckoutService {
     tx: Prisma.TransactionClient,
     state: CheckoutState,
   ): Promise<void> {
-    if (!state.coupons.length) return;
+    if (
+      !state.coupons.length &&
+      !state.eligibleItems.some((item) => item.flashSaleItemId)
+    )
+      return;
     const changed = (): never => {
       throw new ConflictException({
         code: 'CHECKOUT_PREVIEW_CHANGED',
@@ -741,7 +769,7 @@ export class CheckoutService {
         changed();
       const price = this.prices.resolve(variant!);
       if (
-        price.current !== item.unitPrice ||
+        price.current !== item.catalogEffectivePrice ||
         price.original !== item.originalPrice
       )
         changed();
@@ -966,6 +994,9 @@ export class CheckoutService {
   ): Prisma.OrderItemUncheckedCreateWithoutOrderInput {
     return {
       sourceCartItemId: item.cartItemId,
+      catalogEffectivePrice: item.catalogEffectivePrice,
+      flashSaleItemId: item.flashSaleItemId,
+      flashPrice: item.flashSaleItemId ? item.unitPrice : null,
       productId: item.productId,
       variantId: item.variantId,
       productName: item.productName,

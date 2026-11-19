@@ -239,6 +239,24 @@ function addErrorResponseSchema(document: OpenAPIObject): void {
       message: { type: 'string', example: 'Dữ liệu không hợp lệ' },
       error: { type: 'string', example: 'Bad Request' },
       code: { type: 'string', example: 'CSRF_INVALID' },
+      details: {
+        type: 'object',
+        description:
+          'Chỉ có ở FLASH_SALE_QUOTA_EXHAUSTED / FLASH_SALE_USER_LIMIT',
+        required: [
+          'cartItemId',
+          'allowedQuantity',
+          'requestedQuantity',
+          'catalogPrice',
+        ],
+        properties: {
+          cartItemId: { type: 'string' },
+          allowedQuantity: { type: 'integer', minimum: 0 },
+          requestedQuantity: { type: 'integer', minimum: 1 },
+          catalogPrice: { type: 'integer', minimum: 0 },
+        },
+        additionalProperties: false,
+      },
       errors: {
         type: 'object',
         additionalProperties: {

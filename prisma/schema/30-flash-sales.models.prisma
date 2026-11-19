@@ -1,0 +1,76 @@
+enum FlashSaleState {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  STOPPED_EARLY
+}
+
+enum FlashSaleAllocationStatus {
+  RESERVED
+  CONSUMED
+  RELEASED
+}
+
+model FlashSale {
+  id             String          @id @default(ulid())
+  name           String
+  description    String?
+  startAt        DateTime        @map("start_at")
+  endAt          DateTime        @map("end_at")
+  state          FlashSaleState  @default(DRAFT)
+  publishedAt    DateTime?       @map("published_at")
+  stoppedAt      DateTime?       @map("stopped_at")
+  controlReason  String?         @map("control_reason")
+  createdById    String          @map("created_by_id")
+  controlledById String?         @map("controlled_by_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  items          FlashSaleItem[]
+
+  @@index([state, startAt, endAt])
+  @@map("flash_sales")
+}
+
+model FlashSaleItem {
+  id                 String                @id @default(ulid())
+  flashSaleId        String                @map("flash_sale_id")
+  variantId          String                @map("variant_id")
+  flashPrice         Decimal               @map("flash_price") @db.Decimal(12, 0)
+  referencePrice     Decimal               @map("reference_price") @db.Decimal(12, 0)
+  totalQuota         Int                   @map("total_quota")
+  maxQuantityPerUser Int                   @map("max_quantity_per_user")
+  flashSale          FlashSale             @relation(fields: [flashSaleId], references: [id], onDelete: Restrict)
+  variant            ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  allocations        FlashSaleAllocation[]
+  orderItems         OrderItem[]
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  @@unique([flashSaleId, variantId])
+  @@index([variantId])
+  @@map("flash_sale_items")
+}
+
+model FlashSaleAllocation {
+  id              String                    @id @default(ulid())
+  flashSaleItemId String                    @map("flash_sale_item_id")
+  orderId         String                    @map("order_id")
+  orderItemId     String                    @unique @map("order_item_id")
+  userId          String                    @map("user_id")
+  quantity        Int
+  status          FlashSaleAllocationStatus
+  expiresAt       DateTime?                 @map("expires_at")
+  reservedAt      DateTime?                 @map("reserved_at")
+  consumedAt      DateTime?                 @map("consumed_at")
+  releasedAt      DateTime?                 @map("released_at")
+  flashSaleItem   FlashSaleItem             @relation(fields: [flashSaleItemId], references: [id], onDelete: Restrict)
+  order           Order                     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem       OrderItem                 @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  user            User                      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([flashSaleItemId, status])
+  @@index([flashSaleItemId, userId, status])
+  @@index([orderId])
+  @@index([status, expiresAt])
+  @@map("flash_sale_allocations")
+}

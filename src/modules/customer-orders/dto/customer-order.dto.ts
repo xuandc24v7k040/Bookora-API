@@ -76,6 +76,14 @@ export class CancelCustomerOrderDto {
 }
 
 export class CustomerOrderItemResponseDto {
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  catalogEffectivePrice?: number | null;
+  @ApiPropertyOptional({ type: Number, nullable: true }) flashPrice?:
+    | number
+    | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) flashSaleItemId?:
+    | string
+    | null;
   @ApiProperty() couponDiscountAmount!: number;
   @ApiProperty()
   id!: string;

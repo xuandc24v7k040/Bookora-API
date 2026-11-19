@@ -173,6 +173,7 @@ model ProductVariant {
   receiptItems       StockReceiptItem[]
   cartItems          CartItem[]
   orderItems         OrderItem[]
+  flashSaleItems     FlashSaleItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
