@@ -1,41 +1,44 @@
 model User {
-  id           String       @id @default(ulid())
-  email        String       @unique
-  passwordHash String?      @map("password_hash")
-  fullName     String?      @map("full_name")
-  phone        String?
-  gender       String?      @db.VarChar(20)
-  birthday     DateTime?    @db.Date
-  avatarUrl    String?      @map("avatar_url")
-  type         UserType     @default(CUSTOMER)
-  provider     AuthProvider @default(LOCAL)
-  googleId     String?      @unique @map("google_id")
-  isActive     Boolean      @default(true) @map("is_active")
-  lastLoginAt  DateTime?    @map("last_login_at")
+  id                        String       @id @default(ulid())
+  email                     String       @unique
+  passwordHash              String?      @map("password_hash")
+  fullName                  String?      @map("full_name")
+  phone                     String?
+  gender                    String?      @db.VarChar(20)
+  birthday                  DateTime?    @db.Date
+  avatarUrl                 String?      @map("avatar_url")
+  type                      UserType     @default(CUSTOMER)
+  provider                  AuthProvider @default(LOCAL)
+  googleId                  String?      @unique @map("google_id")
+  isActive                  Boolean      @default(true) @map("is_active")
+  lastLoginAt               DateTime?    @map("last_login_at")
+  emailVerificationRequired Boolean      @default(false) @map("email_verification_required")
+  emailVerifiedAt           DateTime?    @map("email_verified_at")
 
   authSessions                  AuthSession[]
   passwordResetTokens           PasswordResetToken[]
-  userRoles                     UserRole[]             @relation("UserRoleTarget")
-  rolesAssigned                 UserRole[]             @relation("UserRoleAssigner")
-  userBranchRolesAssigned       UserBranchRole[]       @relation("UserBranchRoleAssigner")
-  userPermissions               UserPermission[]       @relation("UserPermissionTarget")
-  permissionsAssigned           UserPermission[]       @relation("UserPermissionAssigner")
-  userBranchPermissionsAssigned UserBranchPermission[] @relation("UserBranchPermissionAssigner")
-  userBranches                  UserBranch[]           @relation("UserBranchTarget")
-  branchesAssigned              UserBranch[]           @relation("UserBranchAssigner")
+  emailVerificationTokens       EmailVerificationToken[]
+  userRoles                     UserRole[]               @relation("UserRoleTarget")
+  rolesAssigned                 UserRole[]               @relation("UserRoleAssigner")
+  userBranchRolesAssigned       UserBranchRole[]         @relation("UserBranchRoleAssigner")
+  userPermissions               UserPermission[]         @relation("UserPermissionTarget")
+  permissionsAssigned           UserPermission[]         @relation("UserPermissionAssigner")
+  userBranchPermissionsAssigned UserBranchPermission[]   @relation("UserBranchPermissionAssigner")
+  userBranches                  UserBranch[]             @relation("UserBranchTarget")
+  branchesAssigned              UserBranch[]             @relation("UserBranchAssigner")
   addresses                     UserAddress[]
   carts                         Cart[]
   orders                        Order[]
   couponRedemptions             CouponRedemption[]
   flashSaleAllocations          FlashSaleAllocation[]
   reviews                       Review[]
-  reviewsReplied                Review[]               @relation("ReviewRepliedBy")
+  reviewsReplied                Review[]                 @relation("ReviewRepliedBy")
   wishlists                     Wishlist[]
-  stockReceiptsCreated          StockReceipt[]         @relation("StockReceiptCreatedBy")
-  stockReceiptsConfirmed        StockReceipt[]         @relation("StockReceiptConfirmedBy")
+  stockReceiptsCreated          StockReceipt[]           @relation("StockReceiptCreatedBy")
+  stockReceiptsConfirmed        StockReceipt[]           @relation("StockReceiptConfirmedBy")
   inventoryMovements            InventoryMovement[]
-  orderStatusHistories          OrderStatusHistory[]   @relation("OrderStatusHistoryActor")
-  ordersWithInternalNoteUpdate  Order[]                @relation("OrderInternalNoteUpdatedBy")
+  orderStatusHistories          OrderStatusHistory[]     @relation("OrderStatusHistoryActor")
+  ordersWithInternalNoteUpdate  Order[]                  @relation("OrderInternalNoteUpdatedBy")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -80,6 +83,22 @@ model PasswordResetToken {
   @@index([userId, createdAt])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(ulid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 model AuthAttempt {

@@ -90,6 +90,20 @@ export function validateEnv(
   const passwordResetTtlMinutes = Number(
     readEnvValue(config, 'PASSWORD_RESET_TTL_MINUTES'),
   );
+  for (const [key, maximum] of [
+    ['EMAIL_VERIFICATION_TOKEN_TTL_MINUTES', 1440],
+    ['EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS', 3600],
+  ] as const) {
+    const value = readEnvValue(config, key);
+    if (
+      value !== undefined &&
+      (!/^\d+$/.test(value) || Number(value) <= 0 || Number(value) > maximum)
+    ) {
+      errors.push(
+        `${key} must be a positive integer no greater than ${maximum}`,
+      );
+    }
+  }
   if (
     !Number.isInteger(passwordResetTtlMinutes) ||
     passwordResetTtlMinutes <= 0

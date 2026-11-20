@@ -1,4 +1,9 @@
 import { UnauthorizedException } from '@nestjs/common';
+import {
+  JwtService,
+  type JwtSignOptions,
+  type JwtVerifyOptions,
+} from '@nestjs/jwt';
 import { AuthProvider, UserType, type User } from '@/generated/prisma/client';
 import { createHmac } from 'crypto';
 import type { Response } from 'express';
@@ -31,6 +36,8 @@ const activeUser = {
   googleId: null,
   isActive: true,
   lastLoginAt: null,
+  emailVerificationRequired: false,
+  emailVerifiedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 } satisfies User;
@@ -93,12 +100,15 @@ describe('AuthService', () => {
         callback(transaction),
     ),
   };
+  const emailVerification = { sendForUser: jest.fn(), cooldownSeconds: 60 };
 
   let service: AuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     compareMock.mockReset();
+    prismaService.user.findUnique.mockReset();
+    emailVerification.sendForUser.mockResolvedValue('SENT');
     authAttemptService.normalizeEmail.mockImplementation((email: string) =>
       email.toLowerCase(),
     );
@@ -112,6 +122,7 @@ describe('AuthService', () => {
       jwtService as never,
       configService as never,
       prismaService as never,
+      emailVerification as never,
     );
   });
 
@@ -233,6 +244,57 @@ describe('AuthService', () => {
     expect(service.validateOauthState(undefined, 'state-token')).toBe(false);
   });
 
+  it('rotates real refresh JWTs even when login and refresh occur within the same second', async () => {
+    jest
+      .useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] })
+      .setSystemTime(new Date('2026-11-20T00:00:00Z'));
+    const signer = new JwtService();
+    jwtService.signAsync.mockImplementation(
+      (payload: object, options: JwtSignOptions) =>
+        signer.signAsync(payload, options),
+    );
+    jwtService.verifyAsync.mockImplementation(
+      (token: string, options: JwtVerifyOptions) =>
+        signer.verifyAsync(token, options),
+    );
+    compareMock.mockResolvedValue(true);
+    usersService.findByEmail.mockResolvedValue(activeUser);
+    authSessionsRepository.create.mockResolvedValue({ id: 'same-session' });
+    try {
+      await service.login(
+        { email: activeUser.email, password: 'Password1' },
+        {},
+        response,
+      );
+      const first = String(
+        responseMock.cookie.mock.calls.find(
+          ([name]) => name === 'refreshToken',
+        )?.[1],
+      );
+      authSessionsRepository.findActiveByIdAndUserIdWithUser.mockResolvedValue({
+        id: 'same-session',
+        userId: activeUser.id,
+        user: activeUser,
+        refreshTokenHash: hashRefreshToken(first),
+      });
+      authSessionsRepository.rotateIfCurrent.mockResolvedValue({ count: 1 });
+      await service.refresh(first, response);
+      const second = String(
+        responseMock.cookie.mock.calls
+          .filter(([name]) => name === 'refreshToken')
+          .at(-1)?.[1],
+      );
+      expect(signer.decode<{ iat: number }>(first).iat).toBe(
+        signer.decode<{ iat: number }>(second).iat,
+      );
+      expect(first === second).toBe(false);
+    } finally {
+      jwtService.signAsync.mockReset();
+      jwtService.verifyAsync.mockReset();
+      jest.useRealTimers();
+    }
+  });
+
   it('registers local users through the transactional CUSTOMER flow', async () => {
     usersService.findByEmail.mockResolvedValue(null);
     usersService.createCustomerForAuth.mockResolvedValue(activeUser);
@@ -334,9 +396,10 @@ describe('AuthService', () => {
 
   it('signs both tokens with the real session id', async () => {
     const sessionId = '01JVCY8VZ10XWBQ9M3B0EG9D7M';
-    usersService.findByEmail.mockResolvedValue({
+    prismaService.user.findUnique.mockResolvedValue({
       ...activeUser,
       provider: AuthProvider.GOOGLE,
+      googleId: 'google-id',
     });
     authSessionsRepository.create.mockResolvedValue({ id: sessionId });
     jwtService.signAsync
@@ -372,6 +435,146 @@ describe('AuthService', () => {
     expect(firstPayload).not.toHaveProperty('role');
     expect(usersService.updateLastLoginAt).toHaveBeenCalledWith(activeUser.id);
   });
+
+  it('blocks a new unverified LOCAL customer without issuing a session', async () => {
+    compareMock.mockResolvedValue(true);
+    usersService.findByEmail.mockResolvedValue({
+      ...activeUser,
+      emailVerificationRequired: true,
+    });
+    await expect(
+      service.login(
+        { email: activeUser.email, password: 'Password1' },
+        {},
+        response,
+      ),
+    ).rejects.toMatchObject({
+      response: { code: 'EMAIL_VERIFICATION_REQUIRED' },
+    });
+    expect(authSessionsRepository.create).not.toHaveBeenCalled();
+    expect(responseMock.cookie).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { emailVerificationRequired: true, emailVerifiedAt: new Date() },
+    {
+      emailVerificationRequired: true,
+      emailVerifiedAt: null,
+      type: UserType.SYSTEM,
+    },
+    {
+      emailVerificationRequired: true,
+      emailVerifiedAt: null,
+      type: UserType.BRANCH,
+    },
+    {
+      emailVerificationRequired: false,
+      emailVerifiedAt: null,
+      type: UserType.SYSTEM,
+    },
+    {
+      emailVerificationRequired: false,
+      emailVerifiedAt: null,
+      type: UserType.BRANCH,
+    },
+    { emailVerificationRequired: false, emailVerifiedAt: null },
+  ])(
+    'keeps verified, legacy and non-customer LOCAL login compatible: %o',
+    async (fields) => {
+      compareMock.mockResolvedValue(true);
+      usersService.findByEmail.mockResolvedValue({ ...activeUser, ...fields });
+      authSessionsRepository.create.mockResolvedValue({ id: 'session-id' });
+      jwtService.signAsync.mockResolvedValue('token');
+      await service.login(
+        { email: activeUser.email, password: 'Password1' },
+        {},
+        response,
+      );
+      expect(authSessionsRepository.create).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    { provider: AuthProvider.LOCAL, googleId: null },
+    { provider: AuthProvider.LOCAL, googleId: 'legacy-linked-subject' },
+    { provider: AuthProvider.GOOGLE, googleId: 'different-subject' },
+    { provider: AuthProvider.GOOGLE, googleId: null },
+  ])(
+    'rejects an email collision without identity mutation: %o',
+    async (fields) => {
+      prismaService.user.findUnique.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue({ ...activeUser, ...fields });
+      await expect(
+        service.loginWithGoogle(
+          {
+            googleId: 'google-id',
+            email: activeUser.email,
+            fullName: 'Reader',
+            emailVerified: true,
+          },
+          {},
+          response,
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(usersService.updateAuthFields).not.toHaveBeenCalled();
+      expect(usersService.createCustomerForAuth).not.toHaveBeenCalled();
+      expect(authSessionsRepository.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { type: UserType.SYSTEM },
+    { type: UserType.BRANCH },
+    { isActive: false },
+    { provider: AuthProvider.LOCAL },
+    { googleId: null },
+    { email: 'changed@example.test' },
+  ])(
+    'fails closed for an existing subject with invalid state: %o',
+    async (fields) => {
+      prismaService.user.findUnique.mockResolvedValue({
+        ...activeUser,
+        provider: AuthProvider.GOOGLE,
+        googleId: 'google-id',
+        ...fields,
+      });
+      await expect(
+        service.loginWithGoogle(
+          {
+            googleId: 'google-id',
+            email: activeUser.email,
+            fullName: 'Reader',
+            emailVerified: true,
+          },
+          {},
+          response,
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(authSessionsRepository.create).not.toHaveBeenCalled();
+      expect(usersService.updateAuthFields).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([{ googleId: '' }, { email: '' }, { emailVerified: false }])(
+    'rejects incomplete or unverified Google profiles before lookup: %o',
+    async (fields) => {
+      await expect(
+        service.loginWithGoogle(
+          {
+            googleId: 'google-id',
+            email: activeUser.email,
+            fullName: 'Reader',
+            emailVerified: true,
+            ...fields,
+          },
+          {},
+          response,
+        ),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(prismaService.user.findUnique).not.toHaveBeenCalled();
+      expect(authSessionsRepository.create).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects refresh for an inactive user and revokes that session', async () => {
     jwtService.verifyAsync.mockResolvedValue({

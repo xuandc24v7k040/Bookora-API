@@ -20,6 +20,8 @@ import { PasswordRecoveryController } from './password-recovery/password-recover
 import { PasswordRecoveryService } from './password-recovery/password-recovery.service';
 import { PasswordRecoveryAttemptService } from './password-recovery/password-recovery-attempt.service';
 import { PasswordResetTokensRepository } from './password-recovery/password-reset-tokens.repository';
+import { EmailVerificationController } from './email-verification/email-verification.controller';
+import { EmailVerificationService } from './email-verification/email-verification.service';
 
 @Module({
   imports: [
@@ -29,7 +31,11 @@ import { PasswordResetTokensRepository } from './password-recovery/password-rese
     AuthorizationModule,
     MailModule,
   ],
-  controllers: [AuthController, PasswordRecoveryController],
+  controllers: [
+    AuthController,
+    PasswordRecoveryController,
+    EmailVerificationController,
+  ],
   providers: [
     AuthService,
     TurnstileService,
@@ -45,6 +51,7 @@ import { PasswordResetTokensRepository } from './password-recovery/password-rese
     PasswordRecoveryService,
     PasswordRecoveryAttemptService,
     PasswordResetTokensRepository,
+    EmailVerificationService,
   ],
   exports: [AuthService],
 })

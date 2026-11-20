@@ -18497,7 +18497,7 @@
     },
     "/auth/register": {
       "post": {
-        "description": "Tạo tài khoản mới, chưa đăng nhập tự động.",
+        "description": "Tạo tài khoản LOCAL CUSTOMER cần xác minh email, không tạo phiên đăng nhập. Trạng thái gửi thư được trả riêng để có thể gửi lại khi lỗi.",
         "operationId": "authRegister",
         "parameters": [],
         "requestBody": {
@@ -18532,7 +18532,7 @@
                       "example": "Đăng ký thành công"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/PublicAuthUserResponseDto"
+                      "$ref": "#/components/schemas/RegistrationResponseDto"
                     }
                   }
                 }
@@ -18691,7 +18691,7 @@
     },
     "/auth/logout": {
       "post": {
-        "description": "Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập. Backend sử dụng accessToken hoặc refreshToken nếu cookie tồn tại để xác định user và revoke active sessions; chúng không phải security precondition bắt buộc.",
+        "description": "Chỉ thu hồi phiên hiện tại xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập; giữ các thiết bị khác. Backend sử dụng accessToken hoặc refreshToken nếu cookie tồn tại để xác định user và revoke active sessions; chúng không phải security precondition bắt buộc.",
         "operationId": "authLogout",
         "parameters": [],
         "responses": {
@@ -19355,6 +19355,200 @@
           }
         ],
         "summary": "Đặt lại mật khẩu bằng token một lần",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/email-verification/verify": {
+      "post": {
+        "operationId": "authVerifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email được xác minh, không tạo phiên đăng nhập",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Email được xác minh, không tạo phiên đăng nhập"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AuthMutationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu hoặc liên kết không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Phiên bảo mật không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Trạng thái vừa thay đổi, vui lòng thử lại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Quá nhiều yêu cầu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Xác minh email đăng ký bằng liên kết một lần",
+        "tags": [
+          "auth"
+        ],
+        "description": "Xác minh email đăng ký bằng liên kết một lần"
+      }
+    },
+    "/auth/email-verification/resend": {
+      "post": {
+        "description": "Phản hồi trung tính, không tiết lộ tài khoản tồn tại hay trạng thái gửi thư.",
+        "operationId": "authResendEmailVerification",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Yêu cầu được tiếp nhận",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Yêu cầu được tiếp nhận"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ResendVerificationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu hoặc liên kết không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Phiên bảo mật không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Trạng thái vừa thay đổi, vui lòng thử lại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Quá nhiều yêu cầu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Yêu cầu gửi lại email xác minh",
         "tags": [
           "auth"
         ]
@@ -34102,7 +34296,7 @@
           "CUSTOMER"
         ]
       },
-      "PublicAuthUserResponseDto": {
+      "RegistrationResponseDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -34129,13 +34323,33 @@
                 "$ref": "#/components/schemas/UserType"
               }
             ]
+          },
+          "verificationRequired": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "verificationDelivery": {
+            "type": "string",
+            "enum": [
+              "SENT",
+              "FAILED"
+            ]
+          },
+          "resendCooldownSeconds": {
+            "type": "number",
+            "minimum": 1
           }
         },
         "required": [
           "id",
           "email",
           "fullName",
-          "type"
+          "type",
+          "verificationRequired",
+          "verificationDelivery",
+          "resendCooldownSeconds"
         ]
       },
       "RegisterDto": {
@@ -34171,6 +34385,42 @@
           "email",
           "fullName",
           "password"
+        ]
+      },
+      "PublicAuthUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "customer@example.com"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Nguyen Van A"
+          },
+          "type": {
+            "example": "CUSTOMER",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserType"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "type"
         ]
       },
       "LoginDto": {
@@ -34563,6 +34813,53 @@
         "required": [
           "token",
           "newPassword"
+        ]
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "ResendVerificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "resendCooldownSeconds": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "resendCooldownSeconds"
+        ]
+      },
+      "ResendVerificationDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "CreateCustomerAddressDto": {

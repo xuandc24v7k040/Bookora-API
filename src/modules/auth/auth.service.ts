@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,7 +11,7 @@ import {
   AuthProvider,
   Prisma,
   type User,
-  type UserType,
+  UserType,
 } from '@/generated/prisma/client';
 import { parseDuration, timingSafeTokenEqual } from '@/common/utils';
 import type { Response } from 'express';
@@ -29,6 +30,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleProfile } from './strategies/google.strategy';
 import { JwtPayload } from './types/jwt-payload.type';
+import { EmailVerificationService } from './email-verification/email-verification.service';
 
 interface CookieOptionsConfig {
   httpOnly: boolean;
@@ -72,6 +74,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -82,14 +85,32 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await this.usersService.createCustomerForAuth({
-      fullName: dto.fullName,
-      email,
-      passwordHash,
-      provider: AuthProvider.LOCAL,
-    });
-
-    return this.toPublicUser(user);
+    let user: User;
+    try {
+      user = await this.usersService.createCustomerForAuth({
+        fullName: dto.fullName,
+        email,
+        passwordHash,
+        provider: AuthProvider.LOCAL,
+        emailVerificationRequired: true,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Email đã được sử dụng');
+      }
+      throw error;
+    }
+    const delivery = await this.emailVerification.sendForUser(user.id);
+    return {
+      ...this.toPublicUser(user),
+      verificationRequired: true,
+      verificationDelivery:
+        delivery === 'SENT' ? ('SENT' as const) : ('FAILED' as const),
+      resendCooldownSeconds: this.emailVerification.cooldownSeconds,
+    };
   }
 
   async login(dto: LoginDto, metadata: RequestMetadata, response: Response) {
@@ -120,6 +141,17 @@ export class AuthService {
     }
 
     await this.authAttemptService.resetLoginAttempts(email, ip);
+    if (
+      user.type === UserType.CUSTOMER &&
+      user.emailVerificationRequired &&
+      !user.emailVerifiedAt
+    ) {
+      throw new ForbiddenException({
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message:
+          'Vui lòng xác minh email trước khi đăng nhập. Kiểm tra hộp thư hoặc yêu cầu gửi lại email xác minh.',
+      });
+    }
     await this.startSession(user, metadata, response);
     return this.toPublicUser(user);
   }
@@ -241,27 +273,56 @@ export class AuthService {
     metadata: RequestMetadata,
     response: Response,
   ) {
-    if (!profile.email || !profile.emailVerified) {
+    if (
+      !profile?.googleId?.trim() ||
+      !profile.email?.trim() ||
+      profile.emailVerified !== true
+    ) {
       throw new UnauthorizedException(
         'Tài khoản Google chưa được xác minh email',
       );
     }
 
     const email = this.authAttemptService.normalizeEmail(profile.email);
-    let user = await this.usersService.findByEmail(email, true);
+    let user = await this.prisma.user.findUnique({
+      where: { googleId: profile.googleId },
+    });
     if (!user) {
-      user = await this.usersService.createCustomerForAuth({
-        fullName: profile.fullName,
-        email,
-        provider: AuthProvider.GOOGLE,
-        googleId: profile.googleId,
-      });
-    } else if (!user.isActive) {
-      throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
-    } else if (user.provider === AuthProvider.LOCAL) {
-      user = await this.usersService.updateAuthFields(user.id, {
-        googleId: profile.googleId,
-      });
+      if (await this.usersService.findByEmail(email, true)) {
+        throw new UnauthorizedException(
+          'Không thể đăng nhập bằng Google. Vui lòng sử dụng phương thức đăng nhập đã đăng ký.',
+        );
+      }
+      try {
+        user = await this.usersService.createCustomerForAuth({
+          fullName: profile.fullName,
+          email,
+          provider: AuthProvider.GOOGLE,
+          googleId: profile.googleId,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== 'P2002'
+        )
+          throw error;
+        // A concurrent request can create this exact identity; never fall back to email.
+        user = await this.prisma.user.findUnique({
+          where: { googleId: profile.googleId },
+        });
+      }
+    }
+    if (
+      !user ||
+      !user.isActive ||
+      user.type !== UserType.CUSTOMER ||
+      user.provider !== AuthProvider.GOOGLE ||
+      user.googleId !== profile.googleId ||
+      user.email !== email
+    ) {
+      throw new UnauthorizedException(
+        'Không thể đăng nhập bằng Google. Vui lòng sử dụng phương thức đăng nhập đã đăng ký.',
+      );
     }
 
     await this.startSession(user, metadata, response);
@@ -425,6 +486,7 @@ export class AuthService {
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('auth.jwt.refreshSecret'),
+        jwtid: randomBytes(16).toString('hex'),
         expiresIn: (this.configService.get<string>(
           'auth.jwt.refreshExpiresIn',
         ) ?? '7d') as SignOptions['expiresIn'],

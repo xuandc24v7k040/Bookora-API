@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { toPlainText } from '@react-email/render';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MAIL_PROVIDER, type MailProvider } from './mail-provider.interface';
-import { passwordResetEmail } from './templates/password-reset-email';
+import {
+  bookoraActionEmail,
+  passwordResetEmail,
+} from './templates/password-reset-email';
 
 interface SendPasswordResetInput {
   to: string;
@@ -32,6 +35,30 @@ export class MailService {
       subject: 'Đặt lại mật khẩu Bookora',
       html,
       text,
+    });
+  }
+
+  async sendEmailVerification(input: {
+    to: string;
+    verificationUrl: string;
+    ttlMinutes: number;
+  }): Promise<void> {
+    const email = bookoraActionEmail({
+      actionUrl: input.verificationUrl,
+      ttlMinutes: input.ttlMinutes,
+      title: 'Xác thực email',
+      introduction:
+        'Cảm ơn bạn đã đăng ký Bookora. Vui lòng xác thực email để đăng nhập tài khoản của bạn.',
+      ignoreReason:
+        'Nếu bạn không đăng ký tài khoản Bookora, hãy bỏ qua email này.',
+    });
+    const html = `<!doctype html>${renderToStaticMarkup(email)}`;
+    await this.provider.send({
+      from: this.configService.getOrThrow<string>('mail.from'),
+      to: input.to,
+      subject: 'Xác thực email Bookora',
+      html,
+      text: toPlainText(html),
     });
   }
 }

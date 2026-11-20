@@ -29,9 +29,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
   ): GoogleProfile {
     const email = profile.emails?.[0]?.value;
-    const emailVerified = Boolean(
-      (profile._json as Record<string, unknown>).email_verified,
-    );
+    const emailVerified =
+      (profile._json as Record<string, unknown>).email_verified === true;
 
     return {
       googleId: profile.id,

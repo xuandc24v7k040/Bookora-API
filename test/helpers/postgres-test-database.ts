@@ -32,6 +32,7 @@ const MIGRATION_PATHS = [
   '20260729010000_phase17_5_internal_note_baseline_hotfix',
   '20260803181500_remove_shipping_legacy_fields',
   '20261117090000_coupon_upgrade',
+  '20261120090000_customer_email_verification',
 ] as const;
 
 export interface DisposablePostgresDatabase {

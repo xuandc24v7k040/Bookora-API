@@ -302,7 +302,7 @@ Validation:
 - `password`: string, min length `8`, phải có chữ và số.
 - `turnstileToken`: optional trong schema, runtime required khi Turnstile enabled.
 
-Success path: CSRF, throttle, Turnstile, normalize email, duplicate email check, bcrypt cost `12`, transactional CUSTOMER creation, provider `LOCAL`, role CUSTOMER requirement, return `PublicAuthUser`.
+Success path: CSRF, throttle, Turnstile, normalize email, duplicate email check (including unique races), bcrypt cost `12`, transactional CUSTOMER creation, provider `LOCAL`, role CUSTOMER requirement. Return `RegistrationResponseDto` (public user + `verificationRequired=true`, `verificationDelivery=SENT|FAILED`, `resendCooldownSeconds`). Không tạo session. Tài khoản mới lưu `emailVerificationRequired=true`, `emailVerifiedAt=null`; `isActive` độc lập. Nếu gửi mail lỗi, tài khoản vẫn được tạo và response ghi `FAILED` để UI hướng dẫn gửi lại.
 
 Failure statuses: validation `400`, `CSRF_INVALID` `403`, `TURNSTILE_REQUIRED` `400`, `TURNSTILE_FAILED` `403`, duplicate email `409`, missing active CUSTOMER role `500`, throttle `429`.
 
@@ -325,7 +325,7 @@ Frontend không coi register success là authenticated.
 | Turnstile | `verifyToken(..., 'login')`; required when enabled |
 | Throttle | default limit `30`, TTL `60s` |
 | Success | `200`, public user |
-| Session/cookie | Revoke active sessions by user, create one session, set access/refresh cookies |
+| Session/cookie | Create a separate session, set access/refresh cookies; preserve other devices |
 
 Flow:
 
@@ -340,7 +340,7 @@ Flow:
 9. Reject missing/inactive/wrong provider/missing hash/wrong password with generic `401`.
 10. Record email/IP failure on failed credential path.
 11. Reset attempts on success.
-12. `startSession()` revoke active sessions by user.
+12. `startSession()` tạo session riêng và giữ các session khác. Trước bước này, LOCAL CUSTOMER mới chưa xác minh nhận `403 EMAIL_VERIFICATION_REQUIRED`, không có session/cookie mới.
 13. Create session, sign token pair, store refresh hash, update `lastLoginAt`, set cookies.
 
 After login success, frontend should call `/auth/me` to hydrate roles/permissions/branches.
@@ -518,7 +518,7 @@ Deterministic `CSRF_INVALID` handling inside one refresh wave:
 
 ## 16. Logout và session revocation
 
-`POST /auth/logout` requires CSRF. If CSRF passes, service tries access token first, refresh token fallback. If userId is found, backend revokes all active sessions of that user, clears auth/CSRF/OAuth cookies, returns `{ success: true }`.
+`POST /auth/logout` requires CSRF. If CSRF passes, service tries access token first, refresh token fallback. Nếu tìm được `sub/sid`, chỉ revoke session có `sid` này. Giữ các thiết bị khác; clear auth/CSRF/OAuth cookies của browser gọi, trả `{ success: true }`.
 
 Logout `CSRF_INVALID` flow is deterministic because logout body is replay-safe:
 
@@ -535,7 +535,7 @@ Network, timeout, cancellation hoặc `5xx` vẫn không chứng minh server log
 **Source evidence**
 
 - `src/modules/auth/auth.controller.ts` - `logout()`
-- `src/modules/auth/auth.service.ts` - `logout()`, `getUserIdFromAuthCookies()`, `clearAuthCookies()`
+- `src/modules/auth/auth.service.ts` - `logout()`, `getSessionFromAuthCookies()`, `clearAuthCookies()`
 - `src/modules/auth/auth-sessions.repository.ts`
 
 ## 17. `/auth/me` contract
@@ -564,7 +564,9 @@ Does not return `sessionId`, raw tokens or `allowedBranchIds`.
 
 ### 18.2 Callback success
 
-`GET /auth/google/callback` authenticates through Passport, validates signed state, calls `loginWithGoogle()`, creates/revokes session per existing `startSession()`, sets auth cookies, clears `oauthState`, redirects to `${FRONTEND_URL}/auth/callback?success=true`.
+`GET /auth/google/callback` authenticates through Passport, validates signed state, calls `loginWithGoogle()`, creates a separate session preserving other devices, sets auth cookies, clears `oauthState`, redirects to `${FRONTEND_URL}/auth/callback?success=true`.
+
+Google strategy chỉ chấp nhận `email_verified === true`; service bắt buộc email và subject không rỗng. Lookup `googleId` trước. Existing identity phải GOOGLE, active, CUSTOMER, subject và email khớp DB. Email Google đổi bị từ chối an toàn, không tự cập nhật email hoặc tạo user khác. Email collision bất kỳ (LOCAL, GOOGLE subject khác/null) bị từ chối, không auto-link/mutate identity. Unique race chỉ lookup lại đúng subject rồi kiểm tra lại toàn bộ điều kiện; callback lỗi giữ code an toàn `google_auth_failed`. LOCAL cũ có googleId vẫn bị từ chối Google; không tự bulk sửa dữ liệu hay revoke toàn bộ phiên cũ.
 
 ### 18.3 State validation
 
@@ -679,7 +681,7 @@ On `/auth/callback?success=true`, frontend calls `/auth/me`. On `/login?error=..
 
 | Outcome | Server session certainty | HttpOnly cookie certainty | Frontend action |
 | ------- | ------------------------ | ------------------------- | --------------- |
-| `200` | If userId parsed, active sessions revoked; otherwise no DB revoke but success response | Server sent clear-cookie | Clear auth store/CSRF memory |
+| `200` | If sub/sid parsed, matching session revoked; otherwise no DB revoke but success response | Server sent clear-cookie | Clear auth store/CSRF memory |
 | `CSRF_INVALID` first logout attempt | Service not confirmed before retry | Cookies not confirmed cleared | Clear CSRF memory, bootstrap CSRF, retry logout exactly once |
 | Logout retry `200` after `CSRF_INVALID` | Server-confirmed logout | Server sent clear-cookie | Clear auth store and CSRF memory |
 | CSRF bootstrap/logout retry fails | Unknown | Unknown | No more retry; may local sign-out for privacy, marked unconfirmed |
@@ -789,7 +791,7 @@ sequenceDiagram
     Auth-->>FE: 401 or 429
   else valid
     Auth->>Attempts: reset attempts
-    Auth->>DB: revoke active sessions + create session
+    Auth->>DB: create separate session; preserve other devices
     Auth-->>FE: 200 + access/refresh cookies
   end
 ```
@@ -914,7 +916,7 @@ sequenceDiagram
   else CSRF ok
     API->>Auth: access token, refresh token
     Auth->>Auth: verify access, fallback refresh
-    Auth->>DB: revokeActiveByUserId if userId found
+    Auth->>DB: revoke matching sid if sub/sid found
     Auth-->>FE: clear-cookie + success
   end
 ```
@@ -974,7 +976,7 @@ stateDiagram-v2
   HashMismatchOrReuse --> Revoked: revoke matching session
   ActiveSession --> RaceLoser: already rotated
   RaceLoser --> ActiveSession: no revoke/no clear
-  ActiveSession --> Revoked: logout/user disabled/new login
+  ActiveSession --> Revoked: matching logout/user disabled/reset password
   ActiveSession --> Expired: expiresAt <= now
   Revoked --> [*]
   Expired --> [*]
@@ -1048,7 +1050,16 @@ stateDiagram-v2
 - Không để OAuth redirect target do query điều khiển.
 - Không sửa frontend source trong backend task này.
 
-## 33. Source evidence index
+## 33. Email verification và multi-device — bổ sung 20/11/2026
+
+- `POST /auth/email-verification/verify`: CSRF + throttle, `{token}` 43 ký tự base64url. `200 {success:true}` chỉ sau commit; không auto-login. Lỗi `400 EMAIL_VERIFICATION_INVALID|EXPIRED|USED|REVOKED|ALREADY_VERIFIED`; verify lặp không ghi verified lại. Backend khóa cùng user khi verify/resend, consume có điều kiện `expiresAt > now`.
+- `POST /auth/email-verification/resend`: CSRF + throttle + AuthAttempts atomic purpose riêng theo email/IP; phản hồi trung tính cho missing/verified/GOOGLE/inactive/legacy và lỗi delivery. Không tuyên bố gửi thành công khi chưa gửi; UI nói yêu cầu được tiếp nhận. Cooldown theo `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` (default 60, range 1–3600). Token mới revoke token trước; row lock/cooldown ngăn gửi song song.
+- `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES`: config `mail.emailVerification.ttlMinutes`, default rõ 30, integer 1–1440; dùng chung cho expiresAt và nội dung email. Không thay TTL reset. Token random 32 bytes, lưu HMAC-SHA256 purpose prefix `EMAIL_VERIFICATION:` với secret reset hiện hữu; bảng riêng `email_verification_tokens` ngăn dùng lẫn purpose. Không log raw token/link.
+- Email dùng Resend/MailService và cùng shell HTML/plain text với reset. Link `${FRONTEND_URL}/verify-email#token=...`; FE lấy token vào memory và `replace` URL trước khi gọi API. Không sessionStorage/localStorage hoặc third-party tracker cho token.
+- Migration additive default `emailVerificationRequired=false` cho legacy; `emailVerifiedAt` giữ null, không fake verified. Chỉ Customer Register mới đặt required=true. GOOGLE và SYSTEM/BRANCH tạo theo flow cũ không bị áp đặt yêu cầu mới. Password reset không tự xác minh email.
+- Multi-device: login A+B tạo hai sid. Logout/replay chỉ revoke sid liên quan; refresh rotate có compare-and-swap và refresh `jti` ngẫu nhiên để hai lần trong một giây không trả cùng token. Đổi mật khẩu giữ/rotate A, revoke các sid khác. Reset mật khẩu revoke tất cả và clear cookies, phải login lại. Inactive guard/refresh giữ nguyên.
+
+## 34. Source evidence index
 
 ### Runtime Auth
 

@@ -38,6 +38,7 @@ import {
 import type { GoogleOauthRequest } from './guards/google-oauth.guard';
 import { ApiBaseResponse, ResponseMessage } from '../../common/decorators';
 import authConfig from '../../config/auth.config';
+import { RegistrationResponseDto } from './email-verification/email-verification.dto';
 
 const authThrottleConfig = authConfig().throttle;
 
@@ -61,10 +62,11 @@ export class AuthController {
   })
   @ApiOperation({
     summary: 'Đăng ký tài khoản',
-    description: 'Tạo tài khoản mới, chưa đăng nhập tự động.',
+    description:
+      'Tạo tài khoản LOCAL CUSTOMER cần xác minh email, không tạo phiên đăng nhập. Trạng thái gửi thư được trả riêng để có thể gửi lại khi lỗi.',
   })
   @ApiSecurity('csrf')
-  @ApiBaseResponse(PublicAuthUserResponseDto, {
+  @ApiBaseResponse(RegistrationResponseDto, {
     status: 201,
     description: 'Đăng ký thành công',
   })
@@ -115,7 +117,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Đăng xuất',
     description:
-      'Thu hồi tất cả phiên đang hoạt động của user xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập.',
+      'Chỉ thu hồi phiên hiện tại xác định từ cookie accessToken hoặc refreshToken, sau đó xóa cookie đăng nhập; giữ các thiết bị khác.',
   })
   @ApiSecurity('accessToken')
   @ApiSecurity('refreshToken')

@@ -42,6 +42,7 @@ export type CreateCustomerForAuthInput = Pick<
   | 'passwordHash'
   | 'provider'
   | 'googleId'
+  | 'emailVerificationRequired'
 >;
 
 @Injectable()

@@ -54,6 +54,26 @@ describe('VNPAY environment validation', () => {
 });
 
 describe('password recovery environment validation', () => {
+  it.each(['0', '-1', '1.5', '1441', 'abc'])(
+    'rejects verification TTL %s',
+    (value) => {
+      expect(() =>
+        validateEnv({
+          ...validConfig(),
+          EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: value,
+        }),
+      ).toThrow('EMAIL_VERIFICATION_TOKEN_TTL_MINUTES');
+    },
+  );
+  it('accepts a verification TTL override and allows the documented config default', () => {
+    expect(
+      validateEnv({
+        ...validConfig(),
+        EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: '7',
+      }),
+    ).toBeDefined();
+    expect(validateEnv(validConfig())).toBeDefined();
+  });
   it('accepts a positive integer TTL override', () => {
     expect(
       validateEnv({

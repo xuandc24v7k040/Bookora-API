@@ -48,6 +48,30 @@ export function passwordResetEmail({
   resetUrl,
   ttlMinutes,
 }: PasswordResetEmailProps): React.ReactElement {
+  return bookoraActionEmail({
+    actionUrl: resetUrl,
+    ttlMinutes,
+    title: 'Đặt lại mật khẩu',
+    introduction:
+      'Bookora đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.',
+    ignoreReason:
+      'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.',
+  });
+}
+
+export function bookoraActionEmail({
+  actionUrl,
+  ttlMinutes,
+  title,
+  introduction,
+  ignoreReason,
+}: {
+  actionUrl: string;
+  ttlMinutes: number;
+  title: string;
+  introduction: string;
+  ignoreReason: string;
+}): React.ReactElement {
   return React.createElement(
     Html,
     { lang: 'vi' },
@@ -55,7 +79,7 @@ export function passwordResetEmail({
     React.createElement(
       Preview,
       null,
-      `Liên kết đặt lại mật khẩu Bookora có hiệu lực ${ttlMinutes} phút.`,
+      `Liên kết ${title.toLocaleLowerCase('vi')} Bookora có hiệu lực ${ttlMinutes} phút.`,
     ),
     React.createElement(
       Body,
@@ -78,17 +102,17 @@ export function passwordResetEmail({
         React.createElement(
           Heading,
           { style: { fontSize: '26px', margin: '0 0 16px' } },
-          'Đặt lại mật khẩu',
+          title,
         ),
         React.createElement(
           Text,
           { style: { fontSize: '15px', lineHeight: '24px' } },
-          'Bookora đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.',
+          introduction,
         ),
         React.createElement(
           Button,
-          { href: resetUrl, style: buttonStyle },
-          'Đặt lại mật khẩu',
+          { href: actionUrl, style: buttonStyle },
+          title,
         ),
         React.createElement(
           Text,
@@ -98,14 +122,14 @@ export function passwordResetEmail({
         React.createElement(
           Link,
           {
-            href: resetUrl,
+            href: actionUrl,
             style: {
               color: '#356244',
               fontSize: '13px',
               overflowWrap: 'anywhere',
             },
           },
-          resetUrl,
+          actionUrl,
         ),
         React.createElement(Hr, {
           style: { borderColor: '#e1e6df', margin: '24px 0' },
@@ -119,7 +143,7 @@ export function passwordResetEmail({
               lineHeight: '20px',
             },
           },
-          'Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Vui lòng không trả lời email tự động này.',
+          `${ignoreReason} Vui lòng không trả lời email tự động này.`,
         ),
         React.createElement(
           Text,
