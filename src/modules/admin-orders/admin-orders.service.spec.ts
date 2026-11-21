@@ -128,6 +128,10 @@ function orderFixture(status: OrderStatus = OrderStatus.PACKING) {
 function createHarness(initialOrder = orderFixture()) {
   let currentOrder = initialOrder;
   const tx = {
+    $executeRaw: jest.fn().mockResolvedValue(1),
+    notificationDispatch: {
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     flashSaleAllocation: {
       count: jest.fn().mockResolvedValue(0),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),

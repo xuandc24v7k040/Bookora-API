@@ -3,6 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { enqueueOrderNotification } from '@/modules/notifications/notification-intents';
+import { signalOrderChange } from '@/modules/orders/order-change-signal';
 import {
   OrderHistoryEventType,
   OrderStatus,
@@ -178,7 +180,7 @@ export class CustomerOrdersService {
         });
       }
 
-      await tx.orderStatusHistory.create({
+      const receiptHistory = await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
           eventType: OrderHistoryEventType.CUSTOMER_RECEIPT_CONFIRMED,
@@ -193,6 +195,14 @@ export class CustomerOrdersService {
           createdAt: confirmedAt,
         },
       });
+      await enqueueOrderNotification(tx, {
+        eventKey: `RECEIPT:${receiptHistory.id}`,
+        kind: 'ORDER_RECEIVED',
+        orderId: order.id,
+        branchId: order.branchId,
+        actorUserId: actor.id,
+      });
+      await signalOrderChange(tx, order.id);
     });
     return this.detail(actor, orderId);
   }

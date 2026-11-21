@@ -357,6 +357,10 @@ describe('CheckoutService internal shipping hotfix', () => {
     const preview = await service.preview(actor, BRANCH_ID, input);
     let createdData: Record<string, unknown> | null = null;
     const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      notificationDispatch: {
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       order: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest

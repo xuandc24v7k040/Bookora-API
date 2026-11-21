@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { FlashSalesModule } from '@/modules/flash-sales/flash-sales.module';
 import { CouponsModule } from '@/modules/coupons/coupons.module';
 import { ConfigModule } from '@nestjs/config';
@@ -33,6 +34,7 @@ import { WishlistsModule } from '@/modules/wishlists/wishlists.module';
 import { AccountDashboardModule } from '@/modules/account-dashboard/account-dashboard.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { RevenueReportsModule } from '@/modules/revenue-reports/revenue-reports.module';
+import { OrderRealtimeModule } from '@/modules/orders/order-realtime.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { RevenueReportsModule } from '@/modules/revenue-reports/revenue-reports.
     DashboardModule,
     RevenueReportsModule,
     AuthModule,
+    NotificationsModule,
+    OrderRealtimeModule,
   ],
 })
 export class AppModule {}

@@ -16,6 +16,7 @@ model User {
   emailVerifiedAt           DateTime?    @map("email_verified_at")
 
   authSessions                  AuthSession[]
+  notifications                 Notification[]
   passwordResetTokens           PasswordResetToken[]
   emailVerificationTokens       EmailVerificationToken[]
   userRoles                     UserRole[]               @relation("UserRoleTarget")
@@ -130,6 +131,7 @@ model Branch {
   isActive  Boolean  @default(true) @map("is_active")
 
   userBranches         UserBranch[]
+  notifications        Notification[]
   carts                Cart[]
   orders               Order[]
   stocks               BranchProductStock[]

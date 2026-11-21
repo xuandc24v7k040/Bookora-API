@@ -1,3 +1,4 @@
+import { schedulePromotion } from '@/modules/notifications/notification-intents';
 import {
   BadRequestException,
   ConflictException,
@@ -381,6 +382,7 @@ export class CouponsService {
     this.validate(dto);
     try {
       return await this.repository.transaction(async (tx) => {
+        let newlyEligible = !id;
         if (id) {
           await tx.$queryRaw`SELECT id FROM coupons WHERE id = ${id} FOR UPDATE`;
           const old = await tx.coupon.findUnique({ where: { id } });
@@ -389,6 +391,9 @@ export class CouponsService {
               code: 'COUPON_NOT_FOUND',
               message: 'Không tìm thấy mã giảm giá.',
             });
+          newlyEligible =
+            (old.visibility !== 'PUBLIC' && dto.visibility === 'PUBLIC') ||
+            (!old.isActive && dto.isActive);
           const used = await tx.couponRedemption.count({
             where: { couponId: id },
           });
@@ -420,6 +425,13 @@ export class CouponsService {
         const coupon = id
           ? await tx.coupon.update({ where: { id }, data })
           : await tx.coupon.create({ data });
+        await schedulePromotion(
+          tx,
+          'COUPON_ACTIVE',
+          coupon.id,
+          coupon.startAt,
+          newlyEligible,
+        );
         return this.response(tx, coupon);
       });
     } catch (error) {
@@ -436,11 +448,20 @@ export class CouponsService {
   }
 
   async setActive(id: string, isActive: boolean) {
-    await this.detail(id);
-    const coupon = await this.repository.client.coupon.update({
-      where: { id },
-      data: { isActive },
+    const old = await this.detail(id);
+    return this.repository.transaction(async (tx) => {
+      const coupon = await tx.coupon.update({
+        where: { id },
+        data: { isActive },
+      });
+      await schedulePromotion(
+        tx,
+        'COUPON_ACTIVE',
+        coupon.id,
+        coupon.startAt,
+        isActive && !old.isActive,
+      );
+      return this.response(tx, coupon);
     });
-    return this.response(this.repository.client, coupon);
   }
 }

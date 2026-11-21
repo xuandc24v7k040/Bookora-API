@@ -1,3 +1,4 @@
+import { schedulePromotion } from '@/modules/notifications/notification-intents';
 import {
   BadRequestException,
   ConflictException,
@@ -419,6 +420,14 @@ export class FlashSalesService {
         },
         include: saleInclude,
       });
+      if (dto.action === 'publish')
+        await schedulePromotion(
+          tx,
+          'FLASH_SALE_ACTIVE',
+          updated.id,
+          updated.startAt,
+          true,
+        );
       return this.response(updated, tx, now);
     });
   }

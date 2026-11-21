@@ -29073,6 +29073,447 @@
         ],
         "description": "Xuất báo cáo doanh thu CSV"
       }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "notificationsList",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 50,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ORDER",
+                "PROMOTION"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "newest",
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest"
+              ]
+            }
+          },
+          {
+            "name": "unreadOnly",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách thông báo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Danh sách thông báo."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationListDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Danh sách thông báo của tôi",
+        "tags": [
+          "notifications"
+        ],
+        "description": "Danh sách thông báo của tôi"
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "notificationsUnreadCount",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Số thông báo chưa đọc.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Số thông báo chưa đọc."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationCountDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Số thông báo chưa đọc",
+        "tags": [
+          "notifications"
+        ],
+        "description": "Số thông báo chưa đọc"
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "operationId": "notificationsReadAll",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Số thông báo được đánh dấu đã đọc.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Số thông báo được đánh dấu đã đọc."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationCountDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đánh dấu tất cả đã đọc trong phạm vi hiện tại",
+        "tags": [
+          "notifications"
+        ],
+        "description": "Đánh dấu tất cả đã đọc trong phạm vi hiện tại"
+      }
+    },
+    "/notifications/{id}/read": {
+      "post": {
+        "operationId": "notificationsRead",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Có thể bỏ qua với route Super Admin hoặc route hỗ trợ scope rộng.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Số thông báo được đánh dấu đã đọc.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Số thông báo được đánh dấu đã đọc."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationCountDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đánh dấu thông báo đã đọc",
+        "tags": [
+          "notifications"
+        ],
+        "description": "Đánh dấu thông báo đã đọc"
+      }
     }
   },
   "info": {
@@ -40602,6 +41043,117 @@
           "shippingRevenue",
           "totalRevenue",
           "averageOrderValue"
+        ]
+      },
+      "NotificationItemDto": {
+        "type": "object",
+        "properties": {
+          "couponCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "type": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "PROMOTION"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "string",
+            "nullable": true,
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "referenceType": {
+            "type": "string"
+          },
+          "referenceId": {
+            "type": "string"
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "couponCode",
+          "id",
+          "type",
+          "category",
+          "title",
+          "content",
+          "branchId",
+          "referenceType",
+          "referenceId",
+          "readAt",
+          "createdAt"
+        ]
+      },
+      "NotificationListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          },
+          "totalItems": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "limit",
+          "totalItems",
+          "totalPages"
+        ]
+      },
+      "NotificationCountDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
         ]
       },
       "ErrorResponseDto": {

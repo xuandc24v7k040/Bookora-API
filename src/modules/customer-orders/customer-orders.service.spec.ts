@@ -70,6 +70,10 @@ function createHarness() {
   const orderCount = jest.fn();
   const reviewFindMany = jest.fn();
   const tx = {
+    $executeRaw: jest.fn().mockResolvedValue(1),
+    notificationDispatch: {
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     flashSaleAllocation: {
       count: jest.fn().mockResolvedValue(0),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),

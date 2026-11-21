@@ -1,3 +1,5 @@
+import { enqueueOrderNotification } from '@/modules/notifications/notification-intents';
+import { signalOrderChange } from '@/modules/orders/order-change-signal';
 import {
   BadRequestException,
   ConflictException,
@@ -287,6 +289,13 @@ export class CheckoutService {
         include: { payment: true },
       });
       await this.clearSelectedCartItems(tx, state.cart.id, state.eligibleItems);
+      await enqueueOrderNotification(tx, {
+        eventKey: `COD:${created.id}`,
+        kind: 'ORDER_NEW_COD',
+        orderId: created.id,
+        branchId: created.branchId,
+        actorUserId: actor.id,
+      });
       await this.flashSales.allocate(tx, created.id, actor.id, null);
       await this.coupons.redeem(
         tx,
@@ -299,6 +308,7 @@ export class CheckoutService {
         state.coupons,
         null,
       );
+      await signalOrderChange(tx, created.id);
       return created;
     });
     return this.orderResult(order);
@@ -452,6 +462,7 @@ export class CheckoutService {
         state.coupons,
         couponExpiresAt,
       );
+      await signalOrderChange(tx, created.id);
       return created;
     });
     const transaction = order.payment!.transactions[0];

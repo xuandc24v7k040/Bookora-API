@@ -102,6 +102,7 @@ describe('PaymentsService VNPAY verified callbacks', () => {
   const statusHistoryCreate = jest.fn();
   const transactionMock = jest.fn();
   const transactionClient = {
+    $executeRaw: jest.fn().mockResolvedValue(1),
     $queryRaw: jest.fn().mockResolvedValue([]),
     flashSaleAllocation: {
       count: jest.fn().mockResolvedValue(0),
@@ -121,6 +122,9 @@ describe('PaymentsService VNPAY verified callbacks', () => {
     cartItem: { deleteMany: cartItemDeleteMany },
     branchProductStock: { update: stockUpdate },
     orderStatusHistory: { create: statusHistoryCreate },
+    notificationDispatch: {
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
   };
   const prisma = {
     paymentTransaction: { findUnique },

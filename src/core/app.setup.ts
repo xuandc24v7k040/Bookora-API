@@ -14,9 +14,11 @@ import { createValidationExceptionResponse } from '../common/utils';
 import { AllExceptionsFilter } from './filters';
 import { TransformInterceptor } from './interceptors';
 import { setupSwagger } from './swagger.setup';
+import { RealtimeIoAdapter } from '@/modules/realtime/realtime-io.adapter';
 
 export function setupApplication(app: INestApplication): void {
   const configService = app.get(ConfigService);
+  app.useWebSocketAdapter(new RealtimeIoAdapter(app, configService));
   const apiPrefix = configService.get<string>('app.apiPrefix') ?? 'api';
   const corsOrigin = configService.get<string>('app.corsOrigin') ?? '*';
   const trustProxy =
