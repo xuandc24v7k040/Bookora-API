@@ -18,12 +18,19 @@ import {
   CouponType,
   CouponVisibility,
   DiscountType,
+  MembershipTier,
 } from '@/generated/prisma/client';
 
 export const normalizeCouponCode = (value: unknown): unknown =>
   typeof value === 'string' ? value.trim().toUpperCase() : value;
 
 export class SaveCouponDto {
+  @ApiPropertyOptional({ enum: MembershipTier, nullable: true })
+  @IsOptional()
+  @IsEnum(MembershipTier, {
+    message: 'Hạng thành viên tối thiểu không hợp lệ.',
+  })
+  minimumMembershipTier?: MembershipTier | null;
   @ApiProperty({ minLength: 3, maxLength: 40, pattern: '^[A-Z0-9_-]+$' })
   @Transform(({ value }: { value: unknown }) => normalizeCouponCode(value))
   @IsString()
@@ -178,6 +185,8 @@ export class CouponActiveDto {
 }
 
 export class CouponResponseDto {
+  @ApiProperty({ enum: MembershipTier, nullable: true })
+  minimumMembershipTier!: MembershipTier | null;
   @ApiProperty() id!: string;
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
@@ -210,6 +219,8 @@ export class CouponListResponseDto {
   @ApiProperty() totalPages!: number;
 }
 export class CheckoutCouponDto {
+  @ApiProperty({ enum: MembershipTier, nullable: true })
+  minimumMembershipTier!: MembershipTier | null;
   @ApiProperty() code!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ type: String, nullable: true }) description!: string | null;

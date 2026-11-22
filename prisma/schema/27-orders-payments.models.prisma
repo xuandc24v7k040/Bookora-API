@@ -48,6 +48,7 @@ model Order {
   internalNoteUpdatedBy User?        @relation("OrderInternalNoteUpdatedBy", fields: [internalNoteUpdatedById], references: [id], onDelete: SetNull)
 
   items                OrderItem[]
+  membershipTransaction MembershipTransaction?
   payment              Payment?
   reviews              Review[]
   statusHistories      OrderStatusHistory[]

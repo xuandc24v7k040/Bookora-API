@@ -157,7 +157,10 @@ function createService(branchProvince: string | null = 'Hậu Giang') {
     findCart,
     findOwnedAddress,
     transaction,
-    client: { order: { findFirst: orderFindFirst } },
+    client: {
+      order: { findFirst: orderFindFirst },
+      customerMembership: { findUnique: jest.fn().mockResolvedValue(null) },
+    },
   } as unknown as CheckoutRepository;
   const vietmap = {
     reverse: jest.fn(),
@@ -357,6 +360,7 @@ describe('CheckoutService internal shipping hotfix', () => {
     const preview = await service.preview(actor, BRANCH_ID, input);
     let createdData: Record<string, unknown> | null = null;
     const tx = {
+      customerMembership: { findUnique: jest.fn().mockResolvedValue(null) },
       $executeRaw: jest.fn().mockResolvedValue(1),
       notificationDispatch: {
         createMany: jest.fn().mockResolvedValue({ count: 1 }),

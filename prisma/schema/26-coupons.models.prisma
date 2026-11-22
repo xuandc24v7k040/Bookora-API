@@ -13,6 +13,7 @@ model Coupon {
   isActive          Boolean          @default(true) @map("is_active")
   type              CouponType       @default(ORDER)
   visibility        CouponVisibility @default(PUBLIC)
+  minimumMembershipTier MembershipTier? @map("minimum_membership_tier")
   usageLimitPerUser Int?             @map("usage_limit_per_user")
 
   orders      Order[]

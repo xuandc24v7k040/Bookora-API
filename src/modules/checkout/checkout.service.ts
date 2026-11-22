@@ -33,6 +33,7 @@ import {
   PaymentTransactionStatus,
   Prisma,
   UserType,
+  type MembershipTier,
 } from '@/generated/prisma/client';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { CartItemStatus } from '@/modules/cart/dto';
@@ -114,6 +115,7 @@ interface ResolvedCheckoutAddress {
 }
 
 interface CheckoutState {
+  membershipTier: MembershipTier;
   cart: CheckoutCartRecord;
   items: ResolvedCheckoutItem[];
   eligibleItems: ResolvedCheckoutItem[];
@@ -666,7 +668,13 @@ export class CheckoutService {
       shippingCouponDiscountAmount;
     const note = dto.note?.trim() || null;
     const blockingIssues: string[] = [];
+    const membership =
+      await this.repository.client.customerMembership.findUnique({
+        where: { userId },
+      });
+    const membershipTier = membership?.currentTier ?? 'BRONZE';
     const previewReference = this.createPreviewReference({
+      membershipTier,
       branchId,
       items: eligibleItems.map((item) => ({
         cartItemId: item.cartItemId,
@@ -694,6 +702,7 @@ export class CheckoutService {
       })),
     });
     return {
+      membershipTier,
       cart,
       items,
       eligibleItems,
@@ -718,6 +727,15 @@ export class CheckoutService {
     tx: Prisma.TransactionClient,
     state: CheckoutState,
   ): Promise<void> {
+    const membership = await tx.customerMembership.findUnique({
+      where: { userId: state.cart.userId },
+    });
+    if ((membership?.currentTier ?? 'BRONZE') !== state.membershipTier)
+      throw new ConflictException({
+        code: 'CHECKOUT_PREVIEW_CHANGED',
+        message:
+          'Hạng thành viên đã thay đổi. Vui lòng cập nhật và xác nhận lại đơn hàng.',
+      });
     if (
       !state.coupons.length &&
       !state.eligibleItems.some((item) => item.flashSaleItemId)

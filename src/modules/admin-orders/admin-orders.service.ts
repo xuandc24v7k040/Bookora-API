@@ -89,61 +89,64 @@ export class AdminOrdersService {
   ): Promise<AdminOrderDetailDto> {
     this.assertMutation(actor, 'orders.update_status');
     const branchId = this.selectedBranchId(context);
-    await this.repository.transaction(async (tx) => {
-      const order = await this.repository.findCancellable(
-        tx,
-        branchId,
-        orderId,
-      );
-      if (!order) this.notFound();
-      const expectedTarget = NEXT_STATUS[order.status];
-      if (!expectedTarget || expectedTarget !== dto.targetStatus) {
-        throw new ConflictException({
-          code: 'ORDER_TRANSITION_INVALID',
-          message: 'Không thể chuyển đơn hàng sang trạng thái đã chọn.',
-        });
-      }
-      if (
-        dto.targetStatus === OrderStatus.COMPLETED &&
-        !order.customerConfirmedReceivedAt
-      ) {
-        throw new ConflictException({
-          code: 'ORDER_CUSTOMER_RECEIPT_REQUIRED',
-          message: 'Đang chờ khách hàng xác nhận đã nhận hàng.',
-        });
-      }
-      const transitioned = await this.repository.transition(
-        tx,
-        order.id,
-        order.status,
-        dto.targetStatus,
-      );
-      if (!transitioned) this.concurrentUpdate();
+    await this.repository.transaction(
+      async (tx) => {
+        const order = await this.repository.findCancellable(
+          tx,
+          branchId,
+          orderId,
+        );
+        if (!order) this.notFound();
+        const expectedTarget = NEXT_STATUS[order.status];
+        if (!expectedTarget || expectedTarget !== dto.targetStatus) {
+          throw new ConflictException({
+            code: 'ORDER_TRANSITION_INVALID',
+            message: 'Không thể chuyển đơn hàng sang trạng thái đã chọn.',
+          });
+        }
+        if (
+          dto.targetStatus === OrderStatus.COMPLETED &&
+          !order.customerConfirmedReceivedAt
+        ) {
+          throw new ConflictException({
+            code: 'ORDER_CUSTOMER_RECEIPT_REQUIRED',
+            message: 'Đang chờ khách hàng xác nhận đã nhận hàng.',
+          });
+        }
+        const transitioned = await this.repository.transition(
+          tx,
+          order.id,
+          order.status,
+          dto.targetStatus,
+        );
+        if (!transitioned) this.concurrentUpdate();
 
-      const now = new Date();
-      if (
-        dto.targetStatus === OrderStatus.COMPLETED &&
-        order.payment?.method === PaymentMethod.COD &&
-        order.payment.status === PaymentStatus.UNPAID
-      ) {
-        await tx.payment.update({
-          where: { id: order.payment.id },
-          data: { status: PaymentStatus.PAID, paidAt: now },
+        const now = new Date();
+        if (
+          dto.targetStatus === OrderStatus.COMPLETED &&
+          order.payment?.method === PaymentMethod.COD &&
+          order.payment.status === PaymentStatus.UNPAID
+        ) {
+          await tx.payment.update({
+            where: { id: order.payment.id },
+            data: { status: PaymentStatus.PAID, paidAt: now },
+          });
+        }
+        await recordOrderStatusHistory(tx, {
+          orderId: order.id,
+          fromStatus: order.status,
+          toStatus: dto.targetStatus,
+          actorType: OrderStatusActorType.ADMIN,
+          actorUserId: actor.id,
+          actorDisplayNameSnapshot: actor.fullName,
+          actorRoleSnapshot: this.actorRoleSnapshot(actor),
+          branchId,
+          note: dto.note?.trim() || null,
+          createdAt: now,
         });
-      }
-      await recordOrderStatusHistory(tx, {
-        orderId: order.id,
-        fromStatus: order.status,
-        toStatus: dto.targetStatus,
-        actorType: OrderStatusActorType.ADMIN,
-        actorUserId: actor.id,
-        actorDisplayNameSnapshot: actor.fullName,
-        actorRoleSnapshot: this.actorRoleSnapshot(actor),
-        branchId,
-        note: dto.note?.trim() || null,
-        createdAt: now,
-      });
-    });
+      },
+      { retryOnConflict: true },
+    );
     return this.detail(actor, context, orderId);
   }
 

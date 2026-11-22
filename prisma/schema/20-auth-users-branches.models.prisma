@@ -16,6 +16,9 @@ model User {
   emailVerifiedAt           DateTime?    @map("email_verified_at")
 
   authSessions                  AuthSession[]
+  membership                    CustomerMembership?
+  membershipTransactions        MembershipTransaction[]
+  membershipTierHistories       MembershipTierHistory[]
   notifications                 Notification[]
   passwordResetTokens           PasswordResetToken[]
   emailVerificationTokens       EmailVerificationToken[]

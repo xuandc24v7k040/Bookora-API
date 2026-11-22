@@ -5,7 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, type Coupon } from '@/generated/prisma/client';
+import {
+  Prisma,
+  type Coupon,
+  type MembershipTier,
+} from '@/generated/prisma/client';
 import { couponDiscount, couponRuleVersion } from './coupon-pricing';
 import {
   CouponStatus,
@@ -15,6 +19,10 @@ import {
   type SaveCouponDto,
 } from './coupons.dto';
 import { CouponsRepository } from './coupons.repository';
+import {
+  allowedTiers,
+  TIER_LABELS,
+} from '@/modules/membership/membership-rules';
 
 export interface CouponContext {
   userId: string;
@@ -27,7 +35,7 @@ export interface ResolvedCoupon {
 }
 type CouponClient = Pick<
   Prisma.TransactionClient,
-  'coupon' | 'couponRedemption'
+  'coupon' | 'couponRedemption' | 'customerMembership'
 >;
 function activeUsage(now = new Date()): Prisma.CouponRedemptionWhereInput {
   return {
@@ -52,10 +60,27 @@ export class CouponsService {
     client: CouponClient,
     coupon: Coupon,
     context: CouponContext,
+    knownTier?: MembershipTier,
   ): Promise<CheckoutCouponDto> {
     const now = new Date();
     let reason: [string, string] | null = null;
-    if (!coupon.isActive)
+    const member =
+      coupon.minimumMembershipTier && knownTier === undefined
+        ? await client.customerMembership.findUnique({
+            where: { userId: context.userId },
+          })
+        : null;
+    if (
+      coupon.minimumMembershipTier &&
+      !allowedTiers(knownTier ?? member?.currentTier ?? 'BRONZE').includes(
+        coupon.minimumMembershipTier,
+      )
+    )
+      reason = [
+        'COUPON_MEMBERSHIP_TIER',
+        `Mã giảm giá này yêu cầu hạng ${TIER_LABELS[coupon.minimumMembershipTier]} trở lên.`,
+      ];
+    else if (!coupon.isActive)
       reason = ['COUPON_INACTIVE', 'Mã giảm giá đang tạm dừng.'];
     else if (coupon.startAt > now)
       reason = ['COUPON_UPCOMING', 'Mã giảm giá chưa đến thời gian áp dụng.'];
@@ -89,6 +114,7 @@ export class CouponsService {
       name: coupon.name,
       description: coupon.description,
       type: coupon.type,
+      minimumMembershipTier: coupon.minimumMembershipTier ?? null,
       discountType: coupon.discountType,
       discountValue: Number(coupon.discountValue),
       minOrderAmount: Number(coupon.minOrderAmount ?? 0),
@@ -110,8 +136,21 @@ export class CouponsService {
     context: CouponContext,
     selected: ResolvedCoupon[] = [],
   ): Promise<CheckoutCouponDto[]> {
+    const member = await this.repository.client.customerMembership.findUnique({
+      where: { userId: context.userId },
+    });
     const coupons = await this.repository.client.coupon.findMany({
-      where: { visibility: 'PUBLIC' },
+      where: {
+        visibility: 'PUBLIC',
+        OR: [
+          { minimumMembershipTier: null },
+          {
+            minimumMembershipTier: {
+              in: allowedTiers(member?.currentTier ?? 'BRONZE'),
+            },
+          },
+        ],
+      },
       orderBy: [{ isActive: 'desc' }, { endAt: 'desc' }, { id: 'asc' }],
       take: 100,
     });
@@ -119,7 +158,12 @@ export class CouponsService {
     for (const { coupon } of selected) rows.set(coupon.id, coupon);
     return Promise.all(
       [...rows.values()].map((coupon) =>
-        this.eligibility(this.repository.client, coupon, context),
+        this.eligibility(
+          this.repository.client,
+          coupon,
+          context,
+          member?.currentTier ?? 'BRONZE',
+        ),
       ),
     );
   }
@@ -421,6 +465,7 @@ export class CouponsService {
           maxDiscount: dto.maxDiscount ?? null,
           usageLimit: dto.usageLimit ?? null,
           usageLimitPerUser: dto.usageLimitPerUser ?? null,
+          minimumMembershipTier: dto.minimumMembershipTier ?? null,
         };
         const coupon = id
           ? await tx.coupon.update({ where: { id }, data })

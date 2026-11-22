@@ -1,0 +1,80 @@
+enum MembershipTier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+enum MembershipSource {
+  ORDER
+  BACKFILL
+  THRESHOLD_CHANGE
+}
+
+model MembershipConfig {
+  id         String   @id @default("GLOBAL")
+  silver     Decimal  @default(2000000) @db.Decimal(16, 0)
+  gold       Decimal  @default(5000000) @db.Decimal(16, 0)
+  diamond    Decimal  @default(10000000) @db.Decimal(16, 0)
+  version    Int      @default(1)
+  pending    Boolean  @default(false)
+  cursor     String?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("membership_config")
+}
+
+model CustomerMembership {
+  userId        String         @id @map("user_id")
+  currentTier   MembershipTier @default(BRONZE) @map("current_tier")
+  lifetimeSpend Decimal        @default(0) @map("lifetime_spend") @db.Decimal(16, 0)
+  achievedAt    DateTime?      @map("achieved_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([currentTier, lifetimeSpend])
+  @@map("customer_memberships")
+}
+
+model MembershipTransaction {
+  id          String           @id @default(ulid())
+  orderId     String           @unique @map("order_id")
+  userId      String           @map("user_id")
+  amount      Decimal          @db.Decimal(16, 0)
+  effectiveAt DateTime?        @map("effective_at")
+  source      MembershipSource
+  createdAt   DateTime         @default(now()) @map("created_at")
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, effectiveAt, id])
+  @@map("membership_transactions")
+}
+
+model MembershipTierHistory {
+  id            String           @id @default(ulid())
+  userId        String           @map("user_id")
+  fromTier      MembershipTier   @map("from_tier")
+  toTier        MembershipTier   @map("to_tier")
+  source        MembershipSource
+  orderId       String?          @map("order_id")
+  configVersion Int              @map("config_version")
+  effectiveAt   DateTime?        @map("effective_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, toTier])
+  @@index([userId, createdAt, id])
+  @@map("membership_tier_histories")
+}
+
+model MembershipConfigAudit {
+  id          String   @id @default(ulid())
+  actorUserId String   @map("actor_user_id")
+  version     Int      @unique
+  previous    Json
+  next        Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("membership_config_audits")
+}

@@ -9,7 +9,12 @@ import {
   Prisma,
   type NotificationDispatch,
   type Notification,
+  type MembershipTier,
 } from '@/generated/prisma/client';
+import {
+  MEMBERSHIP_TIERS,
+  TIER_LABELS,
+} from '@/modules/membership/membership-rules';
 import { PrismaService } from '@/database/prisma.service';
 import { RealtimePublisher } from '@/modules/realtime/realtime-publisher';
 import { activeFlashUsage } from '@/modules/flash-sales/flash-sale-allocations';
@@ -22,7 +27,8 @@ interface Message {
   title: string;
   content: string;
   category: 'ORDER' | 'PROMOTION';
-  referenceType: 'ORDER' | 'COUPON' | 'FLASH_SALE';
+  referenceType: 'ORDER' | 'COUPON' | 'FLASH_SALE' | 'MEMBERSHIP';
+  minimumMembershipTier?: MembershipTier | null;
   branchId: string | null;
   customerId?: string;
 }
@@ -187,6 +193,23 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
               createdAt: { lte: cutoff },
               id: job.cursor ? { gt: job.cursor } : undefined,
               ...(message.customerId ? { id: message.customerId } : {}),
+              ...(message.minimumMembershipTier &&
+              message.minimumMembershipTier !== 'BRONZE'
+                ? {
+                    membershipTierHistories: {
+                      some: {
+                        toTier: {
+                          in: MEMBERSHIP_TIERS.slice(
+                            MEMBERSHIP_TIERS.indexOf(
+                              message.minimumMembershipTier,
+                            ),
+                          ),
+                        },
+                        createdAt: { lte: cutoff },
+                      },
+                    },
+                  }
+                : {}),
               ...(message.branchId
                 ? {
                     userBranches: {
@@ -317,7 +340,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       {
         name: 'notification.changed',
         version: 1,
-        data: { id: row.id, branchId: row.branchId },
+        data: { id: row.id, branchId: row.branchId, type: row.type },
       },
       (principal) => canReceiveNotifications(principal, row.branchId),
     );
@@ -328,6 +351,21 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     job: NotificationDispatch,
     now: Date,
   ): Promise<Message | null> {
+    if (job.kind === 'MEMBERSHIP_UPGRADED') {
+      const history = await tx.membershipTierHistory.findFirst({
+        where: { orderId: job.referenceId, source: 'ORDER' },
+      });
+      if (!history || history.source !== 'ORDER') return null;
+      return {
+        title: `Bạn đã đạt hạng ${TIER_LABELS[history.toTier]}`,
+        content:
+          'Chi tiêu hợp lệ đã được tích lũy. Xem hạng thành viên và các coupon theo chiến dịch tại Bookora.',
+        category: 'PROMOTION',
+        referenceType: 'MEMBERSHIP',
+        branchId: null,
+        customerId: history.userId,
+      };
+    }
     if (job.kind === 'COUPON_ACTIVE') {
       const coupon = await tx.coupon.findUnique({
         where: { id: job.referenceId },
@@ -362,6 +400,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         category: 'PROMOTION',
         branchId: null,
         referenceType: 'COUPON',
+        minimumMembershipTier: coupon.minimumMembershipTier,
         content: `${coupon.type === 'SHIPPING' ? 'Giảm phí vận chuyển' : 'Giảm giá đơn hàng'} ${coupon.discountType === 'PERCENTAGE' ? `${Number(coupon.discountValue)}%` : money(coupon.discountValue)}${coupon.minOrderAmount ? `, đơn từ ${money(coupon.minOrderAmount)}` : ''}${coupon.maxDiscount ? `, tối đa ${money(coupon.maxDiscount)}` : ''}. Đến ${coupon.endAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}. Điều kiện áp dụng khi thanh toán.`,
       };
     }

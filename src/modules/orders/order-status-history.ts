@@ -8,6 +8,7 @@ import {
   type OrderNotificationKind,
 } from '@/modules/notifications/notification-intents';
 import { signalOrderChange } from './order-change-signal';
+import { creditMembershipOrder } from '@/modules/membership/membership-credit';
 
 export interface RecordOrderStatusHistoryInput {
   orderId: string;
@@ -83,6 +84,8 @@ export async function recordOrderStatusHistory(
       branchId: input.branchId,
       actorUserId: input.actorUserId,
     });
+  if (input.fromStatus !== input.toStatus && input.toStatus === 'COMPLETED')
+    await creditMembershipOrder(tx, input.orderId);
   if (input.fromStatus !== input.toStatus)
     await signalOrderChange(tx, input.orderId);
   return history;

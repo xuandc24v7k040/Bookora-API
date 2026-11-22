@@ -12,6 +12,10 @@ import type { BranchContext } from '@/modules/authorization';
 import { AdminOrdersService } from './admin-orders.service';
 import type { AdminOrdersRepository } from './admin-orders.repository';
 
+jest.mock('@/modules/membership/membership-credit', () => ({
+  creditMembershipOrder: jest.fn().mockResolvedValue('INELIGIBLE'),
+}));
+
 const branchContext = {
   scope: 'SELECTED',
   selectedBranchId: 'branch-1',

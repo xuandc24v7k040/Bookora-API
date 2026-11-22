@@ -6,6 +6,7 @@ export function couponRuleVersion(coupon: Coupon): string {
     coupon.code,
     coupon.type,
     coupon.visibility,
+    coupon.minimumMembershipTier,
     coupon.discountType,
     coupon.discountValue,
     coupon.minOrderAmount,
