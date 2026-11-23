@@ -56,9 +56,14 @@ const TITLES: Record<string, string> = {
 export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
-  private stopped = false;
+  private stopped = true;
   private draining = false;
   private wakeHandle?: ReturnType<typeof setImmediate>;
+  private promotionTimer?: ReturnType<typeof setTimeout>;
+  private deadlineTask?: Promise<void>;
+  private deadlineDirty = false;
+  private dueWorkPending = false;
+  private contentionRetryAt = 0;
   private readonly pendingOrders = new Set<string>();
   private readonly idleWaiters = new Set<() => void>();
   private readonly logger = new Logger(NotificationWorker.name);
@@ -77,18 +82,26 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     if (!Number.isInteger(pollMs) || pollMs < 100 || pollMs > 60000)
       throw new Error('NOTIFICATIONS_POLL_MS phải từ 100 đến 60000.');
     this.timer = setInterval(() => {
-      void this.tick();
+      this.dueWorkPending = true;
+      this.scheduleWake();
+      this.wakePromotions();
     }, pollMs);
     this.timer.unref();
+    this.wakePromotions();
   }
   async onModuleDestroy(): Promise<void> {
     this.stopped = true;
     if (this.timer) clearInterval(this.timer);
     if (this.wakeHandle) clearImmediate(this.wakeHandle);
+    if (this.promotionTimer) clearTimeout(this.promotionTimer);
+    this.promotionTimer = undefined;
+    this.deadlineDirty = false;
+    this.dueWorkPending = false;
     this.wakeHandle = undefined;
     this.pendingOrders.clear();
     if (this.running)
       await new Promise<void>((resolve) => this.idleWaiters.add(resolve));
+    await this.deadlineTask;
   }
 
   /** A best-effort hint, never an alternative to durable dueAt/claim/retry. */
@@ -98,13 +111,64 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     this.scheduleWake();
   }
 
+  /** Coalesced post-commit hint. There is one deadline for all pending promotions. */
+  wakePromotions(): void {
+    if (this.stopped) return;
+    this.deadlineDirty = true;
+    if (this.deadlineTask) return;
+    this.deadlineTask = this.rearmPromotionDeadline().finally(() => {
+      this.deadlineTask = undefined;
+      if (this.deadlineDirty && !this.stopped) this.wakePromotions();
+    });
+  }
+
+  private async rearmPromotionDeadline(): Promise<void> {
+    try {
+      do {
+        this.deadlineDirty = false;
+        if (this.promotionTimer) clearTimeout(this.promotionTimer);
+        this.promotionTimer = undefined;
+        const started = performance.now();
+        const [next] = await this.prisma.$queryRaw<Array<{ delayMs: number }>>`
+          SELECT EXTRACT(EPOCH FROM (due_at - (clock_timestamp() AT TIME ZONE 'UTC'))) * 1000 AS "delayMs"
+          FROM notification_dispatches
+          WHERE state = 'PENDING' AND kind IN ('COUPON_ACTIVE', 'FLASH_SALE_ACTIVE')
+          ORDER BY due_at, id LIMIT 1`;
+        if (this.stopped) return;
+        if (this.deadlineDirty) continue;
+        if (!next) return;
+        const delay = Math.max(
+          Number(next.delayMs) - (performance.now() - started),
+          this.contentionRetryAt - performance.now(),
+        );
+        if (delay <= 0) {
+          this.dueWorkPending = true;
+          this.scheduleWake();
+          return;
+        }
+        this.promotionTimer = setTimeout(
+          () => {
+            this.promotionTimer = undefined;
+            this.dueWorkPending = true;
+            this.scheduleWake();
+          },
+          Math.min(2_147_483_647, Math.max(1, Math.ceil(delay) + 5)),
+        );
+        this.promotionTimer.unref();
+      } while (this.deadlineDirty && !this.stopped);
+    } catch {
+      // A missed deadline lookup is repaired by the existing bounded poll.
+      this.logger.warn('Không thể hẹn promotion wake; polling sẽ thử lại.');
+    }
+  }
+
   private scheduleWake(): void {
     if (
       this.stopped ||
       this.running ||
       this.draining ||
       this.wakeHandle ||
-      !this.pendingOrders.size
+      (!this.pendingOrders.size && !this.dueWorkPending)
     )
       return;
     this.wakeHandle = setImmediate(() => {
@@ -117,16 +181,22 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
   private async drainOrders(): Promise<void> {
     this.draining = true;
     try {
-      // Yield between bounded runs; the existing poll still services promotions.
+      // Alternate targeted Orders with FIFO due work, then yield after eight batches.
       for (let batch = 0; batch < 8 && !this.stopped; batch++) {
         const orderId = this.pendingOrders.values().next().value;
-        if (!orderId) break;
-        this.pendingOrders.delete(orderId);
-        if (await this.tick(orderId)) this.pendingOrders.add(orderId);
+        if (orderId && (batch % 2 === 0 || !this.dueWorkPending)) {
+          this.pendingOrders.delete(orderId);
+          if (await this.tick(orderId)) this.pendingOrders.add(orderId);
+        } else if (this.dueWorkPending) {
+          this.dueWorkPending = false;
+          if (await this.tick()) this.dueWorkPending = true;
+          else this.contentionRetryAt = performance.now() + 250;
+        } else break;
       }
     } finally {
       this.draining = false;
       this.scheduleWake();
+      this.wakePromotions();
     }
   }
 
@@ -331,6 +401,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       for (const resolve of this.idleWaiters) resolve();
       this.idleWaiters.clear();
       this.scheduleWake();
+      if (!orderId && !this.draining) this.wakePromotions();
     }
   }
 

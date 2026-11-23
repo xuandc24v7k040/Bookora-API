@@ -301,15 +301,15 @@ export class CouponsService {
   private async response(
     client: CouponClient,
     coupon: Coupon,
+    now = new Date(),
   ): Promise<CouponResponseDto> {
     const groups = await client.couponRedemption.groupBy({
       by: ['status'],
-      where: { couponId: coupon.id, ...activeUsage() },
+      where: { couponId: coupon.id, ...activeUsage(now) },
       _count: true,
     });
     const consumed = groups.find((g) => g.status === 'CONSUMED')?._count ?? 0;
     const reserved = groups.find((g) => g.status === 'RESERVED')?._count ?? 0;
-    const now = new Date();
     const status = !coupon.isActive
       ? CouponStatus.INACTIVE
       : coupon.startAt > now
@@ -353,7 +353,7 @@ export class CouponsService {
       );
       quotaIds = rows.map((row) => row.id);
     }
-    const where: Prisma.CouponWhereInput = {
+    const scope: Prisma.CouponWhereInput = {
       type: query.type,
       visibility: query.visibility,
       discountType: query.discountType,
@@ -365,6 +365,9 @@ export class CouponsService {
             ],
           }
         : {}),
+    };
+    const where: Prisma.CouponWhereInput = {
+      ...scope,
       ...(status === CouponStatus.INACTIVE
         ? { isActive: false }
         : status
@@ -387,7 +390,9 @@ export class CouponsService {
     };
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
-    const [rows, totalItems] = await Promise.all([
+    // Deliberately omit status and pagination: hidden rows may enter this filter.
+    const boundaryScope = { ...scope, isActive: true };
+    const [rows, totalItems, starts, ends] = await Promise.all([
       this.repository.client.coupon.findMany({
         where,
         skip: (page - 1) * limit,
@@ -398,11 +403,25 @@ export class CouponsService {
         ],
       }),
       this.repository.client.coupon.count({ where }),
+      this.repository.client.coupon.aggregate({
+        where: { ...boundaryScope, startAt: { gt: now } },
+        _min: { startAt: true },
+      }),
+      this.repository.client.coupon.aggregate({
+        where: { ...boundaryScope, endAt: { gt: now } },
+        _min: { endAt: true },
+      }),
     ]);
     return {
       items: await Promise.all(
-        rows.map((row) => this.response(this.repository.client, row)),
+        rows.map((row) => this.response(this.repository.client, row, now)),
       ),
+      serverNow: now.toISOString(),
+      nextTransitionAt:
+        [starts._min.startAt, ends._min.endAt]
+          .filter((date): date is Date => date !== null)
+          .sort((a, b) => a.getTime() - b.getTime())[0]
+          ?.toISOString() ?? null,
       page,
       limit,
       totalItems,

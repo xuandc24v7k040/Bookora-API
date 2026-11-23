@@ -147,6 +147,9 @@ export class FlashSaleResponseDto {
   @ApiProperty({ type: String, nullable: true }) controlReason!: string | null;
 }
 export class FlashSaleListResponseDto {
+  @ApiProperty({ format: 'date-time' }) serverNow!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  nextTransitionAt!: string | null;
   @ApiProperty({ type: [FlashSaleResponseDto] }) items!: FlashSaleResponseDto[];
   @ApiProperty() page!: number;
   @ApiProperty() limit!: number;

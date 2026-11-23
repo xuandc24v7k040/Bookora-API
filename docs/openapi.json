@@ -37939,6 +37939,15 @@
       "CouponListResponseDto": {
         "type": "object",
         "properties": {
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextTransitionAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "items": {
             "type": "array",
             "items": {
@@ -37959,6 +37968,8 @@
           }
         },
         "required": [
+          "serverNow",
+          "nextTransitionAt",
           "items",
           "page",
           "limit",
@@ -38248,6 +38259,15 @@
       "FlashSaleListResponseDto": {
         "type": "object",
         "properties": {
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextTransitionAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "items": {
             "type": "array",
             "items": {
@@ -38268,6 +38288,8 @@
           }
         },
         "required": [
+          "serverNow",
+          "nextTransitionAt",
           "items",
           "page",
           "limit",

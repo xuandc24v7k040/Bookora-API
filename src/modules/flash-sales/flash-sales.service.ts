@@ -169,7 +169,13 @@ export class FlashSalesService {
         ? { name: { contains: query.search.trim(), mode: 'insensitive' } }
         : {}),
     };
-    const [rows, totalItems] = await Promise.all([
+    const boundaryScope: Prisma.FlashSaleWhereInput = {
+      state: 'PUBLISHED',
+      ...(query.search
+        ? { name: { contains: query.search.trim(), mode: 'insensitive' } }
+        : {}),
+    };
+    const [rows, totalItems, starts, ends] = await Promise.all([
       this.prisma.flashSale.findMany({
         where,
         orderBy: [
@@ -184,6 +190,14 @@ export class FlashSalesService {
         include: saleInclude,
       }),
       this.prisma.flashSale.count({ where }),
+      this.prisma.flashSale.aggregate({
+        where: { ...boundaryScope, startAt: { gt: now } },
+        _min: { startAt: true },
+      }),
+      this.prisma.flashSale.aggregate({
+        where: { ...boundaryScope, endAt: { gt: now } },
+        _min: { endAt: true },
+      }),
     ]);
     const items = await Promise.all(
       rows.map(async (sale) => {
@@ -197,6 +211,12 @@ export class FlashSalesService {
     );
     return {
       items,
+      serverNow: now.toISOString(),
+      nextTransitionAt:
+        [starts._min.startAt, ends._min.endAt]
+          .filter((date): date is Date => date !== null)
+          .sort((a, b) => a.getTime() - b.getTime())[0]
+          ?.toISOString() ?? null,
       page,
       limit,
       totalItems,

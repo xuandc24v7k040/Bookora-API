@@ -1,4 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client';
+import { PROMOTION_WAKE_CHANNEL } from './promotion-wake-signal';
 
 export type OrderNotificationKind =
   | 'ORDER_NEW_COD'
@@ -57,4 +58,6 @@ export async function schedulePromotion(
     create: { kind, referenceId: id, eventKey, dueAt: startAt },
     update: { dueAt: startAt, state: 'PENDING', skipReason: null },
   });
+  // Delivered after the OUTERMOST commit; rollback never produces a wake.
+  await tx.$executeRaw`SELECT pg_notify(${PROMOTION_WAKE_CHANNEL}, '')`;
 }

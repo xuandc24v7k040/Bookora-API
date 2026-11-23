@@ -212,6 +212,9 @@ export class CouponResponseDto {
   @ApiProperty({ type: Number, nullable: true }) remaining!: number | null;
 }
 export class CouponListResponseDto {
+  @ApiProperty({ format: 'date-time' }) serverNow!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  nextTransitionAt!: string | null;
   @ApiProperty({ type: [CouponResponseDto] }) items!: CouponResponseDto[];
   @ApiProperty() page!: number;
   @ApiProperty() limit!: number;
