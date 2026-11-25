@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -92,6 +93,25 @@ export class R2ObjectStorageService {
       throw new ServiceUnavailableException({
         code: 'STORAGE_DELETE_FAILED',
         message: 'Không thể xóa tệp khỏi kho lưu trữ',
+      });
+    }
+  }
+
+  /** Private proxy only: authorization is performed by the owning domain. */
+  async readPrivate(key: string) {
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.config.privateBucket,
+          Key: this.normalizeKey(key),
+        }),
+      );
+      if (!result.Body) throw new Error('Missing object body');
+      return result.Body;
+    } catch {
+      throw new ServiceUnavailableException({
+        code: 'STORAGE_READ_FAILED',
+        message: 'Không thể đọc tệp từ kho lưu trữ.',
       });
     }
   }

@@ -47,6 +47,7 @@ model Order {
   sourceCustomerAddress UserAddress? @relation("OrderSourceCustomerAddress", fields: [sourceCustomerAddressId], references: [id], onDelete: SetNull)
   internalNoteUpdatedBy User?        @relation("OrderInternalNoteUpdatedBy", fields: [internalNoteUpdatedById], references: [id], onDelete: SetNull)
 
+  supportTickets       SupportTicket[]
   items                OrderItem[]
   membershipTransaction MembershipTransaction?
   payment              Payment?

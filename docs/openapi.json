@@ -1,300 +1,39 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/health": {
+    "/support/assignees": {
       "get": {
-        "operationId": "healthGetHealth",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Kiểm tra trạng thái thành công",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "statusCode",
-                    "message",
-                    "data"
-                  ],
-                  "properties": {
-                    "statusCode": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Kiểm tra trạng thái thành công"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/HealthResponseDto"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Kiểm tra trạng thái ứng dụng",
-        "tags": [
-          "health"
-        ],
-        "description": "Kiểm tra trạng thái ứng dụng",
-        "security": []
-      }
-    },
-    "/integrations/vietmap/reverse": {
-      "get": {
-        "operationId": "vietMapReverse",
+        "operationId": "supportAssigneesList",
         "parameters": [
           {
-            "name": "latitude",
-            "required": true,
+            "name": "query",
+            "required": false,
             "in": "query",
             "schema": {
-              "minimum": -90,
-              "maximum": 90,
-              "example": 10.0452,
-              "type": "number"
-            }
-          },
-          {
-            "name": "longitude",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "minimum": -180,
-              "maximum": 180,
-              "example": 105.7469,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Branch location resolved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "statusCode",
-                    "message",
-                    "data"
-                  ],
-                  "properties": {
-                    "statusCode": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Branch location resolved"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/VietMapLocationResponseDto"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "VietMap provider unavailable"
-          },
-          "504": {
-            "description": "VietMap provider timeout"
-          }
-        },
-        "security": [
-          {
-            "accessToken": []
-          }
-        ],
-        "summary": "Reverse geocode a branch location with VietMap v4",
-        "tags": [
-          "vietmap"
-        ],
-        "description": "Reverse geocode a branch location with VietMap v4"
-      }
-    },
-    "/integrations/vietmap/autocomplete": {
-      "get": {
-        "operationId": "vietMapAutocomplete",
-        "parameters": [
-          {
-            "name": "text",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "minLength": 2,
-              "maxLength": 200,
-              "example": "Đường 30 tháng 4",
+              "maxLength": 160,
               "type": "string"
             }
           },
           {
-            "name": "focusLatitude",
+            "name": "cursor",
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": -90,
-              "maximum": 90,
-              "example": 10.0452,
-              "type": "number"
+              "type": "string"
             }
           },
           {
-            "name": "focusLongitude",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": -180,
-              "maximum": 180,
-              "example": 105.7469,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Location suggestions retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "statusCode",
-                    "message",
-                    "data"
-                  ],
-                  "properties": {
-                    "statusCode": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Location suggestions retrieved"
-                    },
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/VietMapSuggestionResponseDto"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "VietMap provider unavailable"
-          },
-          "504": {
-            "description": "VietMap provider timeout"
-          }
-        },
-        "security": [
-          {
-            "accessToken": []
-          }
-        ],
-        "summary": "Search branch location suggestions with VietMap v4",
-        "tags": [
-          "vietmap"
-        ],
-        "description": "Search branch location suggestions with VietMap v4"
-      }
-    },
-    "/integrations/vietmap/place": {
-      "get": {
-        "operationId": "vietMapPlace",
-        "parameters": [
-          {
-            "name": "reference",
+            "name": "x-branch-id",
             "required": true,
-            "in": "query",
+            "in": "header",
             "schema": {
-              "minLength": 1,
-              "maxLength": 2048,
               "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Place resolved",
+            "description": "Chỉ ID và tên; cần support.read và support.manage.",
             "content": {
               "application/json": {
                 "schema": {
@@ -311,10 +50,10 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Place resolved"
+                      "example": "Chỉ ID và tên; cần support.read và support.manage."
                     },
                     "data": {
-                      "$ref": "#/components/schemas/VietMapLocationResponseDto"
+                      "$ref": "#/components/schemas/SupportAssigneeListDto"
                     }
                   }
                 }
@@ -350,43 +89,196 @@
                 }
               }
             }
-          },
-          "502": {
-            "description": "VietMap provider unavailable"
-          },
-          "504": {
-            "description": "VietMap provider timeout"
           }
         },
         "security": [
           {
+            "csrfHeader": []
+          },
+          {
             "accessToken": []
           }
         ],
-        "summary": "Resolve a VietMap v4 place reference",
+        "summary": "Nhân viên đủ quyền hỗ trợ tại chi nhánh hiện tại",
         "tags": [
-          "vietmap"
+          "support"
         ],
-        "description": "Resolve a VietMap v4 place reference"
+        "description": "Nhân viên đủ quyền hỗ trợ tại chi nhánh hiện tại"
       }
     },
-    "/users": {
+    "/support/tickets": {
+      "get": {
+        "operationId": "supportTicketsList",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": false,
+            "in": "query",
+            "description": "Lọc chính xác đơn hàng trong phạm vi được phép.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "IN_PROGRESS",
+                "RESOLVED"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GENERAL",
+                "ORDER"
+              ]
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30,
+              "type": "number"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách hội thoại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Danh sách hội thoại."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketListDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Hội thoại hỗ trợ trong phạm vi được cấp",
+        "tags": [
+          "support"
+        ],
+        "description": "Hội thoại hỗ trợ trong phạm vi được cấp"
+      },
       "post": {
-        "operationId": "usersCreate",
+        "operationId": "supportTicketCreate",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateUserDto"
+                "$ref": "#/components/schemas/SupportCreateDto"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Tạo người dùng thành công",
+            "description": "Tin nhắn đã lưu.",
             "content": {
               "application/json": {
                 "schema": {
@@ -403,10 +295,10 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Tạo người dùng thành công"
+                      "example": "Tin nhắn đã lưu."
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserResponseDto"
+                      "$ref": "#/components/schemas/SupportSendResultDto"
                     }
                   }
                 }
@@ -451,22 +343,408 @@
             "csrfHeader": []
           }
         ],
-        "summary": "Tạo người dùng",
+        "summary": "Tạo hoặc tái sử dụng hội thoại cùng tin đầu tiên",
         "tags": [
-          "users"
+          "support"
         ],
-        "description": "Tạo người dùng"
-      },
+        "description": "Tạo hoặc tái sử dụng hội thoại cùng tin đầu tiên"
+      }
+    },
+    "/support/unread": {
       "get": {
-        "operationId": "usersFindAll",
+        "operationId": "supportUnread",
         "parameters": [
           {
-            "name": "page",
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Số tin chưa đọc.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Số tin chưa đọc."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportUnreadDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Số tin hỗ trợ chưa đọc",
+        "tags": [
+          "support"
+        ],
+        "description": "Số tin hỗ trợ chưa đọc"
+      }
+    },
+    "/support/orders/{orderId}/context": {
+      "get": {
+        "operationId": "supportOwnedOrderContext",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ngữ cảnh đơn hàng thuộc khách.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Ngữ cảnh đơn hàng thuộc khách."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportOrderContextDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Tìm hỗ trợ cho đơn hàng của tôi",
+        "tags": [
+          "support"
+        ],
+        "description": "Tìm hỗ trợ cho đơn hàng của tôi"
+      }
+    },
+    "/support/tickets/{ticketId}": {
+      "get": {
+        "operationId": "supportTicketDetail",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thông tin hội thoại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Thông tin hội thoại."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Chi tiết hội thoại",
+        "tags": [
+          "support"
+        ],
+        "description": "Chi tiết hội thoại"
+      }
+    },
+    "/support/tickets/{ticketId}/order-context": {
+      "get": {
+        "operationId": "supportTicketOrderContext",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tóm tắt đơn hàng, không có địa chỉ hoặc thông tin thanh toán.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tóm tắt đơn hàng, không có địa chỉ hoặc thông tin thanh toán."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportOrderContextDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Tóm tắt đơn hàng an toàn trong hội thoại",
+        "tags": [
+          "support"
+        ],
+        "description": "Tóm tắt đơn hàng an toàn trong hội thoại"
+      }
+    },
+    "/support/tickets/{ticketId}/messages": {
+      "get": {
+        "operationId": "supportMessagesList",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "beforeSequence",
             "required": false,
             "in": "query",
             "schema": {
-              "minimum": 1,
-              "default": 1,
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          {
+            "name": "afterSequence",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
               "type": "number"
             }
           },
@@ -476,220 +754,23 @@
             "in": "query",
             "schema": {
               "minimum": 1,
-              "maximum": 100,
-              "default": 10,
+              "maximum": 50,
+              "default": 30,
               "type": "number"
             }
           },
           {
-            "name": "search",
+            "name": "x-branch-id",
             "required": false,
-            "in": "query",
+            "in": "header",
             "schema": {
-              "example": "admin",
               "type": "string"
             }
-          },
-          {
-            "name": "sortBy",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "createdAt",
-                "updatedAt",
-                "email",
-                "fullName",
-                "phone",
-                "type",
-                "provider",
-                "isActive",
-                "lastLoginAt"
-              ]
-            }
-          },
-          {
-            "name": "sortOrder",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "asc",
-                "desc"
-              ]
-            }
-          },
-          {
-            "name": "type",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "SYSTEM",
-                "BRANCH",
-                "CUSTOMER"
-              ]
-            }
-          },
-          {
-            "name": "provider",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "LOCAL",
-                "GOOGLE"
-              ]
-            }
-          },
-          {
-            "name": "isActive",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": true,
-              "type": "boolean"
-            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Lấy danh sách người dùng thành công",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "statusCode",
-                    "message",
-                    "data",
-                    "meta"
-                  ],
-                  "properties": {
-                    "statusCode": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Lấy danh sách người dùng thành công"
-                    },
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/UserResponseDto"
-                      }
-                    },
-                    "meta": {
-                      "type": "object",
-                      "required": [
-                        "total",
-                        "page",
-                        "lastPage",
-                        "limit",
-                        "hasNextPage",
-                        "hasPreviousPage"
-                      ],
-                      "properties": {
-                        "total": {
-                          "type": "number",
-                          "example": 42
-                        },
-                        "page": {
-                          "type": "number",
-                          "example": 1
-                        },
-                        "lastPage": {
-                          "type": "number",
-                          "example": 5
-                        },
-                        "limit": {
-                          "type": "number",
-                          "example": 10
-                        },
-                        "hasNextPage": {
-                          "type": "boolean",
-                          "example": true
-                        },
-                        "hasPreviousPage": {
-                          "type": "boolean",
-                          "example": false
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "accessToken": []
-          }
-        ],
-        "summary": "Lấy danh sách người dùng",
-        "tags": [
-          "users"
-        ],
-        "description": "Lấy danh sách người dùng"
-      }
-    },
-    "/users/{id}": {
-      "get": {
-        "operationId": "usersFindOne",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "format": "ulid",
-              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "minLength": 26,
-              "maxLength": 26,
-              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Lấy người dùng thành công",
+            "description": "Lịch sử tin nhắn.",
             "content": {
               "application/json": {
                 "schema": {
@@ -706,10 +787,10 @@
                     },
                     "message": {
                       "type": "string",
-                      "example": "Lấy người dùng thành công"
+                      "example": "Lịch sử tin nhắn."
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserResponseDto"
+                      "$ref": "#/components/schemas/SupportHistoryDto"
                     }
                   }
                 }
@@ -749,29 +830,35 @@
         },
         "security": [
           {
+            "csrfHeader": []
+          },
+          {
             "accessToken": []
           }
         ],
-        "summary": "Lấy người dùng theo id",
+        "summary": "Lịch sử hoặc delta tin nhắn theo sequence",
         "tags": [
-          "users"
+          "support"
         ],
-        "description": "Lấy người dùng theo id"
+        "description": "Lịch sử hoặc delta tin nhắn theo sequence"
       },
-      "patch": {
-        "operationId": "usersUpdate",
+      "post": {
+        "operationId": "supportMessageSend",
         "parameters": [
           {
-            "name": "id",
+            "name": "ticketId",
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string",
-              "format": "ulid",
-              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "minLength": 26,
-              "maxLength": 26,
-              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -780,14 +867,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateUserDto"
+                "$ref": "#/components/schemas/SupportMessageInputDto"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Cập nhật người dùng thành công",
+          "201": {
+            "description": "Tin nhắn đã lưu.",
             "content": {
               "application/json": {
                 "schema": {
@@ -800,14 +887,14 @@
                   "properties": {
                     "statusCode": {
                       "type": "number",
-                      "example": 200
+                      "example": 201
                     },
                     "message": {
                       "type": "string",
-                      "example": "Cập nhật người dùng thành công"
+                      "example": "Tin nhắn đã lưu."
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserResponseDto"
+                      "$ref": "#/components/schemas/SupportSendResultDto"
                     }
                   }
                 }
@@ -852,124 +939,47 @@
             "csrfHeader": []
           }
         ],
-        "summary": "Cập nhật người dùng theo id",
+        "summary": "Gửi tin nhắn hỗ trợ",
         "tags": [
-          "users"
+          "support"
         ],
-        "description": "Cập nhật người dùng theo id"
-      },
-      "delete": {
-        "operationId": "usersRemove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string",
-              "format": "ulid",
-              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "minLength": 26,
-              "maxLength": 26,
-              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Khóa tài khoản người dùng thành công",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "statusCode",
-                    "message",
-                    "data"
-                  ],
-                  "properties": {
-                    "statusCode": {
-                      "type": "number",
-                      "example": 200
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Khóa tài khoản người dùng thành công"
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/UserResponseDto"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "accessToken": [],
-            "csrfCookie": [],
-            "csrfHeader": []
-          }
-        ],
-        "summary": "Khóa tài khoản người dùng theo id",
-        "tags": [
-          "users"
-        ],
-        "description": "Khóa tài khoản người dùng theo id"
+        "description": "Gửi tin nhắn hỗ trợ"
       }
     },
-    "/users/{id}/activate": {
-      "patch": {
-        "operationId": "usersActivate",
+    "/support/tickets/{ticketId}/read": {
+      "post": {
+        "operationId": "supportTicketRead",
         "parameters": [
           {
-            "name": "id",
+            "name": "ticketId",
             "required": true,
             "in": "path",
             "schema": {
-              "type": "string",
-              "format": "ulid",
-              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
-              "minLength": 26,
-              "maxLength": 26,
-              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportReadDto"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "Kích hoạt người dùng thành công",
+          "201": {
+            "description": "Mốc đã đọc tăng đơn điệu.",
             "content": {
               "application/json": {
                 "schema": {
@@ -982,14 +992,14 @@
                   "properties": {
                     "statusCode": {
                       "type": "number",
-                      "example": 200
+                      "example": 201
                     },
                     "message": {
                       "type": "string",
-                      "example": "Kích hoạt người dùng thành công"
+                      "example": "Mốc đã đọc tăng đơn điệu."
                     },
                     "data": {
-                      "$ref": "#/components/schemas/UserResponseDto"
+                      "$ref": "#/components/schemas/SupportReadResultDto"
                     }
                   }
                 }
@@ -1034,11 +1044,855 @@
             "csrfHeader": []
           }
         ],
-        "summary": "Kích hoạt lại người dùng theo id",
+        "summary": "Đánh dấu đã thực sự đọc tới sequence",
         "tags": [
-          "users"
+          "support"
         ],
-        "description": "Kích hoạt lại người dùng theo id"
+        "description": "Đánh dấu đã thực sự đọc tới sequence"
+      }
+    },
+    "/support/tickets/{ticketId}/claim": {
+      "post": {
+        "operationId": "supportTicketClaim",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Hội thoại sau tiếp nhận.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hội thoại sau tiếp nhận."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tiếp nhận hội thoại nguyên tử",
+        "tags": [
+          "support"
+        ],
+        "description": "Tiếp nhận hội thoại nguyên tử"
+      }
+    },
+    "/support/tickets/{ticketId}/unclaim": {
+      "post": {
+        "operationId": "supportTicketUnclaim",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Hội thoại chưa phân công.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hội thoại chưa phân công."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Trả hội thoại về chờ tiếp nhận",
+        "tags": [
+          "support"
+        ],
+        "description": "Trả hội thoại về chờ tiếp nhận"
+      }
+    },
+    "/support/tickets/{ticketId}/reassign": {
+      "post": {
+        "operationId": "supportTicketReassign",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportReassignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đã phân công người phụ trách.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã phân công người phụ trách."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Quản lý phân công hoặc tiếp quản hội thoại",
+        "tags": [
+          "support"
+        ],
+        "description": "Quản lý phân công hoặc tiếp quản hội thoại"
+      }
+    },
+    "/support/tickets/{ticketId}/resolve": {
+      "post": {
+        "operationId": "supportTicketResolve",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Hội thoại đã giải quyết.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hội thoại đã giải quyết."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Đánh dấu đã giải quyết",
+        "tags": [
+          "support"
+        ],
+        "description": "Đánh dấu đã giải quyết"
+      }
+    },
+    "/support/tickets/{ticketId}/reopen": {
+      "post": {
+        "operationId": "supportTicketReopen",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Hội thoại tiếp tục hỗ trợ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Hội thoại tiếp tục hỗ trợ."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportTicketDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Khách chủ động mở lại hoặc nhận hội thoại active hiện tại",
+        "tags": [
+          "support"
+        ],
+        "description": "Khách chủ động mở lại hoặc nhận hội thoại active hiện tại"
+      }
+    },
+    "/support/tickets/{ticketId}/activities": {
+      "get": {
+        "operationId": "supportTicketActivities",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lịch sử thao tác có phân trang.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lịch sử thao tác có phân trang."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportActivityListDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lịch sử tiếp nhận và xử lý hội thoại",
+        "tags": [
+          "support"
+        ],
+        "description": "Lịch sử tiếp nhận và xử lý hội thoại"
+      }
+    },
+    "/support/attachments": {
+      "post": {
+        "operationId": "supportAttachmentUpload",
+        "parameters": [
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportUploadBodyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tệp chờ gắn tin nhắn.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tệp chờ gắn tin nhắn."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportAttachmentDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tải tệp riêng tư vào ngữ cảnh hỗ trợ, hết hạn sau một giờ nếu chưa gửi",
+        "tags": [
+          "support"
+        ],
+        "description": "Tải tệp riêng tư vào ngữ cảnh hỗ trợ, hết hạn sau một giờ nếu chưa gửi"
+      }
+    },
+    "/support/attachments/{attachmentId}": {
+      "delete": {
+        "operationId": "supportAttachmentDiscard",
+        "parameters": [
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đã lên lịch xóa tệp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Đã lên lịch xóa tệp."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SupportDiscardResultDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Hủy tệp chưa gửi của chính mình",
+        "tags": [
+          "support"
+        ],
+        "description": "Hủy tệp chưa gửi của chính mình"
+      }
+    },
+    "/support/attachments/{attachmentId}/content": {
+      "get": {
+        "operationId": "supportAttachmentContent",
+        "parameters": [
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-branch-id",
+            "required": false,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nội dung tệp riêng tư.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "csrfHeader": []
+          },
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Tải tệp qua proxy có kiểm tra quyền hiện tại",
+        "tags": [
+          "support"
+        ],
+        "description": "Tải tệp qua proxy có kiểm tra quyền hiện tại"
       }
     },
     "/roles": {
@@ -7819,6 +8673,1046 @@
           "staff"
         ],
         "description": "Set staff primary branch"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthGetHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Kiểm tra trạng thái thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Kiểm tra trạng thái thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/HealthResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Kiểm tra trạng thái ứng dụng",
+        "tags": [
+          "health"
+        ],
+        "description": "Kiểm tra trạng thái ứng dụng",
+        "security": []
+      }
+    },
+    "/integrations/vietmap/reverse": {
+      "get": {
+        "operationId": "vietMapReverse",
+        "parameters": [
+          {
+            "name": "latitude",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -90,
+              "maximum": 90,
+              "example": 10.0452,
+              "type": "number"
+            }
+          },
+          {
+            "name": "longitude",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minimum": -180,
+              "maximum": 180,
+              "example": 105.7469,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Branch location resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Branch location resolved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/VietMapLocationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "VietMap provider unavailable"
+          },
+          "504": {
+            "description": "VietMap provider timeout"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Reverse geocode a branch location with VietMap v4",
+        "tags": [
+          "vietmap"
+        ],
+        "description": "Reverse geocode a branch location with VietMap v4"
+      }
+    },
+    "/integrations/vietmap/autocomplete": {
+      "get": {
+        "operationId": "vietMapAutocomplete",
+        "parameters": [
+          {
+            "name": "text",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 200,
+              "example": "Đường 30 tháng 4",
+              "type": "string"
+            }
+          },
+          {
+            "name": "focusLatitude",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": -90,
+              "maximum": 90,
+              "example": 10.0452,
+              "type": "number"
+            }
+          },
+          {
+            "name": "focusLongitude",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": -180,
+              "maximum": 180,
+              "example": 105.7469,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Location suggestions retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Location suggestions retrieved"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VietMapSuggestionResponseDto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "VietMap provider unavailable"
+          },
+          "504": {
+            "description": "VietMap provider timeout"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Search branch location suggestions with VietMap v4",
+        "tags": [
+          "vietmap"
+        ],
+        "description": "Search branch location suggestions with VietMap v4"
+      }
+    },
+    "/integrations/vietmap/place": {
+      "get": {
+        "operationId": "vietMapPlace",
+        "parameters": [
+          {
+            "name": "reference",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 2048,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Place resolved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Place resolved"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/VietMapLocationResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "VietMap provider unavailable"
+          },
+          "504": {
+            "description": "VietMap provider timeout"
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Resolve a VietMap v4 place reference",
+        "tags": [
+          "vietmap"
+        ],
+        "description": "Resolve a VietMap v4 place reference"
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "usersCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tạo người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Tạo người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Tạo người dùng",
+        "tags": [
+          "users"
+        ],
+        "description": "Tạo người dùng"
+      },
+      "get": {
+        "operationId": "usersFindAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "admin",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "updatedAt",
+                "email",
+                "fullName",
+                "phone",
+                "type",
+                "provider",
+                "isActive",
+                "lastLoginAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SYSTEM",
+                "BRANCH",
+                "CUSTOMER"
+              ]
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOCAL",
+                "GOOGLE"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy danh sách người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy danh sách người dùng thành công"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "required": [
+                        "total",
+                        "page",
+                        "lastPage",
+                        "limit",
+                        "hasNextPage",
+                        "hasPreviousPage"
+                      ],
+                      "properties": {
+                        "total": {
+                          "type": "number",
+                          "example": 42
+                        },
+                        "page": {
+                          "type": "number",
+                          "example": 1
+                        },
+                        "lastPage": {
+                          "type": "number",
+                          "example": 5
+                        },
+                        "limit": {
+                          "type": "number",
+                          "example": 10
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPreviousPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy danh sách người dùng",
+        "tags": [
+          "users"
+        ],
+        "description": "Lấy danh sách người dùng"
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "usersFindOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lấy người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Lấy người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "summary": "Lấy người dùng theo id",
+        "tags": [
+          "users"
+        ],
+        "description": "Lấy người dùng theo id"
+      },
+      "patch": {
+        "operationId": "usersUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cập nhật người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Cập nhật người dùng theo id",
+        "tags": [
+          "users"
+        ],
+        "description": "Cập nhật người dùng theo id"
+      },
+      "delete": {
+        "operationId": "usersRemove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Khóa tài khoản người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Khóa tài khoản người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Khóa tài khoản người dùng theo id",
+        "tags": [
+          "users"
+        ],
+        "description": "Khóa tài khoản người dùng theo id"
+      }
+    },
+    "/users/{id}/activate": {
+      "patch": {
+        "operationId": "usersActivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kích hoạt người dùng thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Kích hoạt người dùng thành công"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Yêu cầu không hợp lệ hoặc dữ liệu validation không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cookie phiên đăng nhập không hợp lệ, hết hạn hoặc thiếu.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "User không có quyền hoặc không thuộc phạm vi chi nhánh hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Kích hoạt lại người dùng theo id",
+        "tags": [
+          "users"
+        ],
+        "description": "Kích hoạt lại người dùng theo id"
       }
     },
     "/categories/tree": {
@@ -30771,247 +32665,632 @@
       }
     },
     "schemas": {
-      "HealthResponseDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "example": "Exam API"
-          },
-          "status": {
-            "type": "string",
-            "example": "ok"
-          },
-          "timestamp": {
-            "type": "string",
-            "example": "2026-05-13T00:00:00.000Z",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "name",
-          "status",
-          "timestamp"
-        ]
-      },
-      "VietMapLocationResponseDto": {
-        "type": "object",
-        "properties": {
-          "latitude": {
-            "type": "number",
-            "example": 10.0452
-          },
-          "longitude": {
-            "type": "number",
-            "example": 105.7469
-          },
-          "countryCode": {
-            "type": "string",
-            "nullable": true,
-            "example": "VN"
-          },
-          "province": {
-            "type": "string",
-            "nullable": true,
-            "example": "Thành phố Cần Thơ"
-          },
-          "district": {
-            "type": "string",
-            "nullable": true,
-            "example": "Quận Ninh Kiều"
-          },
-          "ward": {
-            "type": "string",
-            "nullable": true,
-            "example": "Phường Ninh Kiều"
-          },
-          "address": {
-            "type": "string",
-            "example": "12 Đường 30 tháng 4"
-          },
-          "displayAddress": {
-            "type": "string",
-            "example": "12 Đường 30 tháng 4, Phường Ninh Kiều, Thành phố Cần Thơ"
-          }
-        },
-        "required": [
-          "latitude",
-          "longitude",
-          "countryCode",
-          "province",
-          "district",
-          "ward",
-          "address",
-          "displayAddress"
-        ]
-      },
-      "VietMapSuggestionResponseDto": {
-        "type": "object",
-        "properties": {
-          "refId": {
-            "type": "string"
-          },
-          "displayAddress": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "refId",
-          "displayAddress"
-        ]
-      },
-      "UserResponseDto": {
+      "SupportAssigneeDto": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
-            "example": "01JVCY8VZ10XWBQ9M3B0EG9D7K",
             "format": "ulid",
             "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
             "minLength": 26,
-            "maxLength": 26
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
           },
-          "email": {
-            "type": "string",
-            "example": "admin@example.com"
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "SupportAssigneeListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportAssigneeDto"
+            }
           },
-          "fullName": {
+          "nextCursor": {
             "type": "string",
-            "example": "Admin",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "SupportReplySummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
             "nullable": true
           },
-          "phone": {
+          "attachmentCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "senderName",
+          "text",
+          "attachmentCount"
+        ]
+      },
+      "SupportAttachmentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
             "type": "string",
-            "example": "0900000000",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mimeType",
+          "size"
+        ]
+      },
+      "SupportMessageDto": {
+        "type": "object",
+        "properties": {
+          "replyToMessageId": {
+            "type": "string",
             "nullable": true
           },
-          "gender": {
-            "type": "string",
-            "example": "female",
-            "nullable": true
-          },
-          "birthday": {
-            "type": "string",
-            "example": "1995-08-17",
+          "replyTo": {
             "nullable": true,
-            "format": "date"
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportReplySummaryDto"
+              }
+            ]
           },
-          "isActive": {
-            "type": "boolean",
-            "example": true
+          "senderAvatarUrl": {
+            "type": "string",
+            "nullable": true
           },
-          "type": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "ticketId": {
+            "type": "string"
+          },
+          "senderUserId": {
+            "type": "string"
+          },
+          "senderType": {
             "type": "string",
             "enum": [
               "SYSTEM",
               "BRANCH",
               "CUSTOMER"
-            ],
-            "example": "CUSTOMER"
+            ]
           },
-          "provider": {
-            "type": "string",
-            "enum": [
-              "LOCAL",
-              "GOOGLE"
-            ],
-            "example": "LOCAL"
+          "senderName": {
+            "type": "string"
           },
-          "lastLoginAt": {
+          "clientMessageId": {
+            "type": "string"
+          },
+          "text": {
             "type": "string",
-            "example": "2026-06-21T00:00:00.000Z",
-            "nullable": true,
-            "format": "date-time"
+            "nullable": true
+          },
+          "sequence": {
+            "type": "number"
           },
           "createdAt": {
             "type": "string",
-            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportAttachmentDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "ticketId",
+          "senderUserId",
+          "senderType",
+          "senderName",
+          "clientMessageId",
+          "text",
+          "sequence",
+          "createdAt",
+          "attachments"
+        ]
+      },
+      "SupportTicketDto": {
+        "type": "object",
+        "properties": {
+          "customerAvatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "branchName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "ORDER"
+            ]
+          },
+          "orderId": {
+            "type": "string",
+            "nullable": true
+          },
+          "orderCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "subject": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_PROGRESS",
+              "RESOLVED"
+            ]
+          },
+          "assigneeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "assigneeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "number"
+          },
+          "lastSequence": {
+            "type": "number"
+          },
+          "lastReadSequence": {
+            "type": "number"
+          },
+          "customerReadSequence": {
+            "type": "number"
+          },
+          "assigneeReadSequence": {
+            "type": "number"
+          },
+          "unreadCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
             "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastMessage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportMessageDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "customerId",
+          "customerName",
+          "branchId",
+          "branchName",
+          "type",
+          "orderId",
+          "orderCode",
+          "subject",
+          "status",
+          "assigneeId",
+          "assigneeName",
+          "version",
+          "lastSequence",
+          "lastReadSequence",
+          "customerReadSequence",
+          "assigneeReadSequence",
+          "unreadCount",
+          "createdAt",
+          "updatedAt",
+          "resolvedAt",
+          "lastMessage"
+        ]
+      },
+      "SupportTicketListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "SupportUnreadDto": {
+        "type": "object",
+        "properties": {
+          "unreadCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unreadCount"
+        ]
+      },
+      "SupportOrderContextDto": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "orderCode": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "status": {
+            "type": "string"
+          },
+          "activeTicketId": {
+            "type": "string",
+            "nullable": true
+          },
+          "canViewOrderDetail": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "orderId",
+          "orderCode",
+          "branchId",
+          "status",
+          "activeTicketId",
+          "canViewOrderDetail"
+        ]
+      },
+      "SupportSendResultDto": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "message": {
+            "$ref": "#/components/schemas/SupportMessageDto"
+          },
+          "replayed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ticketId",
+          "message",
+          "replayed"
+        ]
+      },
+      "SupportMessageInputDto": {
+        "type": "object",
+        "properties": {
+          "replyToMessageId": {
+            "type": "string",
+            "maxLength": 26
+          },
+          "clientMessageId": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "attachmentIds": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "clientMessageId"
+        ]
+      },
+      "SupportCreateDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "ORDER"
+            ]
+          },
+          "branchId": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "message": {
+            "$ref": "#/components/schemas/SupportMessageInputDto"
+          }
+        },
+        "required": [
+          "type",
+          "message"
+        ]
+      },
+      "SupportHistoryDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportMessageDto"
+            }
+          },
+          "nextSequence": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextSequence"
+        ]
+      },
+      "SupportReadResultDto": {
+        "type": "object",
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "lastReadSequence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ticketId",
+          "lastReadSequence"
+        ]
+      },
+      "SupportReadDto": {
+        "type": "object",
+        "properties": {
+          "lastReadSequence": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "lastReadSequence"
+        ]
+      },
+      "SupportReassignDto": {
+        "type": "object",
+        "properties": {
+          "assigneeId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assigneeId"
+        ]
+      },
+      "SupportActivityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "fromStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "toStatus": {
+            "type": "string"
+          },
+          "fromAssigneeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "toAssigneeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
             "format": "date-time"
           }
         },
         "required": [
           "id",
-          "email",
-          "fullName",
-          "phone",
-          "gender",
-          "birthday",
-          "isActive",
-          "type",
-          "provider",
-          "lastLoginAt",
-          "createdAt",
-          "updatedAt"
+          "actorId",
+          "action",
+          "fromStatus",
+          "toStatus",
+          "fromAssigneeId",
+          "toAssigneeId",
+          "createdAt"
         ]
       },
-      "CreateUserDto": {
+      "SupportActivityListDto": {
         "type": "object",
         "properties": {
-          "fullName": {
-            "type": "string",
-            "example": "Admin"
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportActivityDto"
+            }
           },
-          "email": {
+          "nextCursor": {
             "type": "string",
-            "example": "admin@example.com"
-          },
-          "phone": {
-            "type": "string",
-            "example": "0900000000",
-            "nullable": true
-          },
-          "gender": {
-            "type": "string",
-            "example": "female",
-            "nullable": true,
-            "maxLength": 20
-          },
-          "birthday": {
-            "type": "string",
-            "format": "date",
-            "example": "1995-08-17",
             "nullable": true
           }
         },
         "required": [
-          "fullName",
-          "email"
+          "items",
+          "nextCursor"
         ]
       },
-      "UpdateUserDto": {
+      "SupportUploadBodyDto": {
         "type": "object",
         "properties": {
-          "fullName": {
-            "type": "string",
-            "example": "Admin"
+          "ticketId": {
+            "type": "string"
           },
-          "email": {
+          "type": {
             "type": "string",
-            "example": "admin@example.com"
+            "enum": [
+              "GENERAL",
+              "ORDER"
+            ]
           },
-          "phone": {
+          "branchId": {
             "type": "string",
-            "example": "0900000000",
-            "nullable": true
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
           },
-          "gender": {
-            "type": "string",
-            "example": "female",
-            "nullable": true,
-            "maxLength": 20
+          "orderId": {
+            "type": "string"
           },
-          "birthday": {
+          "file": {
             "type": "string",
-            "format": "date",
-            "example": "1995-08-17",
-            "nullable": true
+            "format": "binary"
           }
-        }
+        },
+        "required": [
+          "file"
+        ]
+      },
+      "SupportDiscardResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26,
+            "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+          }
+        },
+        "required": [
+          "id"
+        ]
       },
       "RoleResponseDto": {
         "type": "object",
@@ -32764,6 +35043,248 @@
         "required": [
           "effect"
         ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Exam API"
+          },
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "timestamp"
+        ]
+      },
+      "VietMapLocationResponseDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "example": 10.0452
+          },
+          "longitude": {
+            "type": "number",
+            "example": 105.7469
+          },
+          "countryCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "VN"
+          },
+          "province": {
+            "type": "string",
+            "nullable": true,
+            "example": "Thành phố Cần Thơ"
+          },
+          "district": {
+            "type": "string",
+            "nullable": true,
+            "example": "Quận Ninh Kiều"
+          },
+          "ward": {
+            "type": "string",
+            "nullable": true,
+            "example": "Phường Ninh Kiều"
+          },
+          "address": {
+            "type": "string",
+            "example": "12 Đường 30 tháng 4"
+          },
+          "displayAddress": {
+            "type": "string",
+            "example": "12 Đường 30 tháng 4, Phường Ninh Kiều, Thành phố Cần Thơ"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "countryCode",
+          "province",
+          "district",
+          "ward",
+          "address",
+          "displayAddress"
+        ]
+      },
+      "VietMapSuggestionResponseDto": {
+        "type": "object",
+        "properties": {
+          "refId": {
+            "type": "string"
+          },
+          "displayAddress": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refId",
+          "displayAddress"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "01JVCY8VZ10XWBQ9M3B0EG9D7K",
+            "format": "ulid",
+            "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+            "minLength": 26,
+            "maxLength": 26
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@example.com"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Admin",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "example": "0900000000",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "example": "female",
+            "nullable": true
+          },
+          "birthday": {
+            "type": "string",
+            "example": "1995-08-17",
+            "nullable": true,
+            "format": "date"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "BRANCH",
+              "CUSTOMER"
+            ],
+            "example": "CUSTOMER"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "GOOGLE"
+            ],
+            "example": "LOCAL"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "example": "2026-06-21T00:00:00.000Z",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2026-05-13T00:00:00.000Z",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "phone",
+          "gender",
+          "birthday",
+          "isActive",
+          "type",
+          "provider",
+          "lastLoginAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Admin"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0900000000",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "example": "female",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "birthday": {
+            "type": "string",
+            "format": "date",
+            "example": "1995-08-17",
+            "nullable": true
+          }
+        },
+        "required": [
+          "fullName",
+          "email"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Admin"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0900000000",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "example": "female",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "birthday": {
+            "type": "string",
+            "format": "date",
+            "example": "1995-08-17",
+            "nullable": true
+          }
+        }
       },
       "CategorySummaryResponseDto": {
         "type": "object",

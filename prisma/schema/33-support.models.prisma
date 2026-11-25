@@ -1,0 +1,114 @@
+enum SupportTicketType {
+  GENERAL
+  ORDER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model SupportTicket {
+  id                    String              @id @default(ulid())
+  customerId            String              @map("customer_id")
+  branchId              String              @map("branch_id")
+  type                  SupportTicketType
+  orderId               String?             @map("order_id")
+  subject               String?             @db.VarChar(160)
+  status                SupportTicketStatus @default(OPEN)
+  assigneeId            String?             @map("assignee_id")
+  lastSequence          Int                 @default(0) @map("last_sequence")
+  assigneeReadSequence  Int                 @default(0) @map("assignee_read_sequence")
+  version               Int                 @default(1)
+  resolvedAt            DateTime?           @map("resolved_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  customer              User                @relation("SupportCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  assignee              User?               @relation("SupportAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  branch                Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  order                 Order?              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  messages              SupportMessage[]
+  reads                 SupportReadState[]
+  activities            SupportTicketActivity[]
+
+  @@index([customerId, updatedAt, id])
+  @@index([branchId, status, updatedAt, id])
+  @@index([assigneeId, status])
+  @@index([orderId])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id               String   @id @default(ulid())
+  ticketId         String   @map("ticket_id")
+  senderUserId     String   @map("sender_user_id")
+  senderType       UserType @map("sender_type")
+  clientMessageId  String   @map("client_message_id") @db.VarChar(80)
+  payloadHash      String   @map("payload_hash")
+  text             String?
+  replyToMessageId String? @map("reply_to_message_id")
+  replyTo          SupportMessage? @relation("SupportReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies          SupportMessage[] @relation("SupportReplies")
+  sequence         Int
+  createdAt        DateTime @default(now()) @map("created_at")
+  ticket           SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  sender           User @relation(fields: [senderUserId], references: [id], onDelete: Restrict)
+  attachments      SupportAttachment[]
+
+  @@unique([senderUserId, clientMessageId])
+  @@unique([ticketId, sequence])
+  @@index([ticketId, senderType, sequence])
+  @@index([replyToMessageId])
+  @@map("support_messages")
+}
+
+model SupportAttachment {
+  id           String   @id @default(ulid())
+  ownerId      String   @map("owner_id")
+  scopeKey     String   @map("scope_key")
+  messageId    String?  @map("message_id")
+  objectKey    String   @unique @map("object_key")
+  filename     String   @db.VarChar(180)
+  mimeType     String   @map("mime_type")
+  size         Int
+  ready        Boolean  @default(false)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  owner        User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  message      SupportMessage? @relation(fields: [messageId], references: [id], onDelete: Restrict)
+
+  @@index([messageId])
+  @@index([ownerId, scopeKey])
+  @@index([expiresAt, messageId])
+  @@map("support_attachments")
+}
+
+model SupportReadState {
+  ticketId         String @map("ticket_id")
+  userId           String @map("user_id")
+  lastReadSequence Int @default(0) @map("last_read_sequence")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  ticket           SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  user             User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([ticketId, userId])
+  @@map("support_read_states")
+}
+
+model SupportTicketActivity {
+  id            String @id @default(ulid())
+  ticketId      String @map("ticket_id")
+  actorId       String @map("actor_id")
+  action        String
+  fromStatus    SupportTicketStatus? @map("from_status")
+  toStatus      SupportTicketStatus @map("to_status")
+  fromAssigneeId String? @map("from_assignee_id")
+  toAssigneeId   String? @map("to_assignee_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  actor         User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt, id])
+  @@map("support_ticket_activities")
+}

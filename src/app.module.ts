@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SupportModule } from '@/modules/support/support.module';
 import { MembershipModule } from '@/modules/membership/membership.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { FlashSalesModule } from '@/modules/flash-sales/flash-sales.module';
@@ -39,6 +40,7 @@ import { OrderRealtimeModule } from '@/modules/orders/order-realtime.module';
 
 @Module({
   imports: [
+    SupportModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: getEnvFilePaths(),

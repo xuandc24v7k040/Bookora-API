@@ -6,6 +6,7 @@ import type { Namespace, Socket } from 'socket.io';
 import { AuthorizationService } from '@/modules/authorization/authorization.service';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { RealtimePublisher, type RealtimeEvent } from './realtime-publisher';
+import { RealtimeInboundRegistry } from './realtime-inbound.registry';
 
 interface Connection {
   socket: Socket;
@@ -36,6 +37,7 @@ export class RealtimeGateway
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
     private readonly authorization: AuthorizationService,
+    private readonly inbound: RealtimeInboundRegistry,
   ) {
     super();
   }
@@ -57,10 +59,37 @@ export class RealtimeGateway
       }
       this.pending.delete(socket);
       this.connections.set(socket.id, connection);
-      socket.once('disconnect', () => this.connections.delete(socket.id));
+      socket.once('disconnect', () => {
+        this.connections.delete(socket.id);
+        this.inbound.disconnected(socket.id);
+      });
       void socket.join(`user:${connection.principal.id}`);
+      let lastSignal = 0;
+      for (const name of ['chat.typing.start', 'chat.typing.stop'] as const) {
+        socket.on(name, (payload: unknown, ack?: unknown) => {
+          const reply = (result: { ok: boolean; code?: string }) => {
+            if (typeof ack === 'function')
+              (ack as (result: object) => void)(result);
+          };
+          if (
+            Date.now() - lastSignal < 200 ||
+            Buffer.byteLength(JSON.stringify(payload) ?? '') > 1024
+          ) {
+            reply({ ok: false, code: 'SUPPORT_RATE_LIMITED' });
+            return;
+          }
+          lastSignal = Date.now();
+          void this.revalidate(connection)
+            .then(async (principal) => {
+              if (!principal) throw new Error('REALTIME_UNAUTHORIZED');
+              await this.inbound.dispatch(name, principal, payload, socket.id);
+              reply({ ok: true });
+            })
+            .catch(() => reply({ ok: false, code: 'SUPPORT_FORBIDDEN' }));
+        });
+      }
     });
-    // No client-selected rooms or client-to-server domain handlers in v1.
+    // Rooms remain server-owned; only the whitelisted extension events are accepted.
     this.timer = setInterval(() => {
       void this.revalidateConnections();
     }, 15000);

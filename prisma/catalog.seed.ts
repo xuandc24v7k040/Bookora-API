@@ -62,6 +62,26 @@ export const roles = [
 
 export const permissionCatalog = [
   {
+    code: 'support.read',
+    name: 'Xem hội thoại hỗ trợ',
+    description: 'Đọc hỗ trợ trong chi nhánh được cấp',
+  },
+  {
+    code: 'support.claim',
+    name: 'Tiếp nhận hỗ trợ',
+    description: 'Tiếp nhận hội thoại chưa có người phụ trách',
+  },
+  {
+    code: 'support.reply',
+    name: 'Trả lời hỗ trợ',
+    description: 'Trả lời hội thoại đang phụ trách',
+  },
+  {
+    code: 'support.manage',
+    name: 'Quản lý hỗ trợ',
+    description: 'Phân công và quản lý hỗ trợ tại chi nhánh',
+  },
+  {
     code: 'dashboard.read',
     name: 'Xem tổng quan',
     description: 'Cho phép xem dữ liệu tổng quan vận hành',
@@ -473,6 +493,10 @@ export const STAFF_PERMISSION_CODES = [
 
 const rolePermissionCodes: Record<string, readonly string[]> = {
   BRANCH_ADMIN: [
+    'support.read',
+    'support.claim',
+    'support.reply',
+    'support.manage',
     'dashboard.read',
     'reports.revenue.read',
     'reports.export',

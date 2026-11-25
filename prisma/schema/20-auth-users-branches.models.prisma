@@ -15,6 +15,12 @@ model User {
   emailVerificationRequired Boolean      @default(false) @map("email_verification_required")
   emailVerifiedAt           DateTime?    @map("email_verified_at")
 
+  supportTickets SupportTicket[] @relation("SupportCustomer")
+  supportAssignedTickets SupportTicket[] @relation("SupportAssignee")
+  supportMessages SupportMessage[]
+  supportAttachments SupportAttachment[]
+  supportReads SupportReadState[]
+  supportActivities SupportTicketActivity[]
   authSessions                  AuthSession[]
   membership                    CustomerMembership?
   membershipTransactions        MembershipTransaction[]
@@ -133,6 +139,7 @@ model Branch {
   longitude Decimal? @db.Decimal(10, 7)
   isActive  Boolean  @default(true) @map("is_active")
 
+  supportTickets       SupportTicket[]
   userBranches         UserBranch[]
   notifications        Notification[]
   carts                Cart[]

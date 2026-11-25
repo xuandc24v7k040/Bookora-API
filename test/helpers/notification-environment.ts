@@ -17,17 +17,18 @@ export async function createNotificationEnvironment(
   port = 0,
   autoWorker = false,
   configure?: (app: INestApplication) => void,
+  frontendUrl = 'http://localhost:15173',
 ) {
-  const infra = await createAuthHardeningEnvironment('http://localhost:15173');
+  const infra = await createAuthHardeningEnvironment(frontendUrl);
   Object.assign(process.env, {
     NOTIFICATIONS_POLL_MS: '100',
-    REALTIME_ORIGINS: 'http://localhost:15173,http://127.0.0.1:15174',
+    REALTIME_ORIGINS: `${frontendUrl},http://127.0.0.1:15174`,
   });
   const app = await NestFactory.create(AppModule, { logger: false });
   try {
     app
       .get(ConfigService)
-      .set('app.corsOrigin', 'http://localhost:15173,http://127.0.0.1:15174');
+      .set('app.corsOrigin', `${frontendUrl},http://127.0.0.1:15174`);
     setupApplication(app);
     configure?.(app);
     await app.listen(port, '127.0.0.1');
