@@ -74,4 +74,7 @@ export const OPTIONAL_NUMBER_ENV_KEYS = [
   'CHECKOUT_LOCATION_PROOF_TTL_SECONDS',
 ] as const;
 
-export const OPTIONAL_BOOLEAN_ENV_KEYS = ['TURNSTILE_ENABLED'] as const;
+export const OPTIONAL_BOOLEAN_ENV_KEYS = [
+  'TURNSTILE_ENABLED',
+  'GHN_ENABLED',
+] as const;

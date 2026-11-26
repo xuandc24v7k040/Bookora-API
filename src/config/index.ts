@@ -8,6 +8,7 @@ import storageConfig from './storage.config';
 import shippingConfig from './shipping.config';
 import paymentConfig from './payment.config';
 import mailConfig from './mail.config';
+import ghnConfig from './ghn.config';
 
 export const configurations = [
   appConfig,
@@ -19,6 +20,7 @@ export const configurations = [
   shippingConfig,
   paymentConfig,
   mailConfig,
+  ghnConfig,
 ];
 
 export {
@@ -31,5 +33,6 @@ export {
   shippingConfig,
   paymentConfig,
   mailConfig,
+  ghnConfig,
   validateEnv,
 };

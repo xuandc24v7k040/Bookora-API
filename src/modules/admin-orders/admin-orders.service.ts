@@ -1,3 +1,4 @@
+import { shippingProviderFromSnapshot } from '@/modules/orders/shipping-provider-snapshot';
 import {
   BadRequestException,
   ConflictException,
@@ -265,6 +266,9 @@ export class AdminOrdersService {
         discountAmount: Number(redemption.appliedDiscountAmount),
       })),
       shippingFee: Number(order.shippingFee),
+      shippingProvider: shippingProviderFromSnapshot(
+        order.shippingFeeBreakdownSnapshot,
+      ),
       totalAmount: Number(order.totalAmount),
       customerNote: order.note,
       internalNote: order.internalNote,

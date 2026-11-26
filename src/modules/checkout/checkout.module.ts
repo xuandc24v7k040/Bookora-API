@@ -11,9 +11,11 @@ import { CheckoutController } from './checkout.controller';
 import { CheckoutRepository } from './checkout.repository';
 import { CheckoutService } from './checkout.service';
 import { CheckoutLocationProofService } from './checkout-location-proof.service';
+import { GhnModule } from '@/modules/integrations/ghn/ghn.module';
 
 @Module({
   imports: [
+    GhnModule,
     CouponsModule,
     FlashSalesModule,
     AuthModule,

@@ -25,6 +25,7 @@ import { JwtAccessGuard } from '@/modules/auth/guards/jwt-access.guard';
 import type { AuthenticatedUser } from '@/modules/auth/types/authenticated-user.type';
 import { VietMapReverseQueryDto } from '@/modules/integrations/vietmap/dto/vietmap.dto';
 import { CheckoutService } from './checkout.service';
+import { GhnShippingOptionDto } from './dto/ghn-quote.dto';
 import {
   CheckoutPreviewResponseDto,
   CurrentLocationReverseResponseDto,
@@ -61,6 +62,27 @@ const ApiBranchHeader = () =>
 @UseGuards(JwtAccessGuard, CsrfGuard)
 export class CheckoutController {
   constructor(private readonly service: CheckoutService) {}
+
+  @Post('shipping/ghn-quote')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiSecurity('csrf')
+  @ApiBranchHeader()
+  @ApiOperation({
+    operationId: 'checkoutGhnShippingQuote',
+    summary: 'Báo giá GHN độc lập, không tạo vận đơn',
+  })
+  @ApiBaseResponse(GhnShippingOptionDto, {
+    status: 201,
+    description: 'Trạng thái và báo giá GHN theo giỏ hàng/địa chỉ đã xác minh.',
+  })
+  ghnShippingQuote(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Headers('x-branch-id') branchId: string | undefined,
+    @Body() dto: PreviewCheckoutDto,
+  ) {
+    return this.service.ghnShippingOption(actor, branchId, dto);
+  }
 
   @Post('preview')
   @UseGuards(ThrottlerGuard)

@@ -1,3 +1,4 @@
+import { ShippingProvider } from '@/modules/shipping/shipping-provider';
 import { Transform, Type } from 'class-transformer';
 import { OrderCouponSnapshotDto } from '@/modules/coupons/coupons.dto';
 import {
@@ -265,6 +266,8 @@ export class AdminOrderStatusHistoryDto {
 }
 
 export class AdminOrderDetailDto {
+  @ApiPropertyOptional({ enum: ShippingProvider })
+  shippingProvider?: ShippingProvider;
   @ApiProperty() orderCouponDiscountAmount!: number;
   @ApiProperty() shippingCouponDiscountAmount!: number;
   @ApiProperty({ type: [OrderCouponSnapshotDto] })

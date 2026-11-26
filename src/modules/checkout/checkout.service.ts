@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -56,6 +57,13 @@ import {
   type CheckoutCartRecord,
 } from './checkout.repository';
 import { CheckoutLocationProofService } from './checkout-location-proof.service';
+import { ShippingProvider } from '@/modules/shipping/shipping-provider';
+import { GhnQuoteService } from '@/modules/integrations/ghn/ghn-quote.service';
+import { GhnQuoteError } from '@/modules/integrations/ghn/ghn.error';
+import type { GhnQuote } from '@/modules/integrations/ghn/ghn.types';
+import type { GhnShippingOptionDto } from './dto/ghn-quote.dto';
+import { toGhnShippingQuoteDto } from './dto/ghn-quote.dto';
+import { checkoutAmounts } from './checkout-amounts';
 import {
   calculateTotalProductWeightGram,
   INVALID_PRODUCT_WEIGHT_MESSAGE,
@@ -115,6 +123,9 @@ interface ResolvedCheckoutAddress {
 }
 
 interface CheckoutState {
+  shippingProvider: ShippingProvider;
+  shippingFee: number | null;
+  ghnQuote: GhnQuote | null;
   membershipTier: MembershipTier;
   cart: CheckoutCartRecord;
   items: ResolvedCheckoutItem[];
@@ -181,6 +192,7 @@ export class CheckoutService {
     private readonly config: ConfigService,
     private readonly coupons: CouponsService,
     private readonly flashSales: FlashSaleOffersService,
+    @Optional() private readonly ghn?: GhnQuoteService,
   ) {}
 
   async preview(
@@ -206,6 +218,42 @@ export class CheckoutService {
       ...this.currentLocationResponse(location),
       accuracyMeters: dto.accuracyMeters ?? null,
     };
+  }
+
+  async ghnShippingOption(
+    actor: AuthenticatedUser,
+    branchId: string | undefined,
+    dto: PreviewCheckoutDto,
+  ): Promise<GhnShippingOptionDto> {
+    this.assertCustomer(actor);
+    if (!this.ghn?.enabled)
+      return {
+        enabled: false,
+        quote: null,
+        unavailableCode: null,
+        message: null,
+      };
+    try {
+      const state = await this.resolveCheckout(actor.id, branchId, {
+        ...dto,
+        shippingProvider: ShippingProvider.GHN,
+      });
+      return {
+        enabled: true,
+        quote: toGhnShippingQuoteDto(state.ghnQuote),
+        unavailableCode: null,
+        message: null,
+      };
+    } catch (error: unknown) {
+      if (!(error instanceof GhnQuoteError)) throw error;
+      const response = error.getResponse() as { message: string };
+      return {
+        enabled: true,
+        quote: null,
+        unavailableCode: error.errorCode,
+        message: response.message,
+      };
+    }
   }
 
   async reverseCurrentLocation(
@@ -234,7 +282,11 @@ export class CheckoutService {
       ...dto,
       paymentMethod: PaymentMethod.COD,
     });
-    this.ensureReadyForOrder(state, dto.previewReference);
+    this.ensureReadyForOrder(
+      state,
+      dto.previewReference,
+      dto.shippingQuoteReference,
+    );
 
     const order = await this.repository.transaction(async (tx) => {
       const idempotent = await tx.order.findFirst({
@@ -305,7 +357,7 @@ export class CheckoutService {
         {
           userId: actor.id,
           subtotal: state.subtotalAmount,
-          shippingFee: state.quote!.shippingFee,
+          shippingFee: state.shippingFee!,
         },
         state.coupons,
         null,
@@ -339,7 +391,11 @@ export class CheckoutService {
       ...dto,
       paymentMethod: PaymentMethod.VNPAY,
     });
-    this.ensureReadyForOrder(state, dto.previewReference);
+    this.ensureReadyForOrder(
+      state,
+      dto.previewReference,
+      dto.shippingQuoteReference,
+    );
     const createdAt = new Date();
     const expiresAt = new Date(
       createdAt.getTime() +
@@ -366,7 +422,7 @@ export class CheckoutService {
           {
             userId: actor.id,
             subtotal: state.subtotalAmount,
-            shippingFee: state.quote!.shippingFee,
+            shippingFee: state.shippingFee!,
           },
           dto,
           tx,
@@ -459,7 +515,7 @@ export class CheckoutService {
         {
           userId: actor.id,
           subtotal: state.subtotalAmount,
-          shippingFee: state.quote!.shippingFee,
+          shippingFee: state.shippingFee!,
         },
         state.coupons,
         couponExpiresAt,
@@ -640,32 +696,95 @@ export class CheckoutService {
             productWeightGram: totalProductWeightGram,
           })
         : null;
+    const shippingProvider = dto.shippingProvider ?? ShippingProvider.INTERNAL;
+    let ghnQuote: GhnQuote | null = null;
+    if (
+      shippingProvider === ShippingProvider.GHN &&
+      address &&
+      paymentMethod &&
+      quote
+    ) {
+      if (!this.ghn) throw new GhnQuoteError('GHN_UNAVAILABLE');
+      const seedCoupons = await this.coupons.resolve(
+        { userId, subtotal: subtotalAmount, shippingFee: quote.shippingFee },
+        dto,
+      );
+      const netMerchandise =
+        subtotalAmount -
+        checkoutAmounts(subtotalAmount, quote.shippingFee, seedCoupons)
+          .orderCouponDiscountAmount;
+      ghnQuote = await this.ghn.quote(
+        {
+          userId,
+          cartId: cart.id,
+          branchId: cart.branchId,
+          origin: {
+            address: cart.branch.address,
+            province: cart.branch.province ?? '',
+            ward: cart.branch.ward ?? '',
+          },
+          destination: {
+            address: address.addressLine,
+            province: address.provinceName,
+            ward: address.wardName,
+          },
+          receiverName: address.receiverName,
+          receiverPhone: address.receiverPhone,
+          items: eligibleItems.map(
+            ({ variantId, quantity, unitPrice, weightGram }) => ({
+              variantId,
+              quantity,
+              unitPrice,
+              weightGram,
+              packageSize: cart.items.find(
+                (item) => item.variantId === variantId,
+              )?.variant.packageSize,
+            }),
+          ),
+          subtotal: subtotalAmount,
+          paymentMethod,
+          packaging: {
+            packagingType: quote.packagingType,
+            grossWeightGram: quote.grossWeightGram,
+          },
+        },
+        async (fee) =>
+          checkoutAmounts(
+            subtotalAmount,
+            fee,
+            await this.coupons.resolve(
+              { userId, subtotal: subtotalAmount, shippingFee: fee },
+              dto,
+            ),
+          ).totalAmount,
+        netMerchandise,
+        dto.shippingQuoteReference,
+      );
+    }
+    const shippingFee =
+      shippingProvider === ShippingProvider.GHN
+        ? (ghnQuote?.shippingFee ?? null)
+        : (quote?.shippingFee ?? null);
     const couponContext = {
       userId,
       subtotal: subtotalAmount,
-      shippingFee: quote?.shippingFee ?? null,
+      shippingFee,
     };
     const coupons = await this.coupons.resolve(couponContext, dto);
     const availableCoupons = dto.includeCoupons
       ? await this.coupons.publicList(couponContext, coupons)
       : [];
-    const orderCouponDiscountAmount =
-      coupons.find(({ coupon }) => coupon.type === 'ORDER')?.discountAmount ??
-      0;
-    const shippingCouponDiscountAmount =
-      coupons.find(({ coupon }) => coupon.type === 'SHIPPING')
-        ?.discountAmount ?? 0;
+    const {
+      orderCouponDiscountAmount,
+      shippingCouponDiscountAmount,
+      totalAmount,
+    } = checkoutAmounts(subtotalAmount, shippingFee, coupons);
     const allocations = allocateCouponDiscount(
       eligibleItems,
       orderCouponDiscountAmount,
     );
     for (const item of eligibleItems)
       item.couponDiscountAmount = allocations.get(item.id) ?? 0;
-    const totalAmount =
-      subtotalAmount -
-      orderCouponDiscountAmount +
-      (quote?.shippingFee ?? 0) -
-      shippingCouponDiscountAmount;
     const note = dto.note?.trim() || null;
     const blockingIssues: string[] = [];
     const membership =
@@ -689,9 +808,12 @@ export class CheckoutService {
       })),
       address,
       paymentMethod,
-      shippingFee: quote?.shippingFee ?? null,
-      shippingQuoteReference: quote?.requestFingerprint ?? null,
-      shippingQuote: quote?.breakdown ?? null,
+      shippingFee,
+      shippingQuoteReference:
+        ghnQuote?.materialFingerprint ?? quote?.requestFingerprint ?? null,
+      shippingQuote: ghnQuote
+        ? { provider: 'GHN', fingerprint: ghnQuote.materialFingerprint }
+        : (quote?.breakdown ?? null),
       totalProductWeightGram,
       coupons: coupons.map(({ coupon, discountAmount }) => ({
         id: coupon.id,
@@ -702,6 +824,9 @@ export class CheckoutService {
       })),
     });
     return {
+      shippingProvider,
+      shippingFee,
+      ghnQuote,
       membershipTier,
       cart,
       items,
@@ -738,7 +863,8 @@ export class CheckoutService {
       });
     if (
       !state.coupons.length &&
-      !state.eligibleItems.some((item) => item.flashSaleItemId)
+      !state.eligibleItems.some((item) => item.flashSaleItemId) &&
+      state.shippingProvider !== ShippingProvider.GHN
     )
       return;
     const changed = (): never => {
@@ -756,6 +882,10 @@ export class CheckoutService {
       !branch?.isActive ||
       branch.province !== state.cart.branch.province ||
       branch.address !== state.cart.branch.address ||
+      (state.shippingProvider === ShippingProvider.GHN &&
+        (branch.ward !== state.cart.branch.ward ||
+          !state.ghnQuote ||
+          Date.parse(state.ghnQuote.expiresAt) <= Date.now())) ||
       cart?.branchId !== state.cart.branchId
     )
       changed();
@@ -791,6 +921,10 @@ export class CheckoutService {
         !variant.isActive ||
         variant.product.status !== 'ACTIVE' ||
         variant.weightGram !== item.weightGram ||
+        (state.ghnQuote !== null &&
+          variant.packageSize !==
+            state.cart.items.find((entry) => entry.variantId === item.variantId)
+              ?.variant.packageSize) ||
         !cartItem ||
         cartItem.quantity !== item.quantity ||
         cartItem.variantId !== item.variantId
@@ -885,7 +1019,14 @@ export class CheckoutService {
   private ensureReadyForOrder(
     state: CheckoutState,
     previewReference: string,
+    shippingQuoteReference?: string,
   ): void {
+    if (
+      state.shippingProvider === ShippingProvider.GHN &&
+      (!shippingQuoteReference || !state.ghnQuote)
+    ) {
+      throw new GhnQuoteError('SHIPPING_QUOTE_CONTEXT_MISMATCH');
+    }
     if (
       !state.address ||
       !state.quote ||
@@ -995,7 +1136,10 @@ export class CheckoutService {
       discountAmount: state.discountAmount,
       orderCouponDiscountAmount: state.orderCouponDiscountAmount,
       shippingCouponDiscountAmount: state.shippingCouponDiscountAmount,
-      shippingFee: quote.shippingFee,
+      shippingFee: state.shippingFee!,
+      estimatedDeliveryAt: state.ghnQuote
+        ? new Date(state.ghnQuote.estimatedDeliveryAt)
+        : null,
       totalAmount: state.totalAmount,
       deliveryAddressSource: address.source,
       receiverName: address.receiverName,
@@ -1011,9 +1155,11 @@ export class CheckoutService {
       shippingLocationPlaceId: address.locationPlaceId,
       branchNameSnapshot: state.cart.branch.name,
       branchAddressSnapshot: state.cart.branch.address,
-      shippingFeeBreakdownSnapshot:
-        quote.breakdown as unknown as Prisma.InputJsonObject,
-      shippingQuoteReference: quote.requestFingerprint,
+      shippingFeeBreakdownSnapshot: (state.ghnQuote
+        ? { ...state.ghnQuote }
+        : quote.breakdown) as unknown as Prisma.InputJsonObject,
+      shippingQuoteReference:
+        state.ghnQuote?.quoteReference ?? quote.requestFingerprint,
       note: state.note,
     };
   }
@@ -1113,7 +1259,7 @@ export class CheckoutService {
   }
 
   private toResponse(state: CheckoutState): CheckoutPreviewResponseDto {
-    return {
+    const response: CheckoutPreviewResponseDto = {
       previewReference: state.previewReference,
       branch: {
         id: state.cart.branch.id,
@@ -1183,15 +1329,35 @@ export class CheckoutService {
       })),
       availableCoupons: state.availableCoupons,
       totalProductWeightGram: state.totalProductWeightGram,
-      shippingFee: state.quote?.shippingFee ?? null,
-      shippingFeeRule: state.quote?.routeType ?? null,
+      shippingFee: state.shippingFee,
+      shippingFeeRule:
+        state.shippingProvider === ShippingProvider.INTERNAL
+          ? (state.quote?.routeType ?? null)
+          : null,
       shippingMethodCode: 'STANDARD',
       totalAmount: state.totalAmount,
       note: state.note,
       canPlaceOrder:
-        Boolean(state.address && state.quote && state.paymentMethod) &&
-        state.blockingIssues.length === 0,
+        Boolean(
+          state.address &&
+          state.quote &&
+          state.paymentMethod &&
+          state.shippingFee !== null,
+        ) && state.blockingIssues.length === 0,
       blockingIssues: state.blockingIssues,
+    };
+    return {
+      ...response,
+      shippingProvider: state.shippingProvider,
+      ghnEnabled: this.ghn?.enabled ?? false,
+      internalShippingQuote: response.shippingQuote,
+      shippingQuote:
+        state.shippingProvider === ShippingProvider.INTERNAL
+          ? response.shippingQuote
+          : null,
+      ghnShippingQuote: toGhnShippingQuoteDto(state.ghnQuote),
+      shippingMethodCode:
+        state.shippingProvider === ShippingProvider.GHN ? 'GHN' : 'STANDARD',
     };
   }
 

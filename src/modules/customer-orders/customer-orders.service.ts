@@ -1,3 +1,4 @@
+import { shippingProviderFromSnapshot } from '@/modules/orders/shipping-provider-snapshot';
 import {
   ConflictException,
   Injectable,
@@ -225,6 +226,10 @@ export class CustomerOrdersService {
         discountAmount: Number(redemption.appliedDiscountAmount),
       })),
       shippingFee: Number(order.shippingFee),
+      shippingProvider: shippingProviderFromSnapshot(
+        order.shippingFeeBreakdownSnapshot,
+      ),
+      estimatedDeliveryAt: order.estimatedDeliveryAt?.toISOString() ?? null,
       totalAmount: Number(order.totalAmount),
       receiverName: order.receiverName,
       receiverPhone: order.receiverPhone,

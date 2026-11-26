@@ -25373,6 +25373,179 @@
         "description": "Suất Flash Sale còn được mua của tài khoản"
       }
     },
+    "/checkout/shipping/ghn-quote": {
+      "post": {
+        "operationId": "checkoutGhnShippingQuote",
+        "parameters": [
+          {
+            "name": "X-Branch-Id",
+            "in": "header",
+            "description": "ULID chi nhánh đang được chọn. Bắt buộc với route cần selected branch.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "ulid",
+              "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$",
+              "minLength": 26,
+              "maxLength": 26,
+              "example": "01JY7M9M9Z4Y7Y7K7QZJ9Y4S4T"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewCheckoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trạng thái và báo giá GHN theo giỏ hàng/địa chỉ đã xác minh.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "data"
+                  ],
+                  "properties": {
+                    "statusCode": {
+                      "type": "number",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Trạng thái và báo giá GHN theo giỏ hàng/địa chỉ đã xác minh."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/GhnShippingOptionDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "accessToken": [],
+            "csrfCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Báo giá GHN độc lập, không tạo vận đơn",
+        "tags": [
+          "checkout"
+        ],
+        "description": "Báo giá GHN độc lập, không tạo vận đơn"
+      }
+    },
     "/checkout/preview": {
       "post": {
         "operationId": "checkoutPreview",
@@ -41065,6 +41238,384 @@
           "offer"
         ]
       },
+      "GhnShippingQuoteDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "GHN"
+            ]
+          },
+          "shippingFee": {
+            "type": "number",
+            "minimum": 0
+          },
+          "estimatedDeliveryAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "quoteReference": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "provider",
+          "shippingFee",
+          "estimatedDeliveryAt",
+          "quoteReference",
+          "expiresAt"
+        ]
+      },
+      "GhnShippingOptionDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "quote": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GhnShippingQuoteDto"
+              }
+            ]
+          },
+          "unavailableCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "enabled",
+          "quote",
+          "unavailableCode",
+          "message"
+        ]
+      },
+      "SavedAddressInputDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "SAVED_ADDRESS"
+            ]
+          },
+          "customerAddressId": {
+            "type": "string",
+            "format": "ulid"
+          }
+        },
+        "required": [
+          "source",
+          "customerAddressId"
+        ]
+      },
+      "CurrentLocationAddressDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "CURRENT_LOCATION"
+            ]
+          },
+          "receiverName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "addressLine": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 255
+          },
+          "provinceName": {
+            "type": "string"
+          },
+          "provinceCode": {
+            "type": "number"
+          },
+          "wardName": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "locationAccuracyMeters": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "locationProvider": {
+            "type": "string",
+            "enum": [
+              "VIETMAP"
+            ]
+          },
+          "locationPlaceId": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "locationProof": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "source",
+          "receiverName",
+          "receiverPhone",
+          "addressLine",
+          "provinceName",
+          "provinceCode",
+          "wardName",
+          "latitude",
+          "longitude",
+          "locationProof"
+        ]
+      },
+      "PreviewCheckoutDto": {
+        "type": "object",
+        "properties": {
+          "shippingProvider": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "GHN"
+            ],
+            "default": "INTERNAL"
+          },
+          "shippingQuoteReference": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 1024
+          },
+          "regularPriceCartItemIds": {
+            "maxItems": 50,
+            "description": "Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "couponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "Tra mã nhập tay, backend xác định loại và thay voucher cùng loại"
+          },
+          "orderCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "shippingCouponCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "includeCoupons": {
+            "type": "boolean",
+            "description": "Liệt kê tối đa 100 voucher PUBLIC theo ngữ cảnh thanh toán"
+          },
+          "selectedCartItemIds": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "ulid"
+            }
+          },
+          "address": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedAddressInputDto"
+              },
+              {
+                "$ref": "#/components/schemas/CurrentLocationAddressDto"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "source"
+            }
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "COD",
+              "VNPAY"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "selectedCartItemIds"
+        ]
+      },
+      "ShippingQuoteResponseDto": {
+        "type": "object",
+        "properties": {
+          "shippingFee": {
+            "type": "number"
+          },
+          "serviceFee": {
+            "type": "number"
+          },
+          "insuranceFee": {
+            "type": "number"
+          },
+          "codFee": {
+            "type": "number"
+          },
+          "remoteAreaFee": {
+            "type": "number"
+          },
+          "quotedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestFingerprint": {
+            "type": "string"
+          },
+          "shippingFeeRule": {
+            "type": "string",
+            "enum": [
+              "SAME_PROVINCE",
+              "SAME_REGION",
+              "ADJACENT_REGION",
+              "FAR_REGION"
+            ]
+          },
+          "policyCode": {
+            "type": "string",
+            "enum": [
+              "BOOKORA_STANDARD_2026_V1"
+            ]
+          },
+          "policyVersion": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "routeType": {
+            "type": "string",
+            "enum": [
+              "SAME_PROVINCE",
+              "SAME_REGION",
+              "ADJACENT_REGION",
+              "FAR_REGION",
+              "SPECIAL_STANDARD"
+            ]
+          },
+          "destinationType": {
+            "type": "string",
+            "enum": [
+              "WARD",
+              "COMMUNE"
+            ]
+          },
+          "destinationTypeResolution": {
+            "type": "string",
+            "enum": [
+              "AUTHORITATIVE",
+              "DESTINATION_TYPE_FALLBACK_COMMUNE"
+            ]
+          },
+          "totalItemQuantity": {
+            "type": "number",
+            "minimum": 1
+          },
+          "productWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "packagingType": {
+            "type": "string",
+            "enum": [
+              "SINGLE_BOOK_BAG",
+              "SMALL_BOOK_BOX",
+              "MEDIUM_BOOK_BOX",
+              "LARGE_BOOK_BOX",
+              "BULK_BOOK_BOX"
+            ]
+          },
+          "packagingWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "grossWeightGram": {
+            "type": "number",
+            "minimum": 1
+          },
+          "chargeableWeightGram": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 20000
+          },
+          "fuelSurcharge": {
+            "type": "number",
+            "minimum": 0
+          },
+          "ruleCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "shippingFee",
+          "serviceFee",
+          "insuranceFee",
+          "codFee",
+          "remoteAreaFee",
+          "quotedAt",
+          "expiresAt",
+          "requestFingerprint",
+          "shippingFeeRule",
+          "policyCode",
+          "policyVersion",
+          "routeType",
+          "destinationType",
+          "destinationTypeResolution",
+          "totalItemQuantity",
+          "productWeightGram",
+          "packagingType",
+          "packagingWeightGram",
+          "grossWeightGram",
+          "chargeableWeightGram",
+          "fuelSurcharge",
+          "ruleCode"
+        ]
+      },
       "OrderCouponSnapshotDto": {
         "type": "object",
         "properties": {
@@ -41372,147 +41923,37 @@
           "longitude"
         ]
       },
-      "ShippingQuoteResponseDto": {
-        "type": "object",
-        "properties": {
-          "shippingFee": {
-            "type": "number"
-          },
-          "serviceFee": {
-            "type": "number"
-          },
-          "insuranceFee": {
-            "type": "number"
-          },
-          "codFee": {
-            "type": "number"
-          },
-          "remoteAreaFee": {
-            "type": "number"
-          },
-          "quotedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "requestFingerprint": {
-            "type": "string"
-          },
-          "shippingFeeRule": {
-            "type": "string",
-            "enum": [
-              "SAME_PROVINCE",
-              "SAME_REGION",
-              "ADJACENT_REGION",
-              "FAR_REGION"
-            ]
-          },
-          "policyCode": {
-            "type": "string",
-            "enum": [
-              "BOOKORA_STANDARD_2026_V1"
-            ]
-          },
-          "policyVersion": {
-            "type": "number",
-            "enum": [
-              1
-            ]
-          },
-          "routeType": {
-            "type": "string",
-            "enum": [
-              "SAME_PROVINCE",
-              "SAME_REGION",
-              "ADJACENT_REGION",
-              "FAR_REGION",
-              "SPECIAL_STANDARD"
-            ]
-          },
-          "destinationType": {
-            "type": "string",
-            "enum": [
-              "WARD",
-              "COMMUNE"
-            ]
-          },
-          "destinationTypeResolution": {
-            "type": "string",
-            "enum": [
-              "AUTHORITATIVE",
-              "DESTINATION_TYPE_FALLBACK_COMMUNE"
-            ]
-          },
-          "totalItemQuantity": {
-            "type": "number",
-            "minimum": 1
-          },
-          "productWeightGram": {
-            "type": "number",
-            "minimum": 1
-          },
-          "packagingType": {
-            "type": "string",
-            "enum": [
-              "SINGLE_BOOK_BAG",
-              "SMALL_BOOK_BOX",
-              "MEDIUM_BOOK_BOX",
-              "LARGE_BOOK_BOX",
-              "BULK_BOOK_BOX"
-            ]
-          },
-          "packagingWeightGram": {
-            "type": "number",
-            "minimum": 1
-          },
-          "grossWeightGram": {
-            "type": "number",
-            "minimum": 1
-          },
-          "chargeableWeightGram": {
-            "type": "number",
-            "minimum": 500,
-            "maximum": 20000
-          },
-          "fuelSurcharge": {
-            "type": "number",
-            "minimum": 0
-          },
-          "ruleCode": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "shippingFee",
-          "serviceFee",
-          "insuranceFee",
-          "codFee",
-          "remoteAreaFee",
-          "quotedAt",
-          "expiresAt",
-          "requestFingerprint",
-          "shippingFeeRule",
-          "policyCode",
-          "policyVersion",
-          "routeType",
-          "destinationType",
-          "destinationTypeResolution",
-          "totalItemQuantity",
-          "productWeightGram",
-          "packagingType",
-          "packagingWeightGram",
-          "grossWeightGram",
-          "chargeableWeightGram",
-          "fuelSurcharge",
-          "ruleCode"
-        ]
-      },
       "CheckoutPreviewResponseDto": {
         "type": "object",
         "properties": {
+          "shippingProvider": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "GHN"
+            ]
+          },
+          "ghnEnabled": {
+            "type": "boolean"
+          },
+          "ghnShippingQuote": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GhnShippingQuoteDto"
+              }
+            ]
+          },
+          "internalShippingQuote": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShippingQuoteResponseDto"
+              }
+            ]
+          },
           "orderCouponDiscountAmount": {
             "type": "number"
           },
@@ -41593,7 +42034,8 @@
           "shippingMethodCode": {
             "type": "string",
             "enum": [
-              "STANDARD"
+              "STANDARD",
+              "GHN"
             ]
           },
           "totalAmount": {
@@ -41634,169 +42076,6 @@
           "note",
           "canPlaceOrder",
           "blockingIssues"
-        ]
-      },
-      "SavedAddressInputDto": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": [
-              "SAVED_ADDRESS"
-            ]
-          },
-          "customerAddressId": {
-            "type": "string",
-            "format": "ulid"
-          }
-        },
-        "required": [
-          "source",
-          "customerAddressId"
-        ]
-      },
-      "CurrentLocationAddressDto": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "enum": [
-              "CURRENT_LOCATION"
-            ]
-          },
-          "receiverName": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 100
-          },
-          "receiverPhone": {
-            "type": "string"
-          },
-          "addressLine": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 255
-          },
-          "provinceName": {
-            "type": "string"
-          },
-          "provinceCode": {
-            "type": "number"
-          },
-          "wardName": {
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "minimum": -90,
-            "maximum": 90
-          },
-          "longitude": {
-            "type": "number",
-            "minimum": -180,
-            "maximum": 180
-          },
-          "locationAccuracyMeters": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100000
-          },
-          "locationProvider": {
-            "type": "string",
-            "enum": [
-              "VIETMAP"
-            ]
-          },
-          "locationPlaceId": {
-            "type": "string",
-            "maxLength": 2048
-          },
-          "locationProof": {
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 4096
-          }
-        },
-        "required": [
-          "source",
-          "receiverName",
-          "receiverPhone",
-          "addressLine",
-          "provinceName",
-          "provinceCode",
-          "wardName",
-          "latitude",
-          "longitude",
-          "locationProof"
-        ]
-      },
-      "PreviewCheckoutDto": {
-        "type": "object",
-        "properties": {
-          "regularPriceCartItemIds": {
-            "maxItems": 50,
-            "description": "Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "couponCode": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 40,
-            "description": "Tra mã nhập tay, backend xác định loại và thay voucher cùng loại"
-          },
-          "orderCouponCode": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 40
-          },
-          "shippingCouponCode": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 40
-          },
-          "includeCoupons": {
-            "type": "boolean",
-            "description": "Liệt kê tối đa 100 voucher PUBLIC theo ngữ cảnh thanh toán"
-          },
-          "selectedCartItemIds": {
-            "minItems": 1,
-            "maxItems": 50,
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "ulid"
-            }
-          },
-          "address": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/SavedAddressInputDto"
-              },
-              {
-                "$ref": "#/components/schemas/CurrentLocationAddressDto"
-              }
-            ],
-            "discriminator": {
-              "propertyName": "source"
-            }
-          },
-          "paymentMethod": {
-            "type": "string",
-            "enum": [
-              "COD",
-              "VNPAY"
-            ]
-          },
-          "note": {
-            "type": "string",
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "selectedCartItemIds"
         ]
       },
       "CurrentLocationSuggestionDto": {
@@ -41952,6 +42231,19 @@
       "PlaceOrderDto": {
         "type": "object",
         "properties": {
+          "shippingProvider": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "GHN"
+            ],
+            "default": "INTERNAL"
+          },
+          "shippingQuoteReference": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 1024
+          },
           "regularPriceCartItemIds": {
             "maxItems": 50,
             "description": "Các CartItem khách xác nhận mua toàn bộ với giá catalog, không hưởng Flash Sale",
@@ -42346,6 +42638,18 @@
       "CustomerOrderResponseDto": {
         "type": "object",
         "properties": {
+          "shippingProvider": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "GHN"
+            ]
+          },
+          "estimatedDeliveryAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
           "orderCouponDiscountAmount": {
             "type": "number"
           },
@@ -43035,6 +43339,13 @@
       "AdminOrderDetailDto": {
         "type": "object",
         "properties": {
+          "shippingProvider": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "GHN"
+            ]
+          },
           "orderCouponDiscountAmount": {
             "type": "number"
           },

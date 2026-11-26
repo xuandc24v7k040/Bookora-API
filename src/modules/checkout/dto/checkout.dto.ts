@@ -17,6 +17,7 @@ import {
   Min,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import {
   ApiExtraModels,
@@ -32,6 +33,8 @@ import {
   OrderCouponSnapshotDto,
   normalizeCouponCode,
 } from '@/modules/coupons/coupons.dto';
+import { ShippingProvider } from '@/modules/shipping/shipping-provider';
+import { GhnShippingQuoteDto } from './ghn-quote.dto';
 
 const PHONE_PATTERN = /^(?:0\d{9}|\+84\d{9})$/;
 
@@ -149,6 +152,21 @@ export class CurrentLocationResolveDto {
 
 @ApiExtraModels(SavedAddressInputDto, CurrentLocationAddressDto)
 export class PreviewCheckoutDto {
+  @ApiPropertyOptional({
+    enum: ShippingProvider,
+    default: ShippingProvider.INTERNAL,
+  })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsEnum(ShippingProvider)
+  shippingProvider?: ShippingProvider;
+
+  @ApiPropertyOptional({ minLength: 20, maxLength: 1024 })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsString()
+  @MinLength(20)
+  @MaxLength(1024)
+  shippingQuoteReference?: string;
+
   @ApiPropertyOptional({
     type: [String],
     maxItems: 50,
@@ -384,6 +402,13 @@ export class ShippingQuoteResponseDto {
 }
 
 export class CheckoutPreviewResponseDto {
+  @ApiPropertyOptional({ enum: ShippingProvider })
+  shippingProvider?: ShippingProvider;
+  @ApiPropertyOptional() ghnEnabled?: boolean;
+  @ApiPropertyOptional({ type: GhnShippingQuoteDto, nullable: true })
+  ghnShippingQuote?: GhnShippingQuoteDto | null;
+  @ApiPropertyOptional({ type: ShippingQuoteResponseDto, nullable: true })
+  internalShippingQuote?: ShippingQuoteResponseDto | null;
   @ApiProperty() orderCouponDiscountAmount!: number;
   @ApiProperty() shippingCouponDiscountAmount!: number;
   @ApiProperty({ type: [OrderCouponSnapshotDto] })
@@ -423,8 +448,8 @@ export class CheckoutPreviewResponseDto {
     | 'FAR_REGION'
     | 'SPECIAL_STANDARD'
     | null;
-  @ApiProperty({ enum: ['STANDARD'] })
-  shippingMethodCode!: 'STANDARD';
+  @ApiProperty({ enum: ['STANDARD', 'GHN'] })
+  shippingMethodCode!: 'STANDARD' | 'GHN';
   @ApiProperty() totalAmount!: number;
   @ApiProperty({ nullable: true, type: String }) note!: string | null;
   @ApiProperty() canPlaceOrder!: boolean;
