@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  OrderStatus,
   Prisma,
   ProductMediaType,
   ProductStatus,
@@ -228,6 +227,19 @@ export class StorefrontCatalogRepository {
     });
   }
 
+  listHomeCandidates() {
+    return this.prisma.product.findMany({
+      where: publicProductVisibilityWhere,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        createdAt: true,
+        releaseDate: true,
+      },
+    });
+  }
+
   async listProductPage(query: PublicProductQueryDto, now: Date) {
     const searchMatches = query.q
       ? await this.searchProductMatches(query.q)
@@ -299,10 +311,21 @@ export class StorefrontCatalogRepository {
     if (!rankedIds.length) {
       return { records: [] as PublicSearchSuggestionRecord[], totalItems: 0 };
     }
-    const records = await this.prisma.product.findMany({
+    const visibleProducts = await this.prisma.product.findMany({
       where: {
         ...publicProductVisibilityWhere,
         id: { in: rankedIds },
+      },
+      select: { id: true },
+    });
+    const visibleIds = new Set(visibleProducts.map(({ id }) => id));
+    const selectedIds = rankedIds
+      .filter((id) => visibleIds.has(id))
+      .slice(0, limit);
+    const records = await this.prisma.product.findMany({
+      where: {
+        ...publicProductVisibilityWhere,
+        id: { in: selectedIds },
       },
       select: publicProductSelect,
     });
@@ -319,7 +342,7 @@ export class StorefrontCatalogRepository {
         isBestMatch: matchesById.get(product.id)?.isBestMatch ?? false,
         isBestSeller: matchesById.get(product.id)?.isBestSeller ?? false,
       })),
-      totalItems: records.length,
+      totalItems: visibleProducts.length,
     };
   }
 
@@ -648,19 +671,17 @@ export class StorefrontCatalogRepository {
   }
 
   async completedSalesByProduct(): Promise<Map<string, number>> {
-    const items = await this.prisma.orderItem.findMany({
-      where: { order: { status: OrderStatus.COMPLETED } },
-      select: { quantity: true, variant: { select: { productId: true } } },
-    });
-    const sales = new Map<string, number>();
-    for (const item of items) {
-      if (!item.variant) continue;
-      sales.set(
-        item.variant.productId,
-        (sales.get(item.variant.productId) ?? 0) + item.quantity,
-      );
-    }
-    return sales;
+    const rows = await this.prisma.$queryRaw<
+      Array<{ productId: string; quantity: bigint }>
+    >(Prisma.sql`
+      SELECT variant.product_id AS "productId", SUM(item.quantity)::bigint AS quantity
+      FROM order_items item
+      JOIN orders completed_order ON completed_order.id = item.order_id
+      JOIN product_variants variant ON variant.id = item.variant_id
+      WHERE completed_order.status = 'COMPLETED'
+      GROUP BY variant.product_id
+    `);
+    return new Map(rows.map((row) => [row.productId, Number(row.quantity)]));
   }
 
   async ratingAggregates(

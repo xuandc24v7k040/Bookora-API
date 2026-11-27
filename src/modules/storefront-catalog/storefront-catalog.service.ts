@@ -61,47 +61,57 @@ export class StorefrontCatalogService {
 
   async home() {
     const now = new Date();
-    const [records, completedSales] = await Promise.all([
-      this.repository.listProducts({}, now),
+    const [candidates, completedSales] = await Promise.all([
+      this.repository.listHomeCandidates(),
       this.repository.completedSalesByProduct(),
     ]);
+    const popular = this.sortPopular(candidates, completedSales).slice(0, 5);
+    const newest = [...candidates]
+      .sort(
+        (a, b) =>
+          b.createdAt.getTime() - a.createdAt.getTime() ||
+          b.id.localeCompare(a.id),
+      )
+      .slice(0, 5);
+    const upcoming = candidates
+      .filter(
+        (item) =>
+          item.releaseDate && item.releaseDate.getTime() > now.getTime(),
+      )
+      .sort(
+        (a, b) =>
+          (a.releaseDate?.getTime() ?? 0) - (b.releaseDate?.getTime() ?? 0) ||
+          a.id.localeCompare(b.id),
+      )
+      .slice(0, 3);
+    const selectedIds = [
+      ...new Set([...popular, ...newest, ...upcoming].map(({ id }) => id)),
+    ];
+    const records = selectedIds.length
+      ? await this.repository.listProductsByIds(selectedIds)
+      : [];
     const ratings = await this.repository.ratingAggregates(
       records.map((record) => record.id),
     );
-    const items = records.map((record) =>
-      this.toListItem(record, now, ratings),
+    const items = new Map(
+      records.map((record) => [
+        record.id,
+        this.toListItem(record, now, ratings),
+      ]),
     );
-    const popular = this.sortPopular(items, completedSales);
+    const section = (selected: Array<{ id: string }>): ListItem[] =>
+      selected.flatMap(({ id }) => {
+        const item = items.get(id);
+        return item ? [item] : [];
+      });
 
     return {
-      bestSellers: popular.slice(0, 5).map((item, index) => ({
+      bestSellers: section(popular).map((item, index) => ({
         ...item,
         rank: index + 1,
       })),
-      newest: [...items]
-        .sort((a, b) => {
-          const left =
-            records.find((record) => record.id === a.id)?.createdAt.getTime() ??
-            0;
-          const right =
-            records.find((record) => record.id === b.id)?.createdAt.getTime() ??
-            0;
-          return right - left || b.id.localeCompare(a.id);
-        })
-        .slice(0, 5),
-      upcoming: [...items]
-        .filter(
-          (item) =>
-            item.releaseDate &&
-            new Date(item.releaseDate).getTime() > now.getTime(),
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.releaseDate ?? 0).getTime() -
-              new Date(b.releaseDate ?? 0).getTime() ||
-            a.id.localeCompare(b.id),
-        )
-        .slice(0, 3),
+      newest: section(newest),
+      upcoming: section(upcoming),
     };
   }
 
@@ -391,10 +401,10 @@ export class StorefrontCatalogService {
     };
   }
 
-  private sortPopular(
-    items: ListItem[],
+  private sortPopular<T extends Pick<ListItem, 'id' | 'name' | 'slug'>>(
+    items: T[],
     sales: Map<string, number>,
-  ): ListItem[] {
+  ): T[] {
     const demoRank = new Map<string, number>(
       STOREFRONT_DEMO_POPULAR_SLUGS.map((slug, index) => [slug, index]),
     );

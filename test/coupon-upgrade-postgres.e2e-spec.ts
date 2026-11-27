@@ -37,7 +37,7 @@ describe('Coupon Upgrade real PostgreSQL transactions', () => {
     database = await createDisposablePostgresDatabase('coupons');
     for (const migration of readdirSync('prisma/migrations')
       .filter(
-        (name) => /^\d/.test(name) && name !== '20261117090000_coupon_upgrade',
+        (name) => /^\d/.test(name) && name < '20261117090000_coupon_upgrade',
       )
       .sort()) {
       await database.runSql(readMigrationSql(migration));
@@ -62,6 +62,13 @@ describe('Coupon Upgrade real PostgreSQL transactions', () => {
         'SELECT id, subtotal_amount, shipping_fee, total_amount FROM orders ORDER BY id',
       ),
     ).toEqual(legacy);
+    for (const migration of readdirSync('prisma/migrations')
+      .filter(
+        (name) => /^\d/.test(name) && name > '20261117090000_coupon_upgrade',
+      )
+      .sort()) {
+      await database.runSql(readMigrationSql(migration));
+    }
     prisma = new PrismaService({
       getOrThrow: () => database.databaseUrl,
       get: () => 'test',

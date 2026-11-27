@@ -93,6 +93,7 @@ describe('StorefrontCatalogService', () => {
   const repository = {
     listCategories: jest.fn(),
     listProducts: jest.fn(),
+    listHomeCandidates: jest.fn(),
     listProductPage: jest.fn(),
     listSearchSuggestions: jest.fn(),
     listProductsByIds: jest.fn(),
@@ -114,6 +115,86 @@ describe('StorefrontCatalogService', () => {
     repository.completedSalesByProduct.mockResolvedValue(new Map());
     repository.ratingAggregates.mockResolvedValue(new Map());
     repository.findPublicProductId.mockResolvedValue({ id });
+  });
+
+  it('ranks Home before hydration, preserves ties and resolves ratings only for selected products', async () => {
+    const records = Array.from({ length: 24 }, (_, index) =>
+      product({
+        id: String(index).padStart(26, '0'),
+        name: `Book ${String(index).padStart(2, '0')}`,
+        slug: `book-${index}`,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        releaseDate: index < 4 ? new Date('2100-01-01T00:00:00Z') : null,
+      }),
+    );
+    repository.listHomeCandidates.mockResolvedValue(records);
+    repository.completedSalesByProduct.mockResolvedValue(
+      new Map([
+        [records[7].id, 10],
+        [records[6].id, 10],
+      ]),
+    );
+    repository.listProductsByIds.mockImplementation((ids: string[]) =>
+      Promise.resolve(
+        records.filter((record) => ids.includes(record.id)).reverse(),
+      ),
+    );
+    repository.ratingAggregates.mockResolvedValue(
+      new Map([[records[6].id, { averageRating: 4.25, reviewCount: 4 }]]),
+    );
+
+    const result = await service.home();
+
+    expect(result.bestSellers.map((item) => item.id)).toEqual(
+      [6, 7, 0, 1, 2].map((index) => records[index].id),
+    );
+    expect(result.bestSellers.map((item) => item.rank)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
+    expect(result.bestSellers[0]).toMatchObject({
+      averageRating: 4.25,
+      reviewCount: 4,
+    });
+    expect(result.newest.map((item) => item.id)).toEqual(
+      [23, 22, 21, 20, 19].map((index) => records[index].id),
+    );
+    expect(result.upcoming.map((item) => item.id)).toEqual(
+      [0, 1, 2].map((index) => records[index].id),
+    );
+    const selected = new Set(
+      [...result.bestSellers, ...result.newest, ...result.upcoming].map(
+        ({ id }) => id,
+      ),
+    );
+    expect(selected.size).toBeLessThanOrEqual(13);
+    expect(new Set(repository.listProductsByIds.mock.calls[0][0])).toEqual(
+      selected,
+    );
+    expect(new Set(repository.ratingAggregates.mock.calls[0][0])).toEqual(
+      selected,
+    );
+    expect(repository.listProducts).not.toHaveBeenCalled();
+  });
+
+  it('keeps demo fallback ranking and handles an empty Home without hydration', async () => {
+    const fallback = [
+      product({ slug: 'nha-gia-kim' }),
+      product({ id: 'second', slug: 'dac-nhan-tam' }),
+    ];
+    repository.listHomeCandidates.mockResolvedValue(fallback);
+    repository.listProductsByIds.mockResolvedValue(fallback);
+    expect((await service.home()).bestSellers.map(({ slug }) => slug)).toEqual([
+      'dac-nhan-tam',
+      'nha-gia-kim',
+    ]);
+    repository.listHomeCandidates.mockResolvedValue([]);
+    repository.listProductsByIds.mockClear();
+    expect(await service.home()).toEqual({
+      bestSellers: [],
+      newest: [],
+      upcoming: [],
+    });
+    expect(repository.listProductsByIds).not.toHaveBeenCalled();
   });
 
   it('rejects an inverted price range with the public machine code', async () => {
