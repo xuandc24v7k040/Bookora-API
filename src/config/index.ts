@@ -9,6 +9,7 @@ import shippingConfig from './shipping.config';
 import paymentConfig from './payment.config';
 import mailConfig from './mail.config';
 import ghnConfig from './ghn.config';
+import aiConfig from './ai.config';
 
 export const configurations = [
   appConfig,
@@ -21,6 +22,7 @@ export const configurations = [
   paymentConfig,
   mailConfig,
   ghnConfig,
+  aiConfig,
 ];
 
 export {

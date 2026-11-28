@@ -8,6 +8,10 @@
     "tsConfigPath": "tsconfig.build.json",
     "assets": [
       {
+        "include": "modules/ai/model-files.json",
+        "outDir": "dist/src"
+      },
+      {
         "include": "**/*.proto",
         "watchAssets": true
       }

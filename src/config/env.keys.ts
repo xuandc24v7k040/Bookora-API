@@ -75,6 +75,7 @@ export const OPTIONAL_NUMBER_ENV_KEYS = [
 ] as const;
 
 export const OPTIONAL_BOOLEAN_ENV_KEYS = [
+  'SEMANTIC_SEARCH_ENABLED',
   'TURNSTILE_ENABLED',
   'GHN_ENABLED',
 ] as const;

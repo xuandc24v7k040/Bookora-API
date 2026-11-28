@@ -1,30 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import {
-  Prisma,
-  ProductMediaType,
-  ProductStatus,
-} from '@/generated/prisma/client';
+import { Injectable, Optional } from '@nestjs/common';
+import { Prisma, ProductMediaType } from '@/generated/prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import { StorefrontProductSort, type PublicProductQueryDto } from './dto';
 import { STOREFRONT_DEMO_POPULAR_SLUGS } from './storefront-catalog.constants';
-
-const activeCategoryWhere: Prisma.CategoryWhereInput = {
-  isActive: true,
-  OR: [{ parentId: null }, { parent: { is: { isActive: true } } }],
-};
-
-export const publicProductVisibilityWhere: Prisma.ProductWhereInput = {
-  status: ProductStatus.ACTIVE,
-  categories: { some: { category: activeCategoryWhere } },
-  variants: { some: { isActive: true, isDefault: true } },
-  media: {
-    some: {
-      variantId: null,
-      type: ProductMediaType.IMAGE,
-      isPrimary: true,
-    },
-  },
-};
+import { SemanticSearchService } from '@/modules/ai/semantic-search.service';
+import {
+  activeCategoryWhere,
+  publicProductVisibilityWhere,
+} from './storefront-product-visibility';
+export { publicProductVisibilityWhere } from './storefront-product-visibility';
 
 const publicMediaSelect = {
   id: true,
@@ -169,6 +153,7 @@ export interface PublicProductFacetItem {
 
 export interface PublicSearchMatch {
   id: string;
+  matchRank?: number;
   isBestMatch: boolean;
   isBestSeller: boolean;
 }
@@ -193,7 +178,10 @@ export interface PublicProductRatingAggregate {
 
 @Injectable()
 export class StorefrontCatalogRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly semantic?: SemanticSearchService,
+  ) {}
 
   listCategories() {
     return this.prisma.category.findMany({
@@ -240,11 +228,29 @@ export class StorefrontCatalogRepository {
     });
   }
 
-  async listProductPage(query: PublicProductQueryDto, now: Date) {
+  async listProductPage(
+    query: PublicProductQueryDto,
+    now: Date,
+    retry = 0,
+  ): Promise<{
+    records: PublicProductRecord[];
+    totalItems: number;
+    facets: PublicProductFacets;
+  }> {
     const searchMatches = query.q
-      ? await this.searchProductMatches(query.q)
+      ? await this.searchProductMatches(
+          query.q,
+          Boolean(this.semantic?.enabled),
+        )
       : null;
-    const rankedSearchIds = searchMatches?.map((match) => match.id) ?? null;
+    const hybridIds =
+      query.q && searchMatches && retry === 0
+        ? await this.semantic?.search(query.q, searchMatches)
+        : null;
+    const rankedSearchIds =
+      hybridIds ?? searchMatches?.map((match) => match.id) ?? null;
+    const recheckVisibility =
+      Boolean(query.q && this.semantic?.enabled) || retry > 0;
     if (rankedSearchIds && !rankedSearchIds.length) {
       return {
         records: [] as PublicProductRecord[],
@@ -291,11 +297,21 @@ export class StorefrontCatalogRepository {
           );
     const [records, facets] = await Promise.all([
       this.prisma.product.findMany({
-        where: { id: { in: orderedIds } },
+        where: recheckVisibility
+          ? { AND: [where, { id: { in: orderedIds } }] }
+          : { id: { in: orderedIds } },
         select: publicProductSelect,
       }),
       this.listFacets(matchingIds),
     ]);
+    if (recheckVisibility && records.length !== orderedIds.length) {
+      if (retry === 0) return this.listProductPage(query, now, 1);
+      return {
+        records: [] as PublicProductRecord[],
+        totalItems: 0,
+        facets: this.emptyFacets(),
+      };
+    }
     const position = new Map(orderedIds.map((id, index) => [id, index]));
     records.sort(
       (left, right) =>
@@ -710,6 +726,7 @@ export class StorefrontCatalogRepository {
 
   private async searchProductMatches(
     search: string,
+    includeRank = false,
   ): Promise<PublicSearchMatch[]> {
     const normalized = search.trim().replace(/\s+/gu, ' ');
     if (!normalized) return [];
@@ -844,6 +861,7 @@ export class StorefrontCatalogRepository {
     `);
     return rows.map((row) => ({
       id: row.id,
+      ...(includeRank ? { matchRank: row.matchRank } : {}),
       isBestMatch: row.matchRank <= 3,
       isBestSeller: row.isBestSeller,
     }));
